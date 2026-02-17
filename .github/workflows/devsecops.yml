@@ -20,12 +20,8 @@ jobs:
       - name: 📦 Install dependencies
         working-directory: ./juice-shop
         run: |
-          # Vérifier si package-lock.json existe
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+          echo "📦 Installation des dépendances..."
+          npm install
 
       - name: 🏗️ Build project
         working-directory: ./juice-shop
