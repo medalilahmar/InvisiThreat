@@ -1,0 +1,135 @@
+name: 🔒 DevSecOps Pipeline - OWASP Juice Shop
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  security:
+    name: 🔍 SAST + SCA + DAST + DefectDojo
+    runs-on: self-hosted
+
+    steps:
+      - name: 📥 Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: 📦 Installer les dépendances
+        run: npm ci
+
+      - name: 🏗️ Compiler le projet (TypeScript)
+        run: npm run build
+
+      - name: 📦 Installer jq (si nécessaire)
+        run: |
+          if command -v jq &> /dev/null; then
+            echo "✅ jq déjà installé: $(jq --version)"
+            exit 0
+          fi
+          # ... (script d'installation de jq)
+
+      - name: 🔍 SAST avec Semgrep
+        uses: returntocorp/semgrep-action@v1
+        continue-on-error: true
+        with:
+          config: p/security-audit   # règles génériques
+          # ou config: .semgrep.yml si vous avez un fichier perso
+
+      - name: 📦 Snyk SCA
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >
+            --severity-threshold=low
+            --json-file-output=snyk-results.json
+            --org=813196ac-406b-4dfe-8cc3-1f640d42d4fe
+
+      - name: 🚀 Démarrer Juice Shop en arrière-plan
+        run: |
+          echo "🚀 Démarrage de Juice Shop sur http://localhost:3000"
+          npm start &
+          echo $! > api.pid
+          sleep 15
+          for i in {1..10}; do
+            if curl -s -f http://localhost:3000/ > /dev/null; then
+              echo "✅ Juice Shop démarré"
+              exit 0
+            fi
+            echo "⏳ Tentative $i/10..."
+            sleep 3
+          done
+          echo "❌ Échec du démarrage"
+          exit 1
+
+      - name: 📋 DAST - Scan OpenAPI
+        run: |
+          docker run --rm \
+            --memory="2g" --cpus="2" --network host \
+            -v $(pwd):/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-api-scan.py \
+            -t http://localhost:3000 \
+            -f openapi \
+            -d swagger.yml \
+            -x zap-openapi.xml \
+            -J zap-openapi.json \
+            -T 120 || true
+        continue-on-error: true
+
+      - name: 🕷️ DAST - Spider Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        continue-on-error: true
+        with:
+          target: 'http://localhost:3000'
+          cmd_options: '-x zap-spider.xml -j -T 300'
+          allow_issue_writing: false
+
+      - name: ⚔️ DAST - Active Scan
+        uses: zaproxy/action-full-scan@v0.12.0
+        continue-on-error: true
+        with:
+          target: 'http://localhost:3000'
+          cmd_options: '-x zap-active.xml -a -j -T 60'
+          # rules_file_name: '.zap/rules.tsv'  # commentez si pas de fichier
+          allow_issue_writing: false
+
+      - name: 🔀 Consolider les rapports DAST
+        run: |
+          echo "[]" > zap-consolidated.json
+          if ls zap-*.json 1>/dev/null 2>&1; then
+            jq -s 'add' zap-*.json > zap-consolidated.json 2>/dev/null || echo "[]" > zap-consolidated.json
+          fi
+          # ... affichage des stats
+
+      - name: 📊 Générer rapport JSON Semgrep
+        run: semgrep --config p/security-audit --json --output semgrep-results.json || true
+
+      - name: 🛑 Arrêter Juice Shop
+        if: always()
+        run: |
+          if [ -f api.pid ]; then
+            kill $(cat api.pid) 2>/dev/null || true
+            rm -f api.pid
+          fi
+          pkill -f "node.*server.js" || true
+
+      - name: 📤 Upload des rapports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports-${{ github.sha }}
+          path: |
+            semgrep-results.json
+            snyk-results.json
+            zap-*.json
+
+      - name: 📤 Importer dans DefectDojo
+        env:
+          DD_URL: http://localhost:8080
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          ENGAGEMENT_ID=1   # à ajuster
+          # Imports Semgrep, Snyk, ZAP (XML)...
+          # (gardez le code d'import fourni précédemment)
