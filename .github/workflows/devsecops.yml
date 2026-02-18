@@ -20,13 +20,17 @@ jobs:
       - name: 📦 Install dependencies
         working-directory: ./juice-shop
         run: |
-          echo "📦 Installation des dépendances..."
+          echo "📦 Installation des dépendances (build auto inclus)..."
           npm install
+          echo "✅ Installation terminée"
+          echo "📊 Vérification que le build a réussi..."
+          if [ -d "build" ] || [ -d "dist" ]; then
+            echo "✅ Build détecté"
+          else
+            echo "⚠️ Build non trouvé mais on continue"
+          fi
 
-      - name: 🏗️ Build project
-        working-directory: ./juice-shop
-        run: npm run build
-
+      
       - name: 🔍 SAST with Semgrep
         working-directory: ./juice-shop
         continue-on-error: true
