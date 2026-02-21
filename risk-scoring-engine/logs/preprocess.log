@@ -1,0 +1,40 @@
+2026-02-21 17:11:08,302 [INFO] ============================================================
+2026-02-21 17:11:08,303 [INFO] 🧹 Prétraitement des données — AI Risk Engine
+2026-02-21 17:11:08,303 [INFO] ============================================================
+2026-02-21 17:11:08,326 [INFO] Findings bruts  : 321 lignes
+2026-02-21 17:11:08,327 [INFO] Produits        : 4 lignes
+2026-02-21 17:11:08,327 [INFO] Engagements     : 2 lignes
+2026-02-21 17:11:08,350 [INFO] age_days : médiane=5j, max clampé=10j
+2026-02-21 17:13:18,688 [INFO] ============================================================
+2026-02-21 17:13:18,688 [INFO] 🧹 Prétraitement des données — AI Risk Engine
+2026-02-21 17:13:18,689 [INFO] ============================================================
+2026-02-21 17:13:18,703 [INFO] Findings bruts  : 321 lignes
+2026-02-21 17:13:18,703 [INFO] Produits        : 4 lignes
+2026-02-21 17:13:18,703 [INFO] Engagements     : 2 lignes
+2026-02-21 17:13:18,710 [INFO] age_days : médiane=5j, max clampé=10j
+2026-02-21 17:13:18,722 [INFO] Cible ML : fixed_in_30d (couverture 100.0%)
+2026-02-21 17:13:18,722 [INFO] Distribution fixed_in_30d → positifs : 100.0%  |  négatifs : 0.0%
+2026-02-21 17:13:18,723 [INFO] Findings nettoyés : 321 lignes, 18 colonnes
+2026-02-21 17:13:18,731 [INFO] 💾 Sauvegardé : data\processed\findings_clean.csv (321 lignes)
+2026-02-21 17:13:18,734 [INFO] 📋 Rapport qualité : data\processed\data_report.json
+2026-02-21 17:13:18,735 [INFO] 
+🔍 Aperçu des 3 premières lignes :
+2026-02-21 17:13:18,738 [INFO] 
+   id           title  product_id  engagement_id  severity_num  cvss_score  age_days  has_cve  has_cwe  tags_count  is_false_positive  is_active  severity_x_active  product_fp_rate  cvss_severity_gap  composite_risk  days_to_fix  fixed_in_30d
+0   4  No-Console-Log           4              2             2         0.0        10        0        1           0                  0          0                  0           0.0031                2.0        0.613333            0             1
+1   6  No-Console-Log           4              2             2         0.0        10        0        1           0                  0          0                  0           0.0031                2.0        0.613333            0             1
+2   7  No-Console-Log           4              2             2         0.0        10        0        1           0                  0          0                  0           0.0031                2.0        0.613333            0             1
+2026-02-21 17:13:18,738 [INFO] 
+📊 Statistiques numériques :
+2026-02-21 17:13:18,756 [INFO] 
+            id  product_id  engagement_id  severity_num  cvss_score  age_days  has_cve  has_cwe  tags_count  is_false_positive  is_active  severity_x_active  product_fp_rate  cvss_severity_gap  composite_risk  days_to_fix  fixed_in_30d
+count  321.000       321.0          321.0       321.000     321.000    321.00    321.0    321.0     321.000            321.000    321.000            321.000          321.000            321.000         321.000        321.0         321.0
+mean   230.234         4.0            2.0         2.312       0.564      3.66      0.0      1.0       0.168              0.003      0.346              0.791            0.003              2.101           0.747          0.0           1.0
+std    113.336         0.0            0.0         0.760       1.774      2.42      0.0      0.0       0.527              0.056      0.476              1.211            0.000              0.954           0.287          0.0           0.0
+min      4.000         4.0            2.0         0.000       0.000      0.00      0.0      1.0       0.000              0.000      0.000              0.000            0.003              0.000           0.000          0.0           1.0
+25%    128.000         4.0            2.0         2.000       0.000      0.00      0.0      1.0       0.000              0.000      0.000              0.000            0.003              2.000           0.607          0.0           1.0
+50%    251.000         4.0            2.0         2.000       0.000      5.00      0.0      1.0       0.000              0.000      0.000              0.000            0.003              2.000           0.613          0.0           1.0
+75%    331.000         4.0            2.0         3.000       0.000      5.00      0.0      1.0       0.000              0.000      1.000              2.000            0.003              3.000           0.907          0.0           1.0
+max    411.000         4.0            2.0         3.000       7.500     10.00      0.0      1.0       2.000              1.000      1.000              3.000            0.003              3.000           1.547          0.0           1.0
+2026-02-21 17:13:18,756 [INFO] 
+✅ Prétraitement terminé avec succès.

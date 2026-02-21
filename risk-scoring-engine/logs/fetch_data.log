@@ -1,0 +1,38 @@
+2026-02-21 17:10:31,523 [INFO] ============================================================
+2026-02-21 17:10:31,524 [INFO] 📡 Récupération des données DefectDojo — AI Risk Engine
+2026-02-21 17:10:31,524 [INFO]    URL : http://192.168.11.170:8080
+2026-02-21 17:10:31,524 [INFO] ============================================================
+2026-02-21 17:10:31,614 [INFO] [products] Total récupéré : 4 éléments (1 page(s))
+2026-02-21 17:10:31,625 [INFO] 💾 Sauvegardé : data\raw\products.csv (4 lignes, 29 colonnes)
+2026-02-21 17:10:31,625 [INFO] 
+🔍 Produit 4 : Invisi
+2026-02-21 17:10:31,672 [INFO] [engagements/product=4] Total récupéré : 1 éléments (1 page(s))
+2026-02-21 17:10:33,754 [INFO] [findings/engagement=2] Total récupéré : 321 éléments (4 page(s))
+2026-02-21 17:10:33,754 [INFO]    ↳ Engagement 2 : 321 findings
+2026-02-21 17:10:33,754 [INFO]    Produit 4 total : 1 engagement(s), 321 finding(s)
+2026-02-21 17:10:33,755 [INFO] 
+🔍 Produit 2 : automation-hub
+2026-02-21 17:10:33,801 [INFO] [engagements/product=2] Total récupéré : 1 éléments (1 page(s))
+2026-02-21 17:10:35,854 [INFO] [findings/engagement=1] Total récupéré : 321 éléments (4 page(s))
+2026-02-21 17:10:35,854 [INFO]    ↳ Engagement 1 : 321 findings
+2026-02-21 17:10:35,854 [INFO]    Produit 2 total : 1 engagement(s), 321 finding(s)
+2026-02-21 17:10:35,854 [INFO] 
+🔍 Produit 3 : testdefectdojo
+2026-02-21 17:10:35,885 [INFO] [engagements/product=3] Total récupéré : 0 éléments (1 page(s))
+2026-02-21 17:10:35,885 [INFO]    Produit 3 total : 0 engagement(s), 0 finding(s)
+2026-02-21 17:10:35,885 [INFO] 
+🔍 Produit 1 : teste
+2026-02-21 17:10:35,916 [INFO] [engagements/product=1] Total récupéré : 0 éléments (1 page(s))
+2026-02-21 17:10:35,916 [INFO]    Produit 1 total : 0 engagement(s), 0 finding(s)
+2026-02-21 17:10:35,916 [WARNING] Doublons supprimés : 321 findings
+2026-02-21 17:10:35,916 [INFO] Findings uniques : 321
+2026-02-21 17:10:35,921 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (2 lignes, 39 colonnes)
+2026-02-21 17:10:35,942 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (321 lignes, 92 colonnes)
+2026-02-21 17:10:35,943 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-02-21 17:10:35,943 [INFO] 
+============================================================
+2026-02-21 17:10:35,943 [INFO] ✅ Collecte terminée avec succès
+2026-02-21 17:10:35,943 [INFO]    4 produits
+2026-02-21 17:10:35,944 [INFO]    2 engagements
+2026-02-21 17:10:35,944 [INFO]    321 findings uniques
+2026-02-21 17:10:35,944 [INFO] ============================================================
