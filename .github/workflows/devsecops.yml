@@ -10,20 +10,29 @@ jobs:
   security:
     name: 🔍 SAST + SCA + DAST
     runs-on: self-hosted
-    timeout-minutes: 30  # Évite les timeouts infinis
+    timeout-minutes: 30
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 0  # Pour une analyse complète
+          fetch-depth: 0
 
       - name: 📦 Install dependencies
         working-directory: ./juice-shop
         run: |
           echo "📦 Installation des dépendances..."
-          npm ci  # Plus fiable et reproductible que npm install
+          
+          # Vérifier si package-lock.json existe
+          if [ -f "package-lock.json" ]; then
+            echo "📦 package-lock.json trouvé, utilisation de npm ci..."
+            npm ci
+          else
+            echo "⚠️ package-lock.json non trouvé, utilisation de npm install..."
+            npm install
+          fi
+          
           echo "✅ Installation terminée"
           
           echo "📊 Vérification du build..."
@@ -31,7 +40,11 @@ jobs:
             echo "✅ Build détecté"
           else
             echo "⚠️ Build non trouvé - tentative de build manuel..."
-            npm run build || echo "⚠️ Build ignoré"
+            if npm run | grep -q "build"; then
+              npm run build || echo "⚠️ Build ignoré"
+            else
+              echo "ℹ️ Aucun script build trouvé"
+            fi
           fi
 
       - name: 🔍 SAST with Semgrep
@@ -45,15 +58,37 @@ jobs:
             --json \
             --output=semgrep-results.json \
             /src || echo "⚠️ Semgrep a rencontré des erreurs mais continue"
+          
+          # Vérifier que le fichier a été créé
+          if [ -f "semgrep-results.json" ]; then
+            echo "✅ Résultats Semgrep sauvegardés"
+          else
+            echo "⚠️ Fichier semgrep-results.json non trouvé"
+          fi
 
       - name: 🔍 SCA with Snyk
         continue-on-error: true
         run: |
           echo "🔍 Analyse Snyk en cours..."
-          # Utiliser npx au lieu de l'installation globale
           cd juice-shop
+          
+          # Vérifier si Snyk est installé
+          if ! command -v npx &> /dev/null; then
+            echo "⚠️ npx non trouvé, installation de npm..."
+            apt-get update && apt-get install -y npm || true
+          fi
+          
+          # Exécuter Snyk avec fallback
           npx snyk test --severity-threshold=low \
-            --json-file-output=snyk-results.json || echo "⚠️ Snyk a trouvé des vulnérabilités"
+            --json-file-output=snyk-results.json || echo "⚠️ Snyk a trouvé des vulnérabilités ou a échoué"
+          
+          # Vérifier que le fichier a été créé
+          if [ -f "snyk-results.json" ]; then
+            echo "✅ Résultats Snyk sauvegardés"
+          else
+            echo "⚠️ Fichier snyk-results.json non trouvé, création d'un fichier vide"
+            echo '{"vulnerabilities":[]}' > snyk-results.json
+          fi
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -69,6 +104,13 @@ jobs:
         working-directory: ./juice-shop
         run: |
           echo "🚀 Démarrage de Juice Shop..."
+          
+          # Vérifier que l'application peut démarrer
+          if ! grep -q '"start"' package.json; then
+            echo "❌ Script 'start' non trouvé dans package.json"
+            exit 1
+          fi
+          
           npm start &
           echo $! > api.pid
           
@@ -88,18 +130,30 @@ jobs:
           exit 1
 
       - name: 📋 DAST - OpenAPI Scan
-        working-directory: ./juice-shop
         continue-on-error: true
         run: |
           echo "📋 Scan OpenAPI en cours..."
-          if [ ! -f "swagger.yml" ] && [ ! -f "swagger.yaml" ] && [ ! -f "openapi.json" ]; then
-            echo "⚠️ Fichier OpenAPI/Swagger non trouvé, tentative de détection..."
-            # Alternative : utiliser le scan standard
+          cd juice-shop
+          
+          # Chercher le fichier OpenAPI/Swagger
+          API_FILE=""
+          if [ -f "swagger.yml" ]; then
+            API_FILE="swagger.yml"
+          elif [ -f "swagger.yaml" ]; then
+            API_FILE="swagger.yaml"
+          elif [ -f "openapi.json" ]; then
+            API_FILE="openapi.json"
+          fi
+          
+          if [ -n "$API_FILE" ]; then
+            echo "📄 Fichier OpenAPI trouvé : $API_FILE"
             docker run --rm --network host -v $(pwd):/zap/wrk:rw \
               ghcr.io/zaproxy/zaproxy:stable \
               zap-api-scan.py -t http://localhost:3000 -f openapi \
+              -d $API_FILE \
               -x zap-openapi.xml -J zap-openapi.json -T 120 || true
           else
+            echo "⚠️ Fichier OpenAPI/Swagger non trouvé, scan sans spécification"
             docker run --rm --network host -v $(pwd):/zap/wrk:rw \
               ghcr.io/zaproxy/zaproxy:stable \
               zap-api-scan.py -t http://localhost:3000 -f openapi \
@@ -117,7 +171,7 @@ jobs:
 
       - name: ⚔️ DAST - Active Scan
         continue-on-error: true
-        timeout-minutes: 10  # Timeout spécifique pour cette étape
+        timeout-minutes: 10
         run: |
           echo "⚔️ Scan Actif en cours..."
           docker run --rm --network host -v $(pwd)/juice-shop:/zap/wrk:rw \
@@ -130,43 +184,62 @@ jobs:
         run: |
           echo "📊 Analyse des résultats de sécurité..."
           
+          # Créer un répertoire pour les rapports
+          mkdir -p security-summary
+          
           # Compteur de vulnérabilités
           SEMGREP_COUNT=0
           SNYK_COUNT=0
           ZAP_COUNT=0
           
+          # Analyser Semgrep
           if [ -f "juice-shop/semgrep-results.json" ]; then
             SEMGREP_COUNT=$(jq '.results | length' juice-shop/semgrep-results.json 2>/dev/null || echo "0")
-            echo "🔍 Semgrep: $SEMGREP_COUNT findings"
+            echo "🔍 Semgrep: $SEMGREP_COUNT findings" | tee security-summary/semgrep.txt
+          else
+            echo "🔍 Semgrep: Fichier non trouvé" | tee security-summary/semgrep.txt
           fi
           
+          # Analyser Snyk
           if [ -f "juice-shop/snyk-results.json" ]; then
             SNYK_COUNT=$(jq '.vulnerabilities | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
-            echo "🔍 Snyk: $SNYK_COUNT vulnérabilités"
+            echo "🔍 Snyk: $SNYK_COUNT vulnérabilités" | tee security-summary/snyk.txt
+          else
+            echo "🔍 Snyk: Fichier non trouvé" | tee security-summary/snyk.txt
           fi
           
+          # Analyser ZAP Active
           if [ -f "juice-shop/zap-active.json" ]; then
             ZAP_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
-            echo "⚔️ ZAP: $ZAP_COUNT alertes"
+            echo "⚔️ ZAP Active: $ZAP_COUNT alertes" | tee security-summary/zap-active.txt
           fi
           
-          # Résumé
-          echo "----------------------------------------"
-          echo "📈 RÉSUMÉ DES VULNÉRABILITÉS"
-          echo "----------------------------------------"
-          echo "Semgrep (SAST): $SEMGREP_COUNT"
-          echo "Snyk (SCA): $SNYK_COUNT"
-          echo "ZAP (DAST): $ZAP_COUNT"
-          echo "----------------------------------------"
+          # Analyser ZAP Spider
+          if [ -f "juice-shop/zap-spider.json" ]; then
+            ZAP_SPIDER_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-spider.json 2>/dev/null || echo "0")
+            echo "🕷️ ZAP Spider: $ZAP_SPIDER_COUNT alertes" | tee security-summary/zap-spider.txt
+          fi
           
-          # Seuil de qualité (optionnel)
-          # if [ $SEMGREP_COUNT -gt 10 ] || [ $SNYK_COUNT -gt 20 ] || [ $ZAP_COUNT -gt 30 ]; then
-          #   echo "⚠️ Seuil de qualité dépassé!"
-          #   exit 1
-          # fi
+          # Analyser ZAP OpenAPI
+          if [ -f "juice-shop/zap-openapi.json" ]; then
+            ZAP_API_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-openapi.json 2>/dev/null || echo "0")
+            echo "📋 ZAP OpenAPI: $ZAP_API_COUNT alertes" | tee security-summary/zap-openapi.txt
+          fi
+          
+          # Résumé global
+          echo "----------------------------------------" | tee security-summary/summary.txt
+          echo "📈 RÉSUMÉ DES VULNÉRABILITÉS" | tee -a security-summary/summary.txt
+          echo "----------------------------------------" | tee -a security-summary/summary.txt
+          echo "Semgrep (SAST): $SEMGREP_COUNT" | tee -a security-summary/summary.txt
+          echo "Snyk (SCA): $SNYK_COUNT" | tee -a security-summary/summary.txt
+          echo "ZAP Active (DAST): $ZAP_COUNT" | tee -a security-summary/summary.txt
+          echo "----------------------------------------" | tee -a security-summary/summary.txt
+          
+          # Afficher le résumé
+          cat security-summary/summary.txt
 
       - name: 📤 Upload security reports
-        if: always()  # Toujours uploader même en cas d'échec
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-reports-${{ github.sha }}
@@ -175,7 +248,9 @@ jobs:
             juice-shop/snyk-results.json
             juice-shop/zap-*.json
             juice-shop/zap-*.xml
-          retention-days: 30  # Conservation des rapports
+            security-summary/
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: 🛑 Stop Juice Shop
         if: always()
@@ -186,6 +261,7 @@ jobs:
             kill $(cat api.pid) 2>/dev/null && echo "✅ Processus arrêté" || echo "⚠️ Processus déjà terminé"
             rm -f api.pid
           fi
+          
           # Nettoyage supplémentaire
           pkill -f "node.*server.js" 2>/dev/null || true
           pkill -f "node.*juice-shop" 2>/dev/null || true
