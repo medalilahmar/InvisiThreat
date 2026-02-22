@@ -32,6 +32,11 @@ jobs:
           chmod +x jq
           sudo mv jq /usr/local/bin/
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
       - name: Install dependencies
         working-directory: ./juice-shop
         run: |
@@ -47,11 +52,6 @@ jobs:
               npm run build || true
             fi
           fi
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
 
       - name: SAST with Semgrep
         working-directory: ./juice-shop
@@ -91,17 +91,21 @@ jobs:
         working-directory: ./juice-shop
         run: |
           if ! grep -q '"start"' package.json; then
+            echo "No 'start' script found, skipping API startup."
             exit 1
           fi
           npm start &
           echo $! > api.pid
-          MAX_RETRIES=15
+          MAX_RETRIES=30
           for i in $(seq 1 $MAX_RETRIES); do
             if curl -s -f http://localhost:3000/ > /dev/null; then
+              echo "API is up and running."
               exit 0
             fi
-            sleep 3
+            echo "Waiting for API... ($i/$MAX_RETRIES)"
+            sleep 5
           done
+          echo "API failed to start after $MAX_RETRIES attempts."
           exit 1
 
       - name: DAST - OpenAPI Scan
@@ -121,22 +125,22 @@ jobs:
               ghcr.io/zaproxy/zaproxy:stable \
               zap-api-scan.py -t http://localhost:3000 -f openapi \
               -d /zap/wrk/$API_FILE \
-              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 10 || true
+              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 120 || true
           else
             docker run --rm --network host -v $(pwd):/zap/wrk:rw \
               ghcr.io/zaproxy/zaproxy:stable \
               zap-api-scan.py -t http://localhost:3000 -f openapi \
-              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 10 || true
+              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 120 || true
           fi
 
       - name: DAST - Active Scan
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 60
         run: |
           docker run --rm --network host -v $(pwd)/juice-shop:/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-full-scan.py -t http://localhost:3000 \
-            -x /zap/wrk/zap-active.xml -J /zap/wrk/zap-active.json -T 8 || true
+            -x /zap/wrk/zap-active.xml -J /zap/wrk/zap-active.json -T 30 || true
 
       - name: Analyze and merge results
         continue-on-error: true
@@ -189,6 +193,79 @@ jobs:
             security-summary/
           retention-days: 30
           if-no-files-found: warn
+
+      - name: Import to DefectDojo
+        if: always()
+        continue-on-error: true
+        env:
+          DD_URL: ${{ secrets.DD_URL }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          ENGAGEMENT_ID: ${{ secrets.ENGAGEMENT_ID }}
+        run: |
+          if [ -z "$DD_URL" ] || [ -z "$DD_API_KEY" ] || [ -z "$ENGAGEMENT_ID" ]; then
+            echo "DefectDojo credentials not set, skipping import."
+            exit 0
+          fi
+
+          # Import Semgrep
+          if [ -f "juice-shop/semgrep-results.json" ]; then
+            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -F "engagement=$ENGAGEMENT_ID" \
+              -F "scan_type=Semgrep JSON Report" \
+              -F "file=@juice-shop/semgrep-results.json" \
+              -F "close_old_findings=true" \
+              -F "minimum_severity=Info" \
+              -F "environment=Development" \
+              -F "branch_tag=${{ github.ref_name }}" \
+              -F "commit_hash=${{ github.sha }}" \
+              -F "build_id=${{ github.run_id }}" || true
+          fi
+
+          # Import Snyk
+          if [ -f "juice-shop/snyk-results.json" ]; then
+            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -F "engagement=$ENGAGEMENT_ID" \
+              -F "scan_type=Snyk Scan" \
+              -F "file=@juice-shop/snyk-results.json" \
+              -F "close_old_findings=true" \
+              -F "minimum_severity=Info" \
+              -F "environment=Development" \
+              -F "branch_tag=${{ github.ref_name }}" \
+              -F "commit_hash=${{ github.sha }}" \
+              -F "build_id=${{ github.run_id }}" || true
+          fi
+
+          # Import ZAP OpenAPI XML
+          if [ -f "juice-shop/zap-openapi.xml" ]; then
+            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -F "engagement=$ENGAGEMENT_ID" \
+              -F "scan_type=ZAP Scan" \
+              -F "file=@juice-shop/zap-openapi.xml" \
+              -F "close_old_findings=true" \
+              -F "minimum_severity=Info" \
+              -F "environment=Development" \
+              -F "branch_tag=${{ github.ref_name }}" \
+              -F "commit_hash=${{ github.sha }}" \
+              -F "build_id=${{ github.run_id }}" || true
+          fi
+
+          # Import ZAP Active XML
+          if [ -f "juice-shop/zap-active.xml" ]; then
+            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -F "engagement=$ENGAGEMENT_ID" \
+              -F "scan_type=ZAP Scan" \
+              -F "file=@juice-shop/zap-active.xml" \
+              -F "close_old_findings=true" \
+              -F "minimum_severity=Info" \
+              -F "environment=Development" \
+              -F "branch_tag=${{ github.ref_name }}" \
+              -F "commit_hash=${{ github.sha }}" \
+              -F "build_id=${{ github.run_id }}" || true
+          fi
 
       - name: Stop Juice Shop
         if: always()
