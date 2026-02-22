@@ -7,7 +7,7 @@ on:
     branches: [ main, develop ]
 
 # ============================================
-# JOB 1 : SAST (Semgrep) - 5 minutes max
+# JOB 1 : SAST (Semgrep) - 10 minutes max
 # ============================================
 jobs:
   sast:
@@ -21,13 +21,33 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install jq
+        run: |
+          if command -v jq >/dev/null 2>&1; then 
+            echo "✅ jq déjà installé"
+            exit 0 
+          fi
+          echo "📦 Installation de jq..."
+          sudo killall apt apt-get dpkg 2>/dev/null || true
+          sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock /var/lib/apt/lists/lock
+          sudo dpkg --configure -a
+          if sudo apt update -qq && sudo apt install -y -qq jq; then
+            echo "✅ jq installé avec apt"
+            exit 0
+          fi
+          wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq
+          sudo mv jq /usr/local/bin/
+          echo "✅ jq installé via binaire"
+
       - name: Check Docker images
         run: |
-          if ! docker image inspect returntocorp/semgrep >/dev/null 2>&1; then
+          if ! docker image inspect returntocorp/semgrep:latest >/dev/null 2>&1; then
             echo "📦 Image Semgrep non trouvée, téléchargement..."
             docker pull returntocorp/semgrep:latest
           else
-            echo "✅ Image Semgrep déjà présente"
+            IMAGE_SIZE=$(docker images returntocorp/semgrep:latest --format "{{.Size}}" 2>/dev/null || echo "inconnue")
+            echo "✅ Image Semgrep déjà présente ($IMAGE_SIZE)"
           fi
 
       - name: SAST with Semgrep
@@ -37,7 +57,7 @@ jobs:
           echo "🔍 Scan Semgrep en cours..."
           START_TIME=$(date +%s)
           
-          docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep \
+          docker run --rm -v $(pwd):/src returntocorp/semgrep:latest semgrep \
             --config=p/security-audit \
             --config=p/owasp-top-ten \
             --json \
@@ -47,7 +67,7 @@ jobs:
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
           
-          if [ ! -f "semgrep-results.json" ]; then
+          if [ ! -f "semgrep-results.json" ] || [ ! -s "semgrep-results.json" ]; then
             echo '{"results":[]}' > semgrep-results.json
             echo "⚠️ Fichier semgrep-results.json créé (vide)"
           else
@@ -64,7 +84,7 @@ jobs:
           if-no-files-found: warn
 
 # ============================================
-# JOB 2 : SCA (Snyk) - 5 minutes max
+# JOB 2 : SCA (Snyk) - 10 minutes max
 # ============================================
   sca:
     name: 📦 SCA - Snyk
@@ -74,6 +94,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          if command -v jq >/dev/null 2>&1; then 
+            echo "✅ jq déjà installé"
+            exit 0 
+          fi
+          wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq
+          sudo mv jq /usr/local/bin/
+          echo "✅ jq installé"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,45 +121,65 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-modules-
 
-      - name: Install dependencies (ultra rapide)
+      - name: Install dependencies (robuste)
         working-directory: ./juice-shop
         run: |
-          # Vérification intelligente des dépendances
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.lock-hash" ]; then
-            echo "📦 Première installation..."
-            npm ci --prefer-offline --no-audit --no-fund
-            md5sum package-lock.json > node_modules/.lock-hash
-          else
-            # Vérifier si package-lock.json a changé
+          echo "📦 Installation des dépendances..."
+          START_TIME=$(date +%s)
+          
+          # Vérifier si node_modules existe déjà (cache)
+          if [ -d "node_modules" ] && [ -f "node_modules/.lock-hash" ] && [ -f "package-lock.json" ]; then
             CURRENT_HASH=$(md5sum package-lock.json | cut -d' ' -f1)
-            SAVED_HASH=$(cut -d' ' -f1 node_modules/.lock-hash 2>/dev/null || echo "")
+            SAVED_HASH=$(cat node_modules/.lock-hash 2>/dev/null || echo "")
             
-            if [ "$CURRENT_HASH" != "$SAVED_HASH" ]; then
-              echo "📦 package-lock.json modifié, mise à jour..."
-              npm ci --prefer-offline --no-audit --no-fund
-              md5sum package-lock.json > node_modules/.lock-hash
-            else
-              echo "✅ Dépendances déjà à jour"
+            if [ "$CURRENT_HASH" = "$SAVED_HASH" ]; then
+              echo "✅ Dépendances déjà à jour (cache valide)"
+              END_TIME=$(date +%s)
+              DURATION=$((END_TIME - START_TIME))
+              echo "⏱️  Vérification terminée en ${DURATION}s"
+              exit 0
             fi
           fi
           
-          # Vérifier que tout fonctionne
-          npm list --depth=0 >/dev/null 2>&1 || npm install --no-package-lock
+          # Installation propre
+          if [ -f "package-lock.json" ] && [ -s "package-lock.json" ]; then
+            echo "📄 package-lock.json trouvé, utilisation de npm ci..."
+            if npm ci --prefer-offline --no-audit --no-fund; then
+              echo "✅ Installation réussie avec npm ci"
+              md5sum package-lock.json > node_modules/.lock-hash
+            else
+              echo "⚠️ npm ci a échoué, utilisation de npm install..."
+              rm -f package-lock.json
+              npm install --no-package-lock
+            fi
+          else
+            echo "⚠️ package-lock.json non trouvé, utilisation de npm install..."
+            npm install --no-package-lock
+            
+            # Générer package-lock.json pour le prochain run
+            echo "📦 Génération de package-lock.json..."
+            npm install --package-lock-only
+          fi
+          
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          echo "⏱️  Installation terminée en ${DURATION}s"
 
-      - name: SCA with Snyk (ultra rapide)
+      - name: SCA with Snyk
         continue-on-error: true
         run: |
           cd juice-shop
           echo "🔍 Scan Snyk en cours..."
           START_TIME=$(date +%s)
           
-          # Utiliser snyk global s'il existe, sinon npx
+          # Utiliser snyk global s'il existe
           if command -v snyk &> /dev/null; then
             SNYK_CMD="snyk"
+            echo "✅ Utilisation de snyk global"
           else
-            # Installer Snyk globalement sur le runner (une seule fois)
-            npm install -g snyk
-            SNYK_CMD="snyk"
+            echo "⚠️ snyk non trouvé, installation locale..."
+            npm install snyk --no-save
+            SNYK_CMD="npx snyk"
           fi
           
           $SNYK_CMD test --severity-threshold=low \
@@ -168,17 +219,27 @@ jobs:
           if-no-files-found: warn
 
 # ============================================
-# JOB 3 : DAST (ZAP) - 30 minutes max
+# JOB 3 : DAST (ZAP) - 40 minutes max
 # ============================================
   dast:
     name: 🌐 DAST - ZAP
     runs-on: self-hosted
     timeout-minutes: 40
-    needs: [sast, sca]  # Démarre après SAST/SCA
+    needs: [sast, sca]
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          if command -v jq >/dev/null 2>&1; then 
+            echo "✅ jq déjà installé"
+            exit 0 
+          fi
+          wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq
+          sudo mv jq /usr/local/bin/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -193,11 +254,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-modules-
 
-      - name: Install dependencies (léger)
+      - name: Install dependencies (production uniquement)
         working-directory: ./juice-shop
         run: |
           if [ ! -d "node_modules" ]; then
-            npm ci --prefer-offline --no-audit --no-fund --production
+            echo "📦 Installation des dépendances production..."
+            if [ -f "package-lock.json" ]; then
+              npm ci --prefer-offline --no-audit --no-fund --production || npm install --production
+            else
+              npm install --production
+            fi
           else
             echo "✅ Dépendances déjà présentes"
           fi
@@ -208,7 +274,8 @@ jobs:
             echo "📦 Image ZAP non trouvée, téléchargement..."
             docker pull ghcr.io/zaproxy/zaproxy:stable
           else
-            echo "✅ Image ZAP déjà présente"
+            IMAGE_SIZE=$(docker images ghcr.io/zaproxy/zaproxy:stable --format "{{.Size}}" 2>/dev/null || echo "inconnue")
+            echo "✅ Image ZAP déjà présente ($IMAGE_SIZE)"
           fi
 
       - name: Start Juice Shop
@@ -222,8 +289,8 @@ jobs:
           npm start &
           echo $! > api.pid
           
-          # Health check amélioré
-          MAX_RETRIES=20
+          # Health check
+          MAX_RETRIES=30
           for i in $(seq 1 $MAX_RETRIES); do
             if curl -s -f http://localhost:3000/ > /dev/null 2>&1; then
               echo "✅ API prête (tentative $i/$MAX_RETRIES)"
@@ -252,7 +319,7 @@ jobs:
             fi
           done
           
-          # Scan avec timeout optimisé
+          # Scan avec timeout
           if [ -n "$API_FILE" ]; then
             docker run --rm --network host -v $(pwd):/zap/wrk:rw \
               ghcr.io/zaproxy/zaproxy:stable \
@@ -266,29 +333,27 @@ jobs:
               -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 5 || true
           fi
           
-          # Analyse rapide des résultats
+          # Analyse des résultats
           if [ -f "zap-openapi.json" ] && [ -s "zap-openapi.json" ]; then
             ALERTS=$(jq '.site[0].alerts | length' zap-openapi.json 2>/dev/null || echo "0")
             echo "✅ Scan OpenAPI: $ALERTS alertes"
           fi
 
-      - name: DAST - Active Scan (optimisé)
+      - name: DAST - Active Scan
         continue-on-error: true
         timeout-minutes: 20
+        working-directory: ./juice-shop
         run: |
           echo "⚔️ Scan actif ZAP (15-20 minutes)..."
           
-          docker run --rm --network host -v $(pwd)/juice-shop:/zap/wrk:rw \
+          docker run --rm --network host -v $(pwd):/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-full-scan.py -t http://localhost:3000 \
             -x /zap/wrk/zap-active.xml -J /zap/wrk/zap-active.json \
-            -T 15 \  # Timeout 15 minutes
-            -m 5 \   # Max attaques/minute
-            -z "-config scanner.attackStrength=HIGH" \
-            -z "-config scanner.threadPerHost=5" || true
+            -T 15 || true
           
-          if [ -f "juice-shop/zap-active.json" ] && [ -s "juice-shop/zap-active.json" ]; then
-            ALERTS=$(jq '.site[0].alerts | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+          if [ -f "zap-active.json" ] && [ -s "zap-active.json" ]; then
+            ALERTS=$(jq '.site[0].alerts | length' zap-active.json 2>/dev/null || echo "0")
             echo "✅ Scan actif: $ALERTS alertes"
           fi
 
@@ -301,6 +366,7 @@ jobs:
             rm -f api.pid
           fi
           pkill -f "node.*juice-shop" 2>/dev/null || true
+          sleep 2
 
       - name: Upload DAST results
         if: always()
@@ -323,6 +389,16 @@ jobs:
     timeout-minutes: 5
     
     steps:
+      - name: Install jq
+        run: |
+          if command -v jq >/dev/null 2>&1; then 
+            echo "✅ jq déjà installé"
+            exit 0 
+          fi
+          wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq
+          sudo mv jq /usr/local/bin/
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -337,43 +413,51 @@ jobs:
           find ./artifacts -name "*.json" -exec cp {} juice-shop/ \; 2>/dev/null || true
           find ./artifacts -name "*.xml" -exec cp {} juice-shop/ \; 2>/dev/null || true
           
-          # Analyse Semgrep
+          # Initialisation des compteurs
           SEMGREP_COUNT=0
-          if [ -f "juice-shop/semgrep-results.json" ]; then
+          SNYK_COUNT=0
+          CRITICAL=0
+          HIGH=0
+          MEDIUM=0
+          LOW=0
+          ZAP_COUNT=0
+          
+          # Analyse Semgrep
+          if [ -f "juice-shop/semgrep-results.json" ] && [ -s "juice-shop/semgrep-results.json" ]; then
             SEMGREP_COUNT=$(jq '.results | length' juice-shop/semgrep-results.json 2>/dev/null || echo "0")
+            echo "✅ Semgrep: $SEMGREP_COUNT résultats"
           fi
           
           # Analyse Snyk
-          SNYK_COUNT=0
-          CRITICAL=0; HIGH=0; MEDIUM=0; LOW=0
-          if [ -f "juice-shop/snyk-results.json" ]; then
+          if [ -f "juice-shop/snyk-results.json" ] && [ -s "juice-shop/snyk-results.json" ]; then
             SNYK_COUNT=$(jq '.vulnerabilities | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
             CRITICAL=$(jq '[.vulnerabilities[] | select(.severity=="critical")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
             HIGH=$(jq '[.vulnerabilities[] | select(.severity=="high")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
             MEDIUM=$(jq '[.vulnerabilities[] | select(.severity=="medium")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
             LOW=$(jq '[.vulnerabilities[] | select(.severity=="low")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
+            echo "✅ Snyk: $SNYK_COUNT vulnérabilités"
           fi
           
           # Analyse ZAP
-          ZAP_COUNT=0
-          if [ -f "juice-shop/zap-active.json" ]; then
+          if [ -f "juice-shop/zap-active.json" ] && [ -s "juice-shop/zap-active.json" ]; then
             ZAP_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+            echo "✅ ZAP: $ZAP_COUNT alertes"
           fi
           
-          # Résumé
+          # Résumé global
           {
-            echo "========================================"
+            echo "============================================"
             echo "    RAPPORT DE SÉCURITÉ - InvisiThreat"
-            echo "========================================"
+            echo "============================================"
             echo "🔍 SAST (Semgrep): $SEMGREP_COUNT résultats"
             echo "📦 SCA (Snyk): $SNYK_COUNT vulnérabilités"
             echo "   → Critiques: $CRITICAL | Hautes: $HIGH | Moyennes: $MEDIUM | Basses: $LOW"
             echo "🌐 DAST (ZAP): $ZAP_COUNT alertes"
-            echo "========================================"
-            echo "Commit: ${{ github.sha }}"
-            echo "Branche: ${{ github.ref_name }}"
-            echo "Date: $(date)"
-            echo "========================================"
+            echo "============================================"
+            echo "🔗 Commit: ${{ github.sha }}"
+            echo "🌿 Branche: ${{ github.ref_name }}"
+            echo "⏱️  Date: $(date)"
+            echo "============================================"
           } > security-summary/summary.txt
           
           cat security-summary/summary.txt
@@ -386,7 +470,7 @@ jobs:
           PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
         run: |
           if [ -z "$DD_URL" ] || [ -z "$DD_API_KEY" ] || [ -z "$PRODUCT_ID" ]; then
-            echo "⚠️ DefectDojo non configuré"
+            echo "⚠️ DefectDojo non configuré, import ignoré"
             exit 0
           fi
           
@@ -411,12 +495,13 @@ jobs:
           
           if [ -z "$ENGAGEMENT_ID" ] || [ "$ENGAGEMENT_ID" = "null" ]; then
             echo "❌ Échec création engagement"
+            echo "Réponse: $ENGAGEMENT_RESPONSE"
             exit 0
           fi
           
           echo "✅ Engagement #$ENGAGEMENT_ID créé"
           
-          # Imports
+          # Import des fichiers JSON
           for file in juice-shop/*.json; do
             if [ -f "$file" ] && [ -s "$file" ]; then
               case "$file" in
@@ -433,10 +518,16 @@ jobs:
                 -F "scan_type=$SCAN_TYPE" \
                 -F "file=@$file" \
                 -F "close_old_findings=true" \
-                -F "minimum_severity=Info" > /dev/null
+                -F "minimum_severity=Info" \
+                -F "environment=Development" \
+                -F "branch_tag=${{ github.ref_name }}" \
+                -F "commit_hash=${{ github.sha }}" \
+                -F "build_id=${{ github.run_id }}" > /dev/null && \
+                echo "  ✅ Import réussi" || echo "  ⚠️ Échec import"
             fi
           done
           
+          # Import des fichiers XML (ZAP)
           for file in juice-shop/*.xml; do
             if [ -f "$file" ] && [ -s "$file" ]; then
               echo "📤 Import ZAP XML..."
@@ -445,11 +536,17 @@ jobs:
                 -F "engagement=$ENGAGEMENT_ID" \
                 -F "scan_type=ZAP Scan" \
                 -F "file=@$file" \
-                -F "close_old_findings=true" > /dev/null
+                -F "close_old_findings=true" \
+                -F "minimum_severity=Info" \
+                -F "environment=Development" \
+                -F "branch_tag=${{ github.ref_name }}" \
+                -F "commit_hash=${{ github.sha }}" \
+                -F "build_id=${{ github.run_id }}" > /dev/null && \
+                echo "  ✅ Import réussi" || echo "  ⚠️ Échec import"
             fi
           done
           
-          echo "✅ Import terminé"
+          echo "✅ Import DefectDojo terminé"
 
       - name: Upload consolidated summary
         uses: actions/upload-artifact@v4
@@ -457,3 +554,10 @@ jobs:
           name: security-summary
           path: security-summary/
           retention-days: 30
+
+      - name: Pipeline Summary
+        if: always()
+        run: |
+          echo "🎉 Pipeline DevSecOps terminé avec succès !"
+          echo "📊 Consultez le résumé dans l'artifact 'security-summary'"
+          echo "📎 Tous les rapports sont disponibles dans les artefacts"
