@@ -180,16 +180,23 @@ jobs:
 
     - name: 🕷️ DAST - Spider Scan
       continue-on-error: true
+      timeout-minutes: 30
       working-directory: ./juice-shop
       run: |
-        echo "🕷️ Spider Scan avec ZAP..."
+        echo "🕷️ Spider Scan avec ZAP (max 20 minutes)..."
+    
         docker run --rm --network host -v $(pwd):/zap/wrk:rw \
           ghcr.io/zaproxy/zaproxy:stable \
           zap-baseline.py \
           -t http://localhost:3000 \
           -x /zap/wrk/zap-spider.xml \
           -J /zap/wrk/zap-spider.json \
-          -T 10 || true
+          -T 20 \
+          -m 2 || echo "⚠️ Scan terminé"
+    
+        echo "🔍 Vérification des conteneurs restants..."
+        docker ps -a | grep zaproxy || echo "✅ Aucun conteneur ZAP restant"
+
 
     - name: 💾 Sauvegarder rapport Spider
       working-directory: ./juice-shop
@@ -288,8 +295,8 @@ jobs:
       if: always()
       continue-on-error: true
       env:
-        DD_URL: ${{ secrets.DD_URL }}
-        DD_API_KEY: ${{ secrets.DD_API_KEY }}
+        DD_URL: http://localhost:8080
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
         PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
       run: |
         ENGAGEMENT_ID=1
