@@ -10,8 +10,7 @@ jobs:
   security:
     name: SAST + SCA + DAST
     runs-on: self-hosted
-    timeout-minutes: 30
-
+    timeout-minutes: 120  
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,34 +20,57 @@ jobs:
 
       - name: Install jq
         run: |
-          if command -v jq >/dev/null 2>&1; then exit 0; fi
+          if command -v jq >/dev/null 2>&1; then 
+            echo "✅ jq déjà installé"
+            exit 0 
+          fi
+          echo "📦 Installation de jq..."
           sudo killall apt apt-get dpkg 2>/dev/null || true
           sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock /var/lib/apt/lists/lock
           sudo dpkg --configure -a
           if sudo apt update -qq && sudo apt install -y -qq jq; then
+            echo "✅ jq installé avec apt"
             exit 0
           fi
           wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
           chmod +x jq
           sudo mv jq /usr/local/bin/
+          echo "✅ jq installé via binaire"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: juice-shop/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('juice-shop/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         working-directory: ./juice-shop
         run: |
-          if [ -f "package-lock.json" ]; then
-            npm ci
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.install-complete" ]; then
+            echo "📦 Installation des dépendances..."
+            if [ -f "package-lock.json" ]; then
+              npm ci
+            else
+              npm install
+            fi
+            touch node_modules/.install-complete
           else
-            npm install
+            echo "✅ Dépendances déjà installées (cache)"
           fi
+          
+          # Vérifier s'il y a une étape de build
           if [ -d "build" ] || [ -d "dist" ]; then
-            echo "Build detected"
+            echo "📦 Build détecté"
           else
             if npm run | grep -q "build"; then
+              echo "🔨 Exécution du build..."
               npm run build || true
             fi
           fi
@@ -57,24 +79,44 @@ jobs:
         working-directory: ./juice-shop
         continue-on-error: true
         run: |
+          echo "🔍 Scan Semgrep en cours..."
           docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep \
             --config=p/security-audit \
             --config=p/owasp-top-ten \
             --json \
             --output=semgrep-results.json \
             /src || true
+          
           if [ ! -f "semgrep-results.json" ]; then
             echo '{"results":[]}' > semgrep-results.json
+            echo "⚠️ Fichier semgrep-results.json créé (vide)"
+          else
+            COUNT=$(jq '.results | length' semgrep-results.json)
+            echo "✅ Semgrep terminé : $COUNT résultats trouvés"
           fi
 
       - name: SCA with Snyk
         continue-on-error: true
         run: |
           cd juice-shop
+          echo "🔍 Scan Snyk en cours..."
+          
+          # Installer Snyk localement si nécessaire
+          if ! command -v snyk &> /dev/null && [ ! -d "node_modules/snyk" ]; then
+            npm install snyk --no-save
+          fi
+          
           npx snyk test --severity-threshold=low \
             --json-file-output=snyk-results.json || true
+          
           if [ ! -f "snyk-results.json" ]; then
             echo '{"vulnerabilities":[]}' > snyk-results.json
+            echo "⚠️ Fichier snyk-results.json créé (vide)"
+          else
+            if [ -s "snyk-results.json" ]; then
+              COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
+              echo "✅ Snyk terminé : $COUNT vulnérabilités trouvées"
+            fi
           fi
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -83,6 +125,7 @@ jobs:
         continue-on-error: true
         run: |
           cd juice-shop
+          echo "📊 Envoi des données à Snyk Monitor..."
           npx snyk monitor || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -91,93 +134,190 @@ jobs:
         working-directory: ./juice-shop
         run: |
           if ! grep -q '"start"' package.json; then
-            echo "No 'start' script found, skipping API startup."
+            echo "❌ Script 'start' non trouvé dans package.json"
             exit 1
           fi
+          
+          echo "🚀 Démarrage de Juice Shop sur http://localhost:3000"
           npm start &
           echo $! > api.pid
+          
           MAX_RETRIES=30
           for i in $(seq 1 $MAX_RETRIES); do
-            if curl -s -f http://localhost:3000/ > /dev/null; then
-              echo "API is up and running."
+            if curl -s -f http://localhost:3000/ > /dev/null 2>&1; then
+              echo "✅ API démarrée avec succès (tentative $i/$MAX_RETRIES)"
               exit 0
             fi
-            echo "Waiting for API... ($i/$MAX_RETRIES)"
+            echo "⏳ Attente du démarrage de l'API... ($i/$MAX_RETRIES)"
             sleep 5
           done
-          echo "API failed to start after $MAX_RETRIES attempts."
+          
+          echo "❌ Échec du démarrage de l'API après $MAX_RETRIES tentatives"
           exit 1
 
       - name: DAST - OpenAPI Scan
         continue-on-error: true
         run: |
           cd juice-shop
+          echo "🕷️ Scan OpenAPI avec ZAP..."
+          
+          # Détection automatique du fichier OpenAPI
           API_FILE=""
           if [ -f "swagger.yml" ]; then
             API_FILE="swagger.yml"
+            echo "📄 Fichier OpenAPI trouvé: swagger.yml"
           elif [ -f "swagger.yaml" ]; then
             API_FILE="swagger.yaml"
+            echo "📄 Fichier OpenAPI trouvé: swagger.yaml"
           elif [ -f "openapi.json" ]; then
             API_FILE="openapi.json"
+            echo "📄 Fichier OpenAPI trouvé: openapi.json"
+          elif [ -f "swagger.json" ]; then
+            API_FILE="swagger.json"
+            echo "📄 Fichier OpenAPI trouvé: swagger.json"
+          else
+            echo "⚠️ Aucun fichier OpenAPI trouvé, scan sans spécification"
           fi
+          
           if [ -n "$API_FILE" ]; then
             docker run --rm --network host -v $(pwd):/zap/wrk:rw \
               ghcr.io/zaproxy/zaproxy:stable \
               zap-api-scan.py -t http://localhost:3000 -f openapi \
               -d /zap/wrk/$API_FILE \
-              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 120 || true
+              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 10 || true
           else
             docker run --rm --network host -v $(pwd):/zap/wrk:rw \
               ghcr.io/zaproxy/zaproxy:stable \
               zap-api-scan.py -t http://localhost:3000 -f openapi \
-              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 120 || true
+              -x /zap/wrk/zap-openapi.xml -J /zap/wrk/zap-openapi.json -T 10 || true
+          fi
+          
+          # Vérification des résultats
+          if [ -f "zap-openapi.json" ]; then
+            if [ -s "zap-openapi.json" ]; then
+              ALERTS=$(jq '.site[0].alerts | length' zap-openapi.json 2>/dev/null || echo "0")
+              echo "✅ Scan OpenAPI terminé : $ALERTS alertes trouvées"
+            else
+              echo "⚠️ Fichier zap-openapi.json vide"
+            fi
+          else
+            echo "⚠️ Fichier zap-openapi.json non généré"
           fi
 
       - name: DAST - Active Scan
         continue-on-error: true
-        timeout-minutes: 60
+        timeout-minutes: 30
         run: |
+          echo "⚔️ Scan actif avec ZAP (peut prendre jusqu'à 30 minutes)..."
+          
+          # Créer le répertoire de sortie s'il n'existe pas
+          mkdir -p juice-shop
+          
           docker run --rm --network host -v $(pwd)/juice-shop:/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-full-scan.py -t http://localhost:3000 \
-            -x /zap/wrk/zap-active.xml -J /zap/wrk/zap-active.json -T 30 || true
+            -x /zap/wrk/zap-active.xml -J /zap/wrk/zap-active.json -T 20 || true
+          
+          # Vérification des résultats
+          if [ -f "juice-shop/zap-active.json" ]; then
+            if [ -s "juice-shop/zap-active.json" ]; then
+              ALERTS=$(jq '.site[0].alerts | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+              echo "✅ Scan actif terminé : $ALERTS alertes trouvées"
+            else
+              echo "⚠️ Fichier zap-active.json vide"
+            fi
+          else
+            echo "⚠️ Fichier zap-active.json non généré"
+          fi
 
       - name: Analyze and merge results
         continue-on-error: true
         run: |
+          echo "📊 Analyse et consolidation des résultats..."
           mkdir -p security-summary
-          SEMGREP_COUNT=0
-          SNYK_COUNT=0
-          ZAP_COUNT=0
+          
+          # Semgrep
           if [ -f "juice-shop/semgrep-results.json" ]; then
             SEMGREP_COUNT=$(jq '.results | length' juice-shop/semgrep-results.json 2>/dev/null || echo "0")
             echo "Semgrep: $SEMGREP_COUNT findings" > security-summary/semgrep.txt
+            echo "✅ Semgrep: $SEMGREP_COUNT résultats"
           else
             echo "Semgrep: File not found" > security-summary/semgrep.txt
+            echo "⚠️ Semgrep: fichier non trouvé"
+            SEMGREP_COUNT=0
           fi
+          
+          # Snyk
           if [ -f "juice-shop/snyk-results.json" ]; then
-            SNYK_COUNT=$(jq '.vulnerabilities | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
-            echo "Snyk: $SNYK_COUNT vulnerabilities" > security-summary/snyk.txt
+            if [ -s "juice-shop/snyk-results.json" ]; then
+              SNYK_COUNT=$(jq '.vulnerabilities | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
+              echo "Snyk: $SNYK_COUNT vulnerabilities" > security-summary/snyk.txt
+              echo "✅ Snyk: $SNYK_COUNT vulnérabilités"
+              
+              # Analyse par sévérité
+              CRITICAL=$(jq '[.vulnerabilities[] | select(.severity=="critical")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
+              HIGH=$(jq '[.vulnerabilities[] | select(.severity=="high")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
+              MEDIUM=$(jq '[.vulnerabilities[] | select(.severity=="medium")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
+              LOW=$(jq '[.vulnerabilities[] | select(.severity=="low")] | length' juice-shop/snyk-results.json 2>/dev/null || echo "0")
+            else
+              echo "Snyk: 0 vulnerabilities" > security-summary/snyk.txt
+              SNYK_COUNT=0
+            fi
           else
             echo "Snyk: File not found" > security-summary/snyk.txt
+            echo "⚠️ Snyk: fichier non trouvé"
+            SNYK_COUNT=0
           fi
+          
+          # ZAP Active
+          ZAP_COUNT=0
           if [ -f "juice-shop/zap-active.json" ]; then
-            ZAP_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
-            echo "ZAP Active: $ZAP_COUNT alerts" > security-summary/zap-active.txt
+            if [ -s "juice-shop/zap-active.json" ]; then
+              ZAP_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+              echo "ZAP Active: $ZAP_COUNT alerts" > security-summary/zap-active.txt
+              echo "✅ ZAP Active: $ZAP_COUNT alertes"
+              
+              # Analyse par risque
+              CRITICAL_ZAP=$(jq '[.site[0].alerts[] | select(.riskcode=="3")] | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+              HIGH_ZAP=$(jq '[.site[0].alerts[] | select(.riskcode=="2")] | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+              MEDIUM_ZAP=$(jq '[.site[0].alerts[] | select(.riskcode=="1")] | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+              LOW_ZAP=$(jq '[.site[0].alerts[] | select(.riskcode=="0")] | length' juice-shop/zap-active.json 2>/dev/null || echo "0")
+            fi
+          else
+            echo "ZAP Active: No file" > security-summary/zap-active.txt
           fi
+          
+          # ZAP OpenAPI
+          ZAP_API_COUNT=0
           if [ -f "juice-shop/zap-openapi.json" ]; then
-            ZAP_API_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-openapi.json 2>/dev/null || echo "0")
-            echo "ZAP OpenAPI: $ZAP_API_COUNT alerts" > security-summary/zap-openapi.txt
+            if [ -s "juice-shop/zap-openapi.json" ]; then
+              ZAP_API_COUNT=$(jq '.site[0].alerts | length' juice-shop/zap-openapi.json 2>/dev/null || echo "0")
+              echo "ZAP OpenAPI: $ZAP_API_COUNT alerts" > security-summary/zap-openapi.txt
+            fi
           fi
+          
+          # Résumé global
           {
-            echo "----------------------------------------"
-            echo "VULNERABILITY SUMMARY"
-            echo "----------------------------------------"
-            echo "Semgrep (SAST): $SEMGREP_COUNT"
-            echo "Snyk (SCA): $SNYK_COUNT"
-            echo "ZAP Active (DAST): $ZAP_COUNT"
-            echo "----------------------------------------"
+            echo "========================================"
+            echo "    RAPPORT DE SÉCURITÉ - InvisiThreat"
+            echo "========================================"
+            echo "Semgrep (SAST): $SEMGREP_COUNT résultats"
+            echo "Snyk (SCA): $SNYK_COUNT vulnérabilités"
+            if [ -n "$CRITICAL" ]; then
+              echo "  → Critiques: $CRITICAL | Hautes: $HIGH | Moyennes: $MEDIUM | Basses: $LOW"
+            fi
+            echo "ZAP Active (DAST): $ZAP_COUNT alertes"
+            if [ -n "$CRITICAL_ZAP" ]; then
+              echo "  → Critiques: $CRITICAL_ZAP | Hautes: $HIGH_ZAP | Moyennes: $MEDIUM_ZAP | Basses: $LOW_ZAP"
+            fi
+            echo "ZAP OpenAPI: $ZAP_API_COUNT alertes"
+            echo "========================================"
+            echo "Commit: ${{ github.sha }}"
+            echo "Branche: ${{ github.ref_name }}"
+            echo "Date: $(date)"
+            echo "========================================"
           } > security-summary/summary.txt
+          
           cat security-summary/summary.txt
 
       - name: Upload security reports
@@ -200,83 +340,156 @@ jobs:
         env:
           DD_URL: ${{ secrets.DD_URL }}
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          ENGAGEMENT_ID: ${{ secrets.ENGAGEMENT_ID }}
+          PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
         run: |
-          if [ -z "$DD_URL" ] || [ -z "$DD_API_KEY" ] || [ -z "$ENGAGEMENT_ID" ]; then
-            echo "DefectDojo credentials not set, skipping import."
+          if [ -z "$DD_URL" ] || [ -z "$DD_API_KEY" ] || [ -z "$PRODUCT_ID" ]; then
+            echo "⚠️ DefectDojo credentials not set, skipping import."
             exit 0
           fi
-
+          
+          echo "📤 Import des résultats dans DefectDojo..."
+          
+          # Créer un engagement pour ce build
+          ENGAGEMENT_NAME="Scan-$(date +%Y%m%d-%H%M%S)-${{ github.sha }}"
+          echo "Création de l'engagement: $ENGAGEMENT_NAME"
+          
+          ENGAGEMENT_RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/engagements/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "'"$ENGAGEMENT_NAME"'",
+              "product": '"$PRODUCT_ID"',
+              "target_start": "'$(date +%Y-%m-%d)'",
+              "target_end": "'$(date -d "+30 days" +%Y-%m-%d)'",
+              "status": "In Progress",
+              "branch_tag": "'"${{ github.ref_name }}"'",
+              "build_id": "'"${{ github.run_id }}"'",
+              "commit_hash": "'"${{ github.sha }}"'",
+              "source_code_management_uri": "https://github.com/${{ github.repository }}"
+            }')
+          
+          ENGAGEMENT_ID=$(echo "$ENGAGEMENT_RESPONSE" | jq -r '.id // empty')
+          
+          if [ -z "$ENGAGEMENT_ID" ] || [ "$ENGAGEMENT_ID" = "null" ]; then
+            echo "❌ Échec de création de l'engagement"
+            echo "Réponse: $ENGAGEMENT_RESPONSE"
+            exit 0
+          fi
+          
+          echo "✅ Engagement créé avec ID: $ENGAGEMENT_ID"
+          
           # Import Semgrep
-          if [ -f "juice-shop/semgrep-results.json" ]; then
-            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+          if [ -f "juice-shop/semgrep-results.json" ] && [ -s "juice-shop/semgrep-results.json" ]; then
+            echo "📤 Import Semgrep..."
+            RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/import-scan/" \
               -H "Authorization: Token $DD_API_KEY" \
               -F "engagement=$ENGAGEMENT_ID" \
               -F "scan_type=Semgrep JSON Report" \
               -F "file=@juice-shop/semgrep-results.json" \
               -F "close_old_findings=true" \
               -F "minimum_severity=Info" \
-              -F "environment=Development" \
-              -F "branch_tag=${{ github.ref_name }}" \
-              -F "commit_hash=${{ github.sha }}" \
-              -F "build_id=${{ github.run_id }}" || true
+              -F "environment=Development")
+            
+            if echo "$RESPONSE" | grep -q "id"; then
+              echo "  ✅ Semgrep importé"
+            else
+              echo "  ⚠️ Échec import Semgrep: $RESPONSE"
+            fi
+          else
+            echo "⚠️ Fichier semgrep-results.json non trouvé ou vide"
           fi
-
+          
           # Import Snyk
-          if [ -f "juice-shop/snyk-results.json" ]; then
-            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+          if [ -f "juice-shop/snyk-results.json" ] && [ -s "juice-shop/snyk-results.json" ]; then
+            echo "📤 Import Snyk..."
+            RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/import-scan/" \
               -H "Authorization: Token $DD_API_KEY" \
               -F "engagement=$ENGAGEMENT_ID" \
               -F "scan_type=Snyk Scan" \
               -F "file=@juice-shop/snyk-results.json" \
               -F "close_old_findings=true" \
               -F "minimum_severity=Info" \
-              -F "environment=Development" \
-              -F "branch_tag=${{ github.ref_name }}" \
-              -F "commit_hash=${{ github.sha }}" \
-              -F "build_id=${{ github.run_id }}" || true
+              -F "environment=Development")
+            
+            if echo "$RESPONSE" | grep -q "id"; then
+              echo "  ✅ Snyk importé"
+            else
+              echo "  ⚠️ Échec import Snyk: $RESPONSE"
+            fi
+          else
+            echo "⚠️ Fichier snyk-results.json non trouvé ou vide"
           fi
-
-          # Import ZAP OpenAPI XML
-          if [ -f "juice-shop/zap-openapi.xml" ]; then
-            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+          
+          # Import ZAP OpenAPI
+          if [ -f "juice-shop/zap-openapi.xml" ] && [ -s "juice-shop/zap-openapi.xml" ]; then
+            echo "📤 Import ZAP OpenAPI..."
+            RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/import-scan/" \
               -H "Authorization: Token $DD_API_KEY" \
               -F "engagement=$ENGAGEMENT_ID" \
               -F "scan_type=ZAP Scan" \
               -F "file=@juice-shop/zap-openapi.xml" \
               -F "close_old_findings=true" \
               -F "minimum_severity=Info" \
-              -F "environment=Development" \
-              -F "branch_tag=${{ github.ref_name }}" \
-              -F "commit_hash=${{ github.sha }}" \
-              -F "build_id=${{ github.run_id }}" || true
+              -F "environment=Development")
+            
+            if echo "$RESPONSE" | grep -q "id"; then
+              echo "  ✅ ZAP OpenAPI importé"
+            else
+              echo "  ⚠️ Échec import ZAP OpenAPI: $RESPONSE"
+            fi
           fi
-
-          # Import ZAP Active XML
-          if [ -f "juice-shop/zap-active.xml" ]; then
-            curl -s -X POST "$DD_URL/api/v2/import-scan/" \
+          
+          # Import ZAP Active
+          if [ -f "juice-shop/zap-active.xml" ] && [ -s "juice-shop/zap-active.xml" ]; then
+            echo "📤 Import ZAP Active..."
+            RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/import-scan/" \
               -H "Authorization: Token $DD_API_KEY" \
               -F "engagement=$ENGAGEMENT_ID" \
               -F "scan_type=ZAP Scan" \
               -F "file=@juice-shop/zap-active.xml" \
               -F "close_old_findings=true" \
               -F "minimum_severity=Info" \
-              -F "environment=Development" \
-              -F "branch_tag=${{ github.ref_name }}" \
-              -F "commit_hash=${{ github.sha }}" \
-              -F "build_id=${{ github.run_id }}" || true
+              -F "environment=Development")
+            
+            if echo "$RESPONSE" | grep -q "id"; then
+              echo "  ✅ ZAP Active importé"
+            else
+              echo "  ⚠️ Échec import ZAP Active: $RESPONSE"
+            fi
           fi
+          
+          echo "✅ Import DefectDojo terminé pour l'engagement #$ENGAGEMENT_ID"
 
       - name: Stop Juice Shop
         if: always()
         working-directory: ./juice-shop
         run: |
+          echo "🛑 Arrêt de Juice Shop..."
+          
           if [ -f api.pid ]; then
-            kill $(cat api.pid) 2>/dev/null || true
+            PID=$(cat api.pid)
+            if kill -0 $PID 2>/dev/null; then
+              kill $PID 2>/dev/null || true
+              echo "✅ Processus arrêté (PID: $PID)"
+            fi
             rm -f api.pid
           fi
+          
+          # Nettoyage supplémentaire
           pkill -f "node.*server.js" 2>/dev/null || true
           pkill -f "node.*juice-shop" 2>/dev/null || true
+          
+          # Force kill si nécessaire
           if pgrep -f "node.*juice-shop" > /dev/null; then
+            echo "⚠️ Force kill des processus restants..."
             pgrep -f "node.*juice-shop" | xargs kill -9 2>/dev/null || true
           fi
+          
+          echo "✅ Nettoyage terminé"
+
+      - name: Pipeline Summary
+        if: always()
+        run: |
+          echo "🎉 Pipeline DevSecOps terminé !"
+          echo "📊 Consultez le résumé dans security-summary/summary.txt"
+          echo "📎 Les rapports sont disponibles dans les artefacts"
