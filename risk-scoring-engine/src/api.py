@@ -7,18 +7,16 @@ from typing import Optional
 
 MODEL_PATH = os.getenv('MODEL_PATH', 'models/rf_model.pkl')
 
-# Chargement du modèle
 try:
     model = joblib.load(MODEL_PATH)
-    print(f"✅ Modèle chargé depuis {MODEL_PATH}")
+    print(f" Modèle chargé depuis {MODEL_PATH}")
 except Exception as e:
-    print(f"❌ Erreur chargement modèle : {e}")
+    print(f" Erreur chargement modèle : {e}")
     model = None
 
 app = FastAPI(title="Risk Scoring Engine", version="1.0.0")
 
 class FindingInput(BaseModel):
-    # Features obligatoires
     severity_num: int
     cvss_score: float
     age_days: int
@@ -27,7 +25,6 @@ class FindingInput(BaseModel):
     tags_count: int
     is_false_positive: int
     is_active: int
-    # Contexte optionnel (non utilisé pour la prédiction mais pour logging)
     product_id: Optional[int] = None
     engagement_id: Optional[int] = None
 
@@ -63,7 +60,6 @@ def predict(data: FindingInput):
         raise HTTPException(status_code=503, detail="Model not available")
 
     try:
-        # Convertir en DataFrame avec l'ordre des features attendu
         feature_order = [
             'severity_num', 'cvss_score', 'age_days', 'has_cve', 'has_cwe',
             'tags_count', 'is_false_positive', 'is_active'
@@ -74,7 +70,6 @@ def predict(data: FindingInput):
         score = model.predict(X)[0]
         score = round(float(score), 2)
 
-        # Niveau de risque
         if score >= 8:
             level = "Critical"
         elif score >= 6:
@@ -95,4 +90,3 @@ def predict(data: FindingInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Pour lancer : uvicorn src.api:app --reload
