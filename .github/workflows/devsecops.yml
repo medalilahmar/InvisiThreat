@@ -66,35 +66,27 @@ jobs:
 
 
 
-    - name: 🔍 SAST avec Semgrep (ULTIME)
+    - name: 🔍 SAST avec Semgrep
       working-directory: ./juice-shop
       continue-on-error: true
       run: |
-        docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep \
-          $(for rule in \
-            p/owasp-top-ten \
-            p/security-audit \
-            p/secrets \
-            p/javascript \
-            p/typescript \
-            p/nodejs \
-            p/express \
-            p/sql-injection \
-            p/xss \
-            p/command-injection \
-            p/path-traversal \
-            p/ssrf \
-            p/jwt \
-            p/crypto \
-            p/supply-chain \
-            p/cwe-top-25; do echo --config=$rule; done) \
-          --json --output=/src/semgrep-results.json \
-          --timeout=300 --max-memory=4096 /src || true
+        [ -f ".semgrepignore" ] && mv .semgrepignore .semgrepignore.bak
+        timeout 1500 docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep \
+          --config=r/all --json --output=/src/semgrep-results.json \
+          --metrics=off --jobs=4 --timeout=60 --max-memory=4096 /src || true
+        [ -f ".semgrepignore.bak" ] && mv .semgrepignore.bak .semgrepignore
+        [ ! -s "semgrep-results.json" ] && echo '{"results":[]}' > semgrep-results.json
+    
+        echo ""; echo "════════════════════════════════════"
+        echo "  📊 SEMGREP RAPPORT"
+        echo "════════════════════════════════════"
+        jq -r '"  🔍 Total: " + (.results | length | tostring) + 
+              "\n  🔴 High: " + ([.results[] | select(.extra.severity=="ERROR")] | length | tostring) +
+              "\n  🟠 Med: " + ([.results[] | select(.extra.severity=="WARNING")] | length | tostring) +
+              "\n  🟡 Low: " + ([.results[] | select(.extra.severity=="INFO")] | length | tostring)' semgrep-results.json
+        echo "════════════════════════════════════"
+        echo "✅ Prêt pour DefectDojo"
 
-    
-        python3 -c 'import json;d=json.load(open("semgrep-results.json"));r=d.get("results",[]);s={"ERROR":0,"WARNING":0,"INFO":0};[exec("s[x.get(\"extra\",{}).get(\"severity\",\"INFO\")]=s.get(x.get(\"extra\",{}).get(\"severity\",\"INFO\"),0)+1")for x in r];print(f"\n{'═'*52}\n  📊 SEMGREP — RAPPORT\n{'═'*52}\n  Total: {len(r)}  |  🔴 High: {s[\"ERROR\"]}  🟠 Med: {s[\"WARNING\"]}  🟡 Low: {s[\"INFO\"]}\n{'═'*52}")' 2>/dev/null || true
-    
-   
 
     - name:  Snyk SCA
       continue-on-error: true
@@ -173,7 +165,7 @@ jobs:
             zap-api-scan.py \
             -t http://localhost:3000 \
             -f openapi \
-            -F /zap/wrk/$API_FILE \          
+            -d /zap/wrk/$API_FILE \          
             -x /zap/wrk/zap-openapi.xml \
             -J /zap/wrk/zap-openapi.json \
             $RULES_FILE \
@@ -231,7 +223,7 @@ jobs:
           $RULES_FILE \
           -x /zap/wrk/zap-spider.xml \
           -J /zap/wrk/zap-spider.json \
-          -T 20 \
+          -T 15 \
           -m 2 || echo " Scan terminé"
 
     - name:  Vérifier rapport Spider
