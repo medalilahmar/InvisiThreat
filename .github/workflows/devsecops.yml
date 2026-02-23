@@ -64,28 +64,38 @@ jobs:
           npm install
         fi
 
-    
-    - name:  SAST avec Semgrep
+
+
+    - name: 🔍 SAST avec Semgrep (ULTIME)
       working-directory: ./juice-shop
       continue-on-error: true
       run: |
-        echo " Scan Semgrep en cours..."
         docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep \
-          --config=p/security-audit \
-          --config=p/owasp-top-ten \
-          --json \
-          --output=semgrep-results.json \
-          /src || true
+          $(for rule in \
+            p/owasp-top-ten \
+            p/security-audit \
+            p/secrets \
+            p/javascript \
+            p/typescript \
+            p/nodejs \
+            p/express \
+            p/sql-injection \
+            p/xss \
+            p/command-injection \
+            p/path-traversal \
+            p/ssrf \
+            p/jwt \
+            p/crypto \
+            p/supply-chain \
+            p/cwe-top-25; do echo --config=$rule; done) \
+          --json --output=/src/semgrep-results.json \
+          --timeout=300 --max-memory=4096 /src || true
 
-        if [ ! -f "semgrep-results.json" ]; then
-          echo '{"results":[]}' > semgrep-results.json
-          echo " Fichier semgrep-results.json créé (vide)"
-        else
-          COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo "0")
-          echo " Semgrep terminé : $COUNT résultats trouvés"
-        fi
-
+    
+        python3 -c 'import json;d=json.load(open("semgrep-results.json"));r=d.get("results",[]);s={"ERROR":0,"WARNING":0,"INFO":0};[exec("s[x.get(\"extra\",{}).get(\"severity\",\"INFO\")]=s.get(x.get(\"extra\",{}).get(\"severity\",\"INFO\"),0)+1")for x in r];print(f"\n{'═'*52}\n  📊 SEMGREP — RAPPORT\n{'═'*52}\n  Total: {len(r)}  |  🔴 High: {s[\"ERROR\"]}  🟠 Med: {s[\"WARNING\"]}  🟡 Low: {s[\"INFO\"]}\n{'═'*52}")' 2>/dev/null || true
+    
    
+
     - name:  Snyk SCA
       continue-on-error: true
       working-directory: ./juice-shop
@@ -136,15 +146,23 @@ jobs:
 
   
     - name:  DAST - Scan OpenAPI
-      continue-on-error: true
       working-directory: ./juice-shop
+      continue-on-error: true
       run: |
         echo " Scan OpenAPI avec ZAP..."
+    
+        if [ -f ".zap/rules.tsv" ]; then
+          echo "📋 Utilisation des règles: .zap/rules.tsv"
+          RULES_FILE="-c .zap/rules.tsv"
+        else
+          RULES_FILE=""
+        fi
+    
         API_FILE=""
         for file in swagger.yml swagger.yaml openapi.json swagger.json; do
           if [ -f "$file" ]; then
             API_FILE="$file"
-            echo " Fichier OpenAPI trouvé: $file"
+            echo "✅ Fichier OpenAPI trouvé: $file"
             break
           fi
         done
@@ -155,11 +173,13 @@ jobs:
             zap-api-scan.py \
             -t http://localhost:3000 \
             -f openapi \
-            -d /zap/wrk/$API_FILE \
+            -F /zap/wrk/$API_FILE \          
             -x /zap/wrk/zap-openapi.xml \
             -J /zap/wrk/zap-openapi.json \
+            $RULES_FILE \
             -T 30 || true
         else
+          echo "⚠️ Aucun fichier OpenAPI trouvé, scan sans spécification"
           docker run --rm --network host -v $(pwd):/zap/wrk:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-api-scan.py \
@@ -167,16 +187,25 @@ jobs:
             -f openapi \
             -x /zap/wrk/zap-openapi.xml \
             -J /zap/wrk/zap-openapi.json \
+            $RULES_FILE \
             -T 30 || true
         fi
 
     - name:  Vérifier rapport OpenAPI
       working-directory: ./juice-shop
       run: |
-        if   [ -f zap-openapi.json ]; then echo " zap-openapi.json trouvé"
-        elif [ -f zap_out.json ];     then cp zap_out.json zap-openapi.json; echo " Renommé en zap-openapi.json"
-        elif [ -f report_json.json ]; then cp report_json.json zap-openapi.json; echo " Renommé en zap-openapi.json"
-        else echo " Aucun rapport OpenAPI trouvé"; echo "[]" > zap-openapi.json
+        if [ -f zap-openapi.json ]; then 
+          echo "✅ zap-openapi.json trouvé"
+          echo "Taille: $(stat -c%s zap-openapi.json 2>/dev/null || stat -f%z zap-openapi.json 2>/dev/null) octets"
+        elif [ -f zap_out.json ]; then 
+          cp zap_out.json zap-openapi.json
+          echo "✅ Renommé zap_out.json en zap-openapi.json"
+        elif [ -f report_json.json ]; then 
+          cp report_json.json zap-openapi.json
+          echo "✅ Renommé report_json.json en zap-openapi.json"
+        else 
+          echo "⚠️ Aucun rapport OpenAPI trouvé"
+          echo "[]" > zap-openapi.json
         fi
 
     - name:  DAST - Spider Scan
@@ -184,24 +213,40 @@ jobs:
       timeout-minutes: 30
       working-directory: ./juice-shop
       run: |
-        echo " Spider Scan avec ZAP (max 20 minutes)..."
+        echo " Spider Scan avec règles personnalisées..."
+    
+        if [ -f ".zap/rules.tsv" ]; then
+          echo "📋 Utilisation du fichier de règles: .zap/rules.tsv"
+          echo "Règles configurées:"
+          grep "IGNORE" .zap/rules.tsv | head -5
+          RULES_FILE="-c .zap/rules.tsv"
+        else
+          RULES_FILE=""
+        fi
+    
         docker run --rm --network host -v $(pwd):/zap/wrk:rw \
           ghcr.io/zaproxy/zaproxy:stable \
           zap-baseline.py \
           -t http://localhost:3000 \
+          $RULES_FILE \
           -x /zap/wrk/zap-spider.xml \
           -J /zap/wrk/zap-spider.json \
           -T 20 \
           -m 2 || echo " Scan terminé"
-        docker ps -a | grep zaproxy || echo " Aucun conteneur ZAP restant"
 
     - name:  Vérifier rapport Spider
       working-directory: ./juice-shop
       run: |
-        if   [ -f zap-spider.json ]; then echo " zap-spider.json trouvé"
-        elif [ -f zap-out.json ];    then cp zap-out.json zap-spider.json; echo " Renommé en zap-spider.json"
-        else echo " Aucun rapport Spider trouvé"; echo "[]" > zap-spider.json
+        if [ -f zap-spider.json ]; then 
+          echo "✅ zap-spider.json trouvé"
+        elif [ -f zap-out.json ]; then 
+          cp zap-out.json zap-spider.json
+          echo "✅ Renommé zap-out.json en zap-spider.json"
+        else 
+          echo "⚠️ Aucun rapport Spider trouvé"
+          echo "[]" > zap-spider.json
         fi
+
 
     - name:  DAST - Active Scan
       continue-on-error: true
@@ -209,20 +254,34 @@ jobs:
       working-directory: ./juice-shop
       run: |
         echo " Scan actif avec ZAP (peut prendre 30-40 minutes)..."
+    
+        if [ -f ".zap/rules.tsv" ]; then
+          echo "📋 Utilisation des règles pour l'Active Scan"
+          RULES_FILE="-c .zap/rules.tsv"
+        else
+          RULES_FILE=""
+        fi
+    
         docker run --rm --network host -v $(pwd):/zap/wrk:rw \
           ghcr.io/zaproxy/zaproxy:stable \
           zap-full-scan.py \
           -t http://localhost:3000 \
           -x /zap/wrk/zap-active.xml \
           -J /zap/wrk/zap-active.json \
+          $RULES_FILE \
           -T 30 || true
 
     - name:  Vérifier rapport Active Scan
       working-directory: ./juice-shop
       run: |
-        if   [ -f zap-active.json ]; then echo " zap-active.json trouvé"
-        elif [ -f zap-out.json ];    then cp zap-out.json zap-active.json; echo " Renommé en zap-active.json"
-        else echo " Aucun rapport Active Scan trouvé"; echo "[]" > zap-active.json
+        if [ -f zap-active.json ]; then 
+          echo "✅ zap-active.json trouvé"
+        elif [ -f zap-out.json ]; then 
+          cp zap-out.json zap-active.json
+          echo "✅ Renommé zap-out.json en zap-active.json"
+        else 
+          echo "⚠️ Aucun rapport Active Scan trouvé"
+          echo "[]" > zap-active.json
         fi
 
     - name:  Consolider les rapports DAST
@@ -276,6 +335,7 @@ jobs:
           juice-shop/snyk-results.json
           juice-shop/zap-*.json
           juice-shop/zap-*.xml
+          juice-shop/.zap/rules.tsv
         retention-days: 30
         if-no-files-found: warn
 
@@ -320,7 +380,7 @@ jobs:
 
         # ── Recherche d'un engagement existant ────────────────
         ENCODED_NAME=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$ENGAGEMENT_NAME'))")
-        SEARCH=$(curl -sf \
+        SEARCH=$(curl -s \
           "$DD_URL/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED_NAME&status=In Progress" \
           -H "Authorization: Token $DD_API_KEY")
 
@@ -337,7 +397,7 @@ jobs:
           echo "♻️  Engagement existant réutilisé — ID: $ENGAGEMENT_ID"
 
           # Mise à jour de la traçabilité
-          curl -sf -X PATCH "$DD_URL/api/v2/engagements/$ENGAGEMENT_ID/" \
+          curl -s -X PATCH "$DD_URL/api/v2/engagements/$ENGAGEMENT_ID/" \
             -H "Authorization: Token $DD_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{
@@ -352,7 +412,7 @@ jobs:
           #  Création
           echo " Création d'un nouvel engagement : $ENGAGEMENT_NAME"
 
-          CREATE=$(curl -sf -X POST "$DD_URL/api/v2/engagements/" \
+          CREATE=$(curl -s -X POST "$DD_URL/api/v2/engagements/" \
             -H "Authorization: Token $DD_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{
@@ -397,7 +457,7 @@ jobs:
       run: |
         echo " Capture des findings actifs AVANT réimport..."
 
-        TOTAL=$(curl -sf \
+        TOTAL=$(curl -s \
           "$DD_URL/api/v2/findings/?engagement=$ENGAGEMENT_ID&active=true&limit=1" \
           -H "Authorization: Token $DD_API_KEY" | \
           python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
@@ -405,7 +465,7 @@ jobs:
         echo "FINDINGS_BEFORE=$TOTAL" >> $GITHUB_ENV
 
         for SEV in Critical High Medium Low Info; do
-          COUNT=$(curl -sf \
+          COUNT=$(curl -s \
             "$DD_URL/api/v2/findings/?engagement=$ENGAGEMENT_ID&active=true&severity=$SEV&limit=1" \
             -H "Authorization: Token $DD_API_KEY" | \
             python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
@@ -434,7 +494,7 @@ jobs:
             return 0
           fi
 
-          RESPONSE=$(curl -sf -X POST "$DD_URL/api/v2/reimport-scan/" \
+          RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=$ENGAGEMENT_ID" \
             -F "scan_type=$scan_type" \
