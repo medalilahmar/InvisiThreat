@@ -309,7 +309,7 @@ jobs:
             --arg desc       "Scans CI/CD | Branche: ${BRANCH} | Periode: ${PERIOD_START} -> ${PERIOD_END}" \
             --argjson product "$PRODUCT_ID" \
             --arg start       "$PERIOD_START" \
-            --arg end         "$PERIOD_END" \
+            --arg target_end  "$PERIOD_END" \      # ✅ CORRIGÉ (end → target_end)
             --arg branch      "$BRANCH" \
             '{
               name:                        $name,
@@ -318,7 +318,7 @@ jobs:
               engagement_type:             "CI/CD",
               status:                      "In Progress",
               target_start:                $start,
-              target_end:                  $end,
+              target_end:                  $target_end,  # ✅ CORRIGÉ
               branch_tag:                  $branch,
               deduplication_on_engagement: false,
               tags: ["github-actions", $branch, "automated"]
