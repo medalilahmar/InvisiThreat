@@ -1,351 +1,44 @@
-name: 🔒 DevSecOps Pipeline - InvisiThreat
+name: 🔍 Test DefectDojo Integration
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:  # Permet un déclenchement manuel
 
-# ─────────────────────────────────────────────────────────────
-# VARIABLES GLOBALES
-# ─────────────────────────────────────────────────────────────
 env:
-  DD_URL: http://localhost:8080/api/v2
-  # 🔧 Granularité des engagements : quarterly | monthly | weekly
+  DD_URL: http://localhost:8080          # Racine, sans /api/v2
   PERIOD_MODE: "quarterly"
-  # 🔧 Security Gate : bloquer le pipeline si nouveaux Critical/High
   FAIL_ON_NEW_CRITICAL: "true"
   FAIL_ON_NEW_HIGH: "false"
 
 jobs:
-  security:
-    name: 🔍 SAST + SCA + DAST + DefectDojo
+  test-defectdojo:
     runs-on: self-hosted
-    timeout-minutes: 120
+    timeout-minutes: 10
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-   
-    - name: Récupérer le code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0
-
-    
-    - name: Installer jq
-      run: |
-        if command -v jq &> /dev/null; then
-          echo " jq déjà installé: $(jq --version)"
-          exit 0
-        fi
-        echo "🔧 Nettoyage des processus apt bloqués..."
-        sudo killall apt apt-get dpkg 2>/dev/null || true
-        sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
-                   /var/cache/apt/archives/lock /var/lib/apt/lists/lock
-        sudo dpkg --configure -a
-        if sudo apt update -qq && sudo apt install -y -qq jq; then
-          echo " jq installé via apt: $(jq --version)"
-        else
-          echo "⚠️ Échec apt, installation via binaire..."
-          wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
-          chmod +x jq && sudo mv jq /usr/local/bin/
-          echo " jq installé via binaire: $(jq --version)"
-        fi
-
-    - name:  Installer les dépendances Node
-      working-directory: ./juice-shop
-      run: |
-        if [ -f "package-lock.json" ]; then
-          echo " Installation avec npm ci..."
-          npm ci
-        else
-          echo " Installation avec npm install..."
-          npm install
-        fi
-
-
-
-    - name: 🔍 SAST avec Semgrep
-      working-directory: ./juice-shop
-      continue-on-error: true
-      run: |
-        [ -f ".semgrepignore" ] && mv .semgrepignore .semgrepignore.bak
-        timeout 1500 docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep \
-          --config=r/all --json --output=/src/semgrep-results.json \
-          --metrics=off --jobs=4 --timeout=60 --max-memory=4096 /src || true
-        [ -f ".semgrepignore.bak" ] && mv .semgrepignore.bak .semgrepignore
-        [ ! -s "semgrep-results.json" ] && echo '{"results":[]}' > semgrep-results.json
-    
-        echo ""; echo "════════════════════════════════════"
-        echo "  📊 SEMGREP RAPPORT"
-        echo "════════════════════════════════════"
-        jq -r '"  🔍 Total: " + (.results | length | tostring) + 
-              "\n  🔴 High: " + ([.results[] | select(.extra.severity=="ERROR")] | length | tostring) +
-              "\n  🟠 Med: " + ([.results[] | select(.extra.severity=="WARNING")] | length | tostring) +
-              "\n  🟡 Low: " + ([.results[] | select(.extra.severity=="INFO")] | length | tostring)' semgrep-results.json
-        echo "════════════════════════════════════"
-        echo "✅ Prêt pour DefectDojo"
-
-
-    - name:  Snyk SCA
-      continue-on-error: true
-      working-directory: ./juice-shop
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: |
-        echo " Scan Snyk en cours..."
-        npx snyk test --severity-threshold=low \
-          --json-file-output=snyk-results.json || true
-
-        if [ ! -f "snyk-results.json" ] || [ ! -s "snyk-results.json" ]; then
-          echo '{"vulnerabilities":[]}' > snyk-results.json
-          echo " Fichier snyk-results.json créé (vide)"
-        else
-          COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
-          echo " Snyk terminé : $COUNT vulnérabilités trouvées"
-        fi
-
-    - name:  Snyk Monitor
-      continue-on-error: true
-      working-directory: ./juice-shop
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: |
-        echo " Envoi des données à Snyk Monitor..."
-        npx snyk monitor || true
-
-   
-    - name:  Démarrer l'API en arrière-plan
-      working-directory: ./juice-shop
-      run: |
-        echo " Démarrage de l'API sur http://localhost:3000"
-        npm start &
-        echo $! > api.pid
-        sleep 15
-
-        MAX_RETRIES=20
-        for i in $(seq 1 $MAX_RETRIES); do
-          if curl -s -f http://localhost:3000/ > /dev/null 2>&1; then
-            echo " API démarrée avec succès"
-            exit 0
+      - name: Install jq
+        run: |
+          if ! command -v jq &> /dev/null; then
+            sudo apt update && sudo apt install -y jq
           fi
-          echo " Tentative $i/$MAX_RETRIES..."
-          sleep 3
-        done
-        echo " API n'a pas démarré"
-        exit 1
+          echo "jq version: $(jq --version)"
 
-  
-    - name:  DAST - Scan OpenAPI
-      working-directory: ./juice-shop
-      continue-on-error: true
-      run: |
-        echo " Scan OpenAPI avec ZAP..."
-    
-        if [ -f ".zap/rules.tsv" ]; then
-          echo "📋 Utilisation des règles: .zap/rules.tsv"
-          RULES_FILE="-c .zap/rules.tsv"
-        else
-          RULES_FILE=""
-        fi
-    
-        API_FILE=""
-        for file in swagger.yml swagger.yaml openapi.json swagger.json; do
-          if [ -f "$file" ]; then
-            API_FILE="$file"
-            echo "✅ Fichier OpenAPI trouvé: $file"
-            break
-          fi
-        done
+      # ------------------------------------------------------------
+      # Étape 1 : Résolution de l'engagement (création ou réutilisation)
+      # ------------------------------------------------------------
+      - name: DefectDojo — Résoudre l'Engagement
+        id: dd_engagement
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
+        run: |
+          set -e
+          BRANCH="${{ github.ref_name }}"
+          TODAY=$(date +%Y-%m-%d)
 
-        if [ -n "$API_FILE" ]; then
-          docker run --rm --network host -v $(pwd):/zap/wrk:rw \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-api-scan.py \
-            -t http://localhost:3000 \
-            -f openapi \
-            -d /zap/wrk/$API_FILE \          
-            -x /zap/wrk/zap-openapi.xml \
-            -J /zap/wrk/zap-openapi.json \
-            $RULES_FILE \
-            -T 30 \
-            -I || true
-        else
-          echo "⚠️ Aucun fichier OpenAPI trouvé, scan sans spécification"
-          docker run --rm --network host -v $(pwd):/zap/wrk:rw \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-api-scan.py \
-            -t http://localhost:3000 \
-            -f openapi \
-            -x /zap/wrk/zap-openapi.xml \
-            -J /zap/wrk/zap-openapi.json \
-            $RULES_FILE \
-            -T 30 \
-            -I || true
-        fi
-
-    - name:  Vérifier rapport OpenAPI
-      working-directory: ./juice-shop
-      run: |
-        if [ -f zap-openapi.json ]; then 
-          echo "✅ zap-openapi.json trouvé"
-          echo "Taille: $(stat -c%s zap-openapi.json 2>/dev/null || stat -f%z zap-openapi.json 2>/dev/null) octets"
-        elif [ -f zap_out.json ]; then 
-          cp zap_out.json zap-openapi.json
-          echo "✅ Renommé zap_out.json en zap-openapi.json"
-        elif [ -f report_json.json ]; then 
-          cp report_json.json zap-openapi.json
-          echo "✅ Renommé report_json.json en zap-openapi.json"
-        else 
-          echo "⚠️ Aucun rapport OpenAPI trouvé"
-          echo "[]" > zap-openapi.json
-        fi
-
-    - name:  DAST - Spider Scan
-      continue-on-error: true
-      timeout-minutes: 30
-      working-directory: ./juice-shop
-      run: |
-        echo " Spider Scan avec règles personnalisées..."
-    
-        if [ -f ".zap/rules.tsv" ]; then
-          echo "📋 Utilisation du fichier de règles: .zap/rules.tsv"
-          echo "Règles configurées:"
-          grep "IGNORE" .zap/rules.tsv | head -5
-          RULES_FILE="-c .zap/rules.tsv"
-        else
-          RULES_FILE=""
-        fi
-    
-        docker run --rm --network host -v $(pwd):/zap/wrk:rw \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-baseline.py \
-          -t http://localhost:3000 \
-          $RULES_FILE \
-          -x /zap/wrk/zap-spider.xml \
-          -J /zap/wrk/zap-spider.json \
-          -T 15 \
-          -m 2 || echo " Scan terminé"
-
-    - name:  Vérifier rapport Spider
-      working-directory: ./juice-shop
-      run: |
-        if [ -f zap-spider.json ]; then 
-          echo "✅ zap-spider.json trouvé"
-        elif [ -f zap-out.json ]; then 
-          cp zap-out.json zap-spider.json
-          echo "✅ Renommé zap-out.json en zap-spider.json"
-        else 
-          echo "⚠️ Aucun rapport Spider trouvé"
-          echo "[]" > zap-spider.json
-        fi
-
-
-    - name:  DAST - Active Scan
-      continue-on-error: true
-      timeout-minutes: 40
-      working-directory: ./juice-shop
-      run: |
-        echo " Scan actif avec ZAP (peut prendre 30-40 minutes)..."
-    
-        if [ -f ".zap/rules.tsv" ]; then
-          echo "📋 Utilisation des règles pour l'Active Scan"
-          RULES_FILE="-c .zap/rules.tsv"
-        else
-          RULES_FILE=""
-        fi
-    
-        docker run --rm --network host -v $(pwd):/zap/wrk:rw \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-full-scan.py \
-          -t http://localhost:3000 \
-          -x /zap/wrk/zap-active.xml \
-          -J /zap/wrk/zap-active.json \
-          $RULES_FILE \
-          -T 30 || true
-
-    - name:  Vérifier rapport Active Scan
-      working-directory: ./juice-shop
-      run: |
-        if [ -f zap-active.json ]; then 
-          echo "✅ zap-active.json trouvé"
-        elif [ -f zap-out.json ]; then 
-          cp zap-out.json zap-active.json
-          echo "✅ Renommé zap-out.json en zap-active.json"
-        else 
-          echo "⚠️ Aucun rapport Active Scan trouvé"
-          echo "[]" > zap-active.json
-        fi
-
-    - name:  Consolider les rapports DAST
-      working-directory: ./juice-shop
-      run: |
-        echo " Consolidation des rapports DAST..."
-        echo "[]" > zap-consolidated.json
-        if ls zap-*.json 1> /dev/null 2>&1; then
-          jq -s 'add' zap-*.json > zap-consolidated.json 2>/dev/null || echo "[]" > zap-consolidated.json
-        fi
-
-        if [ -s zap-consolidated.json ]; then
-          TOTAL=$(jq 'length' zap-consolidated.json 2>/dev/null || echo "0")
-          CRITICAL=$(jq '[.[] | select(.riskcode=="3")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          HIGH=$(jq '[.[] | select(.riskcode=="2")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          MEDIUM=$(jq '[.[] | select(.riskcode=="1")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          LOW=$(jq '[.[] | select(.riskcode=="0")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          echo " RÉSULTATS DAST:"
-          echo "   Total    : $TOTAL vulnérabilités"
-          echo "   🔴 Critiques : $CRITICAL"
-          echo "   🟠 Hautes    : $HIGH"
-          echo "   🟡 Moyennes  : $MEDIUM"
-          echo "   🟢 Basses    : $LOW"
-        else
-          echo " Aucune vulnérabilité consolidée"
-        fi
-
-   
-    - name:  Arrêter l'API
-      if: always()
-      working-directory: ./juice-shop
-      run: |
-        echo " Arrêt de l'API..."
-        if [ -f api.pid ]; then
-          PID=$(cat api.pid)
-          kill $PID 2>/dev/null || true
-          rm -f api.pid
-          echo " API arrêtée (PID: $PID)"
-        fi
-        pkill -f "node.*juice-shop" || true
-        echo " Nettoyage des processus terminé"
-
-   
-    - name:  Upload tous les rapports de sécurité
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports-${{ github.sha }}
-        path: |
-          juice-shop/semgrep-results.json
-          juice-shop/snyk-results.json
-          juice-shop/zap-*.json
-          juice-shop/zap-*.xml
-          juice-shop/.zap/rules.tsv
-        retention-days: 30
-        if-no-files-found: warn
-
-    
-    - name:  DefectDojo — Résoudre l'Engagement
-      if: always()
-      id: dd_engagement
-      env:
-        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-        PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
-      run: |
-        BRANCH="${{ github.ref_name }}"
-        TODAY=$(date +%Y-%m-%d)
-
-        # ── Calcul de la période ───────────────────────────────
-        if [ "$PERIOD_MODE" = "quarterly" ]; then
+          # Calcul de la période (quarterly)
           MONTH=$(date +%-m)
           YEAR=$(date +%Y)
           if   [ $MONTH -le 3  ]; then PERIOD="Q1"; PERIOD_START="$YEAR-01-01"; PERIOD_END="$YEAR-03-31"
@@ -353,147 +46,154 @@ jobs:
           elif [ $MONTH -le 9  ]; then PERIOD="Q3"; PERIOD_START="$YEAR-07-01"; PERIOD_END="$YEAR-09-30"
           else                         PERIOD="Q4"; PERIOD_START="$YEAR-10-01"; PERIOD_END="$YEAR-12-31"
           fi
-          ENGAGEMENT_NAME="$BRANCH — $YEAR-$PERIOD"
+          ENGAGEMENT_NAME="$BRANCH — $YEAR-$PERIOD (test)"
 
-        elif [ "$PERIOD_MODE" = "monthly" ]; then
-          PERIOD=$(date +%Y-%m)
-          PERIOD_START=$(date +%Y-%m-01)
-          PERIOD_END=$(date -d "$(date +%Y-%m-01) +1 month -1 day" +%Y-%m-%d)
-          ENGAGEMENT_NAME="$BRANCH — $PERIOD"
+          echo "📅 Mode       : $PERIOD_MODE"
+          echo "🏷️  Engagement : $ENGAGEMENT_NAME"
+          echo "📆 Période    : $PERIOD_START → $PERIOD_END"
 
-        elif [ "$PERIOD_MODE" = "weekly" ]; then
-          PERIOD="W$(date +%V)-$(date +%Y)"
-          PERIOD_START=$(date -d "last Monday" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
-          PERIOD_END=$(date -d "next Sunday" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
-          ENGAGEMENT_NAME="$BRANCH — $PERIOD"
-        fi
+          # Encodage du nom
+          ENCODED_NAME=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$ENGAGEMENT_NAME'))")
+          API_URL="$DD_URL/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED_NAME&status=In Progress"
 
-        echo "📅 Mode       : $PERIOD_MODE"
-        echo "🏷️  Engagement : $ENGAGEMENT_NAME"
-        echo "📆 Période    : $PERIOD_START → $PERIOD_END"
+          echo "🔍 Recherche d'engagement existant via: $API_URL"
+          RESPONSE=$(curl -s -w "\n%{http_code}" "$API_URL" -H "Authorization: Token $DD_API_KEY")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
 
-        # ── Recherche d'un engagement existant ────────────────
-        ENCODED_NAME=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$ENGAGEMENT_NAME'))")
-        SEARCH=$(curl -s \
-          "$DD_URL/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED_NAME&status=In Progress" \
-          -H "Authorization: Token $DD_API_KEY")
-
-        COUNT=$(echo "$SEARCH" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])")
-
-        if [ "$COUNT" -gt "0" ]; then
-          # ♻️ Réutilisation
-          ENGAGEMENT_ID=$(echo "$SEARCH" | python3 -c "
-        import sys, json
-        results = json.load(sys.stdin)['results']
-        results.sort(key=lambda x: x['id'], reverse=True)
-        print(results[0]['id'])
-          ")
-          echo "♻️  Engagement existant réutilisé — ID: $ENGAGEMENT_ID"
-
-          # Mise à jour de la traçabilité
-          curl -s -X PATCH "$DD_URL/api/v2/engagements/$ENGAGEMENT_ID/" \
-            -H "Authorization: Token $DD_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"target_end\": \"$PERIOD_END\",
-              \"commit_hash\": \"${{ github.sha }}\",
-              \"build_id\": \"${{ github.run_id }}\"
-            }" > /dev/null
-
-          echo "ENGAGEMENT_STATUS=reused" >> $GITHUB_ENV
-
-        else
-          #  Création
-          echo " Création d'un nouvel engagement : $ENGAGEMENT_NAME"
-
-          CREATE=$(curl -s -X POST "$DD_URL/api/v2/engagements/" \
-            -H "Authorization: Token $DD_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"name\": \"$ENGAGEMENT_NAME\",
-              \"description\": \"Scans CI/CD automatisés | Branche: $BRANCH | Période: $PERIOD_START → $PERIOD_END\",
-              \"product\": $PRODUCT_ID,
-              \"engagement_type\": \"CI/CD\",
-              \"status\": \"In Progress\",
-              \"target_start\": \"$PERIOD_START\",
-              \"target_end\": \"$PERIOD_END\",
-              \"branch_tag\": \"$BRANCH\",
-              \"commit_hash\": \"${{ github.sha }}\",
-              \"build_id\": \"${{ github.run_id }}\",
-              \"deduplication_on_engagement\": false,
-              \"tags\": [\"github-actions\", \"$BRANCH\", \"$PERIOD_MODE\", \"$PERIOD\", \"automated\"]
-            }")
-
-          ENGAGEMENT_ID=$(echo "$CREATE" | python3 -c "
-        import sys, json
-        d = json.load(sys.stdin)
-        if 'id' in d:
-            print(d['id'])
-        else:
-            print(f'ERREUR création: {d}', file=__import__('sys').stderr)
-            sys.exit(1)
-          ")
-
-          echo " Engagement créé — ID: $ENGAGEMENT_ID"
-          echo "ENGAGEMENT_STATUS=created" >> $GITHUB_ENV
-        fi
-
-        # Exports pour les steps suivants
-        echo "ENGAGEMENT_ID=$ENGAGEMENT_ID"       >> $GITHUB_ENV
-        echo "engagement_id=$ENGAGEMENT_ID"       >> $GITHUB_OUTPUT
-        echo "ENGAGEMENT_NAME=$ENGAGEMENT_NAME"   >> $GITHUB_ENV
-
-   
-    - name:  DefectDojo — Snapshot avant import
-      if: always()
-      env:
-        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-      run: |
-        echo " Capture des findings actifs AVANT réimport..."
-
-        TOTAL=$(curl -s \
-          "$DD_URL/api/v2/findings/?engagement=$ENGAGEMENT_ID&active=true&limit=1" \
-          -H "Authorization: Token $DD_API_KEY" | \
-          python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
-
-        echo "FINDINGS_BEFORE=$TOTAL" >> $GITHUB_ENV
-
-        for SEV in Critical High Medium Low Info; do
-          COUNT=$(curl -s \
-            "$DD_URL/api/v2/findings/?engagement=$ENGAGEMENT_ID&active=true&severity=$SEV&limit=1" \
-            -H "Authorization: Token $DD_API_KEY" | \
-            python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
-          echo "BEFORE_${SEV}=$COUNT" >> $GITHUB_ENV
-          echo "  • $SEV : $COUNT"
-        done
-
-        echo " Total avant : $TOTAL findings actifs"
-
- 
-    - name:  DefectDojo — Réimport des scans
-      if: always()
-      continue-on-error: true
-      env:
-        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-      run: |
-
-        reimport_scan() {
-          local file="$1"
-          local scan_type="$2"
-          local test_title="$3"
-          local category="$4"    
-
-          if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-            echo "    $test_title — fichier absent ou vide, skip"
-            return 0
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "❌ Échec de la recherche d'engagement (HTTP $HTTP_CODE)"
+            echo "Réponse: $BODY"
+            exit 1
           fi
 
+          COUNT=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])")
+          echo "Nombre d'engagements trouvés : $COUNT"
+
+          if [ "$COUNT" -gt "0" ]; then
+            # Récupération du premier engagement (tri par ID décroissant)
+            ENGAGEMENT_ID=$(echo "$BODY" | python3 -c "
+              import sys, json
+              results = json.load(sys.stdin)['results']
+              results.sort(key=lambda x: x['id'], reverse=True)
+              print(results[0]['id'])
+            ")
+            echo "♻️  Engagement existant réutilisé — ID: $ENGAGEMENT_ID"
+
+            # Mise à jour (PATCH)
+            PATCH_RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "$DD_URL/api/v2/engagements/$ENGAGEMENT_ID/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"target_end\": \"$PERIOD_END\",
+                \"commit_hash\": \"${{ github.sha }}\",
+                \"build_id\": \"${{ github.run_id }}\"
+              }")
+            PATCH_HTTP=$(echo "$PATCH_RESPONSE" | tail -n1)
+            if [ "$PATCH_HTTP" -ne 200 ]; then
+              echo "⚠️  Échec de la mise à jour de l'engagement (HTTP $PATCH_HTTP)"
+            else
+              echo "✅ Engagement mis à jour"
+            fi
+            echo "ENGAGEMENT_STATUS=reused" >> $GITHUB_ENV
+          else
+            echo "🆕 Création d'un nouvel engagement..."
+            CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$DD_URL/api/v2/engagements/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"name\": \"$ENGAGEMENT_NAME\",
+                \"description\": \"Test CI/CD | Branche: $BRANCH | Période: $PERIOD_START → $PERIOD_END\",
+                \"product\": $PRODUCT_ID,
+                \"engagement_type\": \"CI/CD\",
+                \"status\": \"In Progress\",
+                \"target_start\": \"$PERIOD_START\",
+                \"target_end\": \"$PERIOD_END\",
+                \"branch_tag\": \"$BRANCH\",
+                \"commit_hash\": \"${{ github.sha }}\",
+                \"build_id\": \"${{ github.run_id }}\",
+                \"deduplication_on_engagement\": false,
+                \"tags\": [\"github-actions\", \"$BRANCH\", \"$PERIOD_MODE\", \"$PERIOD\", \"automated\", \"test\"]
+              }")
+            CREATE_HTTP=$(echo "$CREATE_RESPONSE" | tail -n1)
+            CREATE_BODY=$(echo "$CREATE_RESPONSE" | head -n -1)
+            if [ "$CREATE_HTTP" -ne 201 ]; then
+              echo "❌ Échec de la création d'engagement (HTTP $CREATE_HTTP)"
+              echo "Réponse: $CREATE_BODY"
+              exit 1
+            fi
+            ENGAGEMENT_ID=$(echo "$CREATE_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+            echo "✅ Engagement créé — ID: $ENGAGEMENT_ID"
+            echo "ENGAGEMENT_STATUS=created" >> $GITHUB_ENV
+          fi
+
+          # Exports
+          echo "ENGAGEMENT_ID=$ENGAGEMENT_ID" >> $GITHUB_ENV
+          echo "engagement_id=$ENGAGEMENT_ID" >> $GITHUB_OUTPUT
+          echo "ENGAGEMENT_NAME=$ENGAGEMENT_NAME" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------
+      # Étape 2 : Snapshot avant import (compter les findings actifs)
+      # ------------------------------------------------------------
+      - name: DefectDojo — Snapshot avant import
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          echo "📸 Capture des findings actifs avant import pour l'engagement $ENGAGEMENT_ID"
+          TOTAL=$(curl -s \
+            "$DD_URL/api/v2/findings/?engagement=$ENGAGEMENT_ID&active=true&limit=1" \
+            -H "Authorization: Token $DD_API_KEY" | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
+          echo "FINDINGS_BEFORE=$TOTAL" >> $GITHUB_ENV
+          echo "  Total avant : $TOTAL"
+
+          for SEV in Critical High Medium Low Info; do
+            COUNT=$(curl -s \
+              "$DD_URL/api/v2/findings/?engagement=$ENGAGEMENT_ID&active=true&severity=$SEV&limit=1" \
+              -H "Authorization: Token $DD_API_KEY" | \
+              python3 -c "import sys,json; print(json.load(sys.stdin)['count'])" 2>/dev/null || echo "0")
+            echo "BEFORE_${SEV}=$COUNT" >> $GITHUB_ENV
+            echo "  • $SEV : $COUNT"
+          done
+
+      # ------------------------------------------------------------
+      # Étape 3 : Créer un fichier de test (format Semgrep)
+      # ------------------------------------------------------------
+      - name: Créer un fichier de test factice
+        run: |
+          cat > test-findings.json << 'EOF'
+          {
+            "results": [
+              {
+                "check_id": "test-rule",
+                "path": "test.py",
+                "start": {"line": 1, "col": 1},
+                "end": {"line": 1, "col": 10},
+                "extra": {
+                  "message": "Test finding",
+                  "severity": "WARNING",
+                  "metadata": {}
+                }
+              }
+            ]
+          }
+          EOF
+          echo "Fichier test-findings.json créé"
+
+      # ------------------------------------------------------------
+      # Étape 4 : Import du scan factice
+      # ------------------------------------------------------------
+      - name: DefectDojo — Import d'un scan factice
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          echo "📤 Import du scan factice vers l'engagement $ENGAGEMENT_ID"
           RESPONSE=$(curl -s -X POST "$DD_URL/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=$ENGAGEMENT_ID" \
-            -F "scan_type=$scan_type" \
-            -F "test_title=$test_title" \
-            -F "file=@$file" \
+            -F "scan_type=Semgrep JSON Report" \
+            -F "test_title=SAST — Semgrep (test)" \
+            -F "file=@test-findings.json" \
             -F "active=true" \
             -F "verified=false" \
             -F "close_old_findings=true" \
@@ -503,190 +203,112 @@ jobs:
             -F "branch_tag=${{ github.ref_name }}" \
             -F "commit_hash=${{ github.sha }}" \
             -F "build_id=${{ github.run_id }}" \
-            -F "tags=$category,github-actions,automated" \
-            2>&1) || true
+            -F "tags=SAST,github-actions,automated,test" \
+            2>&1)
 
-          python3 - << PYEOF
-        import json, sys
-        raw = r"""$RESPONSE"""
-        try:
-            d = json.loads(raw)
-            if "id" in d:
-                new_f    = d.get("finding_count", 0)
-                closed_f = d.get("closed_findings", 0)
-                skip_f   = d.get("skipped_findings", 0)
-                test_id  = d.get("test", "?")
-                print(f"  ✅ $test_title | Test ID: {test_id} | new={new_f} closed={closed_f} skipped={skip_f}")
-            else:
-                print(f"  ❌ $test_title | Erreur API: {d}")
-        except Exception as e:
-            print(f"  ❌ $test_title | Parse error: {e}")
-            print(f"     Réponse brute: {raw[:300]}")
-        PYEOF
-        }
+          echo "Réponse de l'API :"
+          echo "$RESPONSE" | jq . || echo "$RESPONSE"
 
-        echo "════════════════════════════════════════════════"
-        echo "  🔬 SAST — Static Application Security Testing"
-        echo "════════════════════════════════════════════════"
-        reimport_scan \
-          "juice-shop/semgrep-results.json" \
-          "Semgrep JSON Report" \
-          "SAST — Semgrep" \
-          "SAST"
+      # ------------------------------------------------------------
+      # Étape 5 : Rapport final et Security Gate
+      # ------------------------------------------------------------
+      - name: DefectDojo — Rapport final & Security Gate
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          python3 - << 'PYEOF'
+          import urllib.request, json, os, sys
 
-        echo ""
-        echo "════════════════════════════════════════════════"
-        echo "  📦 SCA — Software Composition Analysis"
-        echo "════════════════════════════════════════════════"
-        reimport_scan \
-          "juice-shop/snyk-results.json" \
-          "Snyk Scan" \
-          "SCA — Snyk" \
-          "SCA"
+          dd_url      = os.environ["DD_URL"]
+          token       = os.environ["DD_API_KEY"]
+          eng         = os.environ["ENGAGEMENT_ID"]
+          eng_name    = os.environ["ENGAGEMENT_NAME"]
+          eng_status  = os.environ["ENGAGEMENT_STATUS"]
+          before      = int(os.environ.get("FINDINGS_BEFORE", 0))
+          fail_crit   = os.environ.get("FAIL_ON_NEW_CRITICAL", "true") == "true"
+          fail_high   = os.environ.get("FAIL_ON_NEW_HIGH", "false")    == "true"
 
-        echo ""
-        echo "════════════════════════════════════════════════"
-        echo "  🌐 DAST — Dynamic Application Security Testing"
-        echo "════════════════════════════════════════════════"
-        reimport_scan \
-          "juice-shop/zap-openapi.xml" \
-          "ZAP Scan" \
-          "DAST — ZAP OpenAPI" \
-          "DAST"
+          severities  = ["Critical", "High", "Medium", "Low", "Info"]
+          icons       = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🔵", "Info": "⚪"}
 
-        reimport_scan \
-          "juice-shop/zap-spider.xml" \
-          "ZAP Scan" \
-          "DAST — ZAP Spider" \
-          "DAST"
+          headers = {"Authorization": f"Token {token}"}
 
-        reimport_scan \
-          "juice-shop/zap-active.xml" \
-          "ZAP Scan" \
-          "DAST — ZAP Active Scan" \
-          "DAST"
+          def fetch(url):
+              req = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(req) as r:
+                  return json.loads(r.read())
 
-   
-    - name:  DefectDojo — Rapport final & Security Gate
-      if: always()
-      env:
-        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-      run: |
-        python3 - << 'PYEOF'
-        import urllib.request, json, os, sys
+          before_counts = {s: int(os.environ.get(f"BEFORE_{s}", 0)) for s in severities}
+          after_counts  = {}
+          total_after   = 0
 
-        dd_url      = os.environ["DD_URL"]
-        token       = os.environ["DD_API_KEY"]
-        eng         = os.environ["ENGAGEMENT_ID"]
-        eng_name    = os.environ["ENGAGEMENT_NAME"]
-        eng_status  = os.environ["ENGAGEMENT_STATUS"]
-        before      = int(os.environ.get("FINDINGS_BEFORE", 0))
-        fail_crit   = os.environ.get("FAIL_ON_NEW_CRITICAL", "true") == "true"
-        fail_high   = os.environ.get("FAIL_ON_NEW_HIGH", "false")    == "true"
+          for sev in severities:
+              try:
+                  r = fetch(f"{dd_url}/api/v2/findings/?engagement={eng}&active=true&severity={sev}&limit=1")
+                  after_counts[sev] = r["count"]
+                  total_after += r["count"]
+              except:
+                  after_counts[sev] = "?"
 
-        severities  = ["Critical", "High", "Medium", "Low", "Info"]
-        icons       = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🔵", "Info": "⚪"}
+          total_diff = total_after - before if isinstance(total_after, int) else "?"
 
-        headers = {"Authorization": f"Token {token}"}
+          print("")
+          print("═" * 58)
+          print("    DEFECTDOJO — RAPPORT DE SÉCURITÉ CI/CD (TEST)")
+          print("═" * 58)
+          print(f"  Engagement  : {eng_name}")
+          print(f"  Statut      : {'🆕 Créé ce run' if eng_status == 'created' else '♻️  Réutilisé (existant)'}")
+          print(f"  Branche     : ${{ github.ref_name }}")
+          print(f"  Commit      : ${{ github.sha }}"[:52] + "...")
+          print(f"  Run ID      : ${{ github.run_id }}")
+          print("")
 
-        def fetch(url):
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req) as r:
-                return json.loads(r.read())
+          print(f"  {'Sévérité':<12} │ {'Avant':>5} │ {'Après':>5} │ Delta")
+          print(f"  {'─'*12}─┼─{'─'*5}─┼─{'─'*5}─┼─{'─'*8}")
 
-        # Snapshot APRÈS par sévérité
-        before_counts = {s: int(os.environ.get(f"BEFORE_{s}", 0)) for s in severities}
-        after_counts  = {}
-        total_after   = 0
+          new_critical = 0
+          new_high     = 0
 
-        for sev in severities:
-            try:
-                r = fetch(f"{dd_url}/api/v2/findings/?engagement={eng}&active=true&severity={sev}&limit=1")
-                after_counts[sev] = r["count"]
-                total_after += r["count"]
-            except:
-                after_counts[sev] = "?"
+          for sev in severities:
+              b = before_counts[sev]
+              a = after_counts[sev]
+              if isinstance(a, int) and isinstance(b, int):
+                  diff = a - b
+                  delta_str  = f"+{diff}" if diff > 0 else str(diff)
+                  delta_icon = " 🔺" if diff > 0 else (" ✅" if diff < 0 else "  —")
+                  if sev == "Critical": new_critical = max(0, diff)
+                  if sev == "High":     new_high     = max(0, diff)
+              else:
+                  delta_str, delta_icon = "?", ""
+              print(f"  {icons[sev]} {sev:<10} │ {str(b):>5} │ {str(a):>5} │ {delta_str}{delta_icon}")
 
-        total_diff = total_after - before if isinstance(total_after, int) else "?"
+          print("")
+          print(f"  Total actifs avant ce run : {before}")
+          print(f"  Total actifs après ce run : {total_after}")
 
-        print("")
-        print("═" * 58)
-        print("    DEFECTDOJO — RAPPORT DE SÉCURITÉ CI/CD")
-        print("═" * 58)
-        print(f"  Engagement  : {eng_name}")
-        print(f"  Statut      : {'🆕 Créé ce run' if eng_status == 'created' else '♻️  Réutilisé (existant)'}")
-        print(f"  Branche     : ${{ github.ref_name }}")
-        print(f"  Commit      : ${{ github.sha }}"[:52] + "...")
-        print(f"  Run ID      : ${{ github.run_id }}")
-        print("")
+          if total_diff == 0:
+              print("\n  ℹ️  AUCUN CHANGEMENT détecté")
+          elif isinstance(total_diff, int) and total_diff > 0:
+              print(f"\n  🔺 {total_diff} nouveau(x) finding(s) détecté(s) ce run !")
+          elif isinstance(total_diff, int) and total_diff < 0:
+              print(f"\n  🟢 {abs(total_diff)} finding(s) résolu(s) depuis le dernier run !")
 
-        # Tableau de delta
-        print(f"  {'Sévérité':<12} │ {'Avant':>5} │ {'Après':>5} │ Delta")
-        print(f"  {'─'*12}─┼─{'─'*5}─┼─{'─'*5}─┼─{'─'*8}")
+          print("")
+          print(f"  🔗 {dd_url}/engagements/{eng}/finding/")
+          print("═" * 58)
 
-        new_critical = 0
-        new_high     = 0
+          exit_code = 0
+          if fail_crit and new_critical > 0:
+              print(f"\n🚨 SECURITY GATE FAILED (CRITICAL)")
+              exit_code = 1
+          if fail_high and new_high > 0:
+              print(f"\n⛔ SECURITY GATE FAILED (HIGH)")
+              exit_code = 1
+          if exit_code == 0:
+              print("\n✅ Security Gate : PASSED")
+          sys.exit(exit_code)
+          PYEOF
 
-        for sev in severities:
-            b = before_counts[sev]
-            a = after_counts[sev]
-            if isinstance(a, int) and isinstance(b, int):
-                diff = a - b
-                delta_str  = f"+{diff}" if diff > 0 else str(diff)
-                delta_icon = " 🔺" if diff > 0 else (" ✅" if diff < 0 else "  —")
-                if sev == "Critical": new_critical = max(0, diff)
-                if sev == "High":     new_high     = max(0, diff)
-            else:
-                delta_str, delta_icon = "?", ""
-            print(f"  {icons[sev]} {sev:<10} │ {str(b):>5} │ {str(a):>5} │ {delta_str}{delta_icon}")
-
-        print("")
-        print(f"  Total actifs avant ce run : {before}")
-        print(f"  Total actifs après ce run : {total_after}")
-
-        # Message de changement
-        if total_diff == 0:
-            print("")
-            print("  ┌──────────────────────────────────────────────┐")
-            print("  │  ℹ️  AUCUN CHANGEMENT détecté dans ce run     │")
-            print("  │  Les findings sont identiques au run         │")
-            print("  │  précédent. Engagement mis à jour.           │")
-            print("  └──────────────────────────────────────────────┘")
-        elif isinstance(total_diff, int) and total_diff > 0:
-            print(f"\n  🔺 {total_diff} nouveau(x) finding(s) détecté(s) ce run !")
-        elif isinstance(total_diff, int) and total_diff < 0:
-            print(f"\n  🟢 {abs(total_diff)} finding(s) résolu(s) depuis le dernier run !")
-
-        print("")
-        print(f"  🔗 {dd_url}/engagements/{eng}/finding/")
-        print("═" * 58)
-
-        # ── Security Gate ──────────────────────────────────────
-        exit_code = 0
-
-        if fail_crit and new_critical > 0:
-            print(f"\n🚨 SECURITY GATE FAILED !")
-            print(f"   {new_critical} nouveau(x) finding(s) CRITICAL introduit(s).")
-            print(f"   ➜ Corrige les vulnérabilités critiques avant de merger.")
-            exit_code = 1
-
-        if fail_high and new_high > 0:
-            print(f"\n⛔ SECURITY GATE FAILED !")
-            print(f"   {new_high} nouveau(x) finding(s) HIGH introduit(s).")
-            exit_code = 1
-
-        if exit_code == 0 and (not fail_crit or new_critical == 0) and (not fail_high or new_high == 0):
-            print("\n✅ Security Gate : PASSED")
-
-        sys.exit(exit_code)
-        PYEOF
-
-    
-    - name:  Pipeline terminé
-      if: always()
-      run: |
-        echo " DevSecOps pipeline exécuté avec succès"
-        echo "   Branche  : ${{ github.ref_name }}"
-        echo "   Commit   : ${{ github.sha }}"
-        echo "   Run ID   : ${{ github.run_id }}"
-        echo "   DefectDojo Engagement : $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
+      - name: Nettoyage (optionnel)
+        if: always()
+        run: echo "🧹 Test terminé"

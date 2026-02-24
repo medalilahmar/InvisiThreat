@@ -13,9 +13,7 @@ import pandas as pd
 
 warnings.filterwarnings('ignore')
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
+
 Path('logs').mkdir(exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
@@ -27,34 +25,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Constantes
-# ---------------------------------------------------------------------------
+
 RAW_DIR       = Path('data/raw')
 PROCESSED_DIR = Path('data/processed')
 
 SEVERITY_MAP = {'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1, 'Info': 0}
 
-# Colonnes finales exportées
 KEEP_COLS = [
-    # Identifiants
     'id', 'title', 'product_id', 'engagement_id',
-    # Features ML
     'severity_num', 'cvss_score', 'age_days',
     'has_cve', 'has_cwe', 'tags_count',
     'is_false_positive', 'is_active',
-    # Features contextuelles enrichies
     'severity_x_active', 'product_fp_rate', 'cvss_severity_gap',
-    # Score métier (règle déterministe, pas cible ML)
     'composite_risk',
-    # Vraie cible ML
     'days_to_fix', 'fixed_in_30d',
 ]
 
 
-# ---------------------------------------------------------------------------
-# 1. Chargement
-# ---------------------------------------------------------------------------
 
 def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Charge les trois CSV bruts avec validation d'existence."""
@@ -77,9 +64,6 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return findings, products, engagements
 
 
-# ---------------------------------------------------------------------------
-# 2. Helpers
-# ---------------------------------------------------------------------------
 
 def safe_col(df: pd.DataFrame, col: str, default=0) -> pd.Series:
     """Retourne la colonne si elle existe, sinon une série constante."""
@@ -103,9 +87,6 @@ def count_tags(tag_field) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# 3. Feature engineering
-# ---------------------------------------------------------------------------
 
 def _normalize_tz(series: pd.Series) -> pd.Series:
     """
@@ -122,12 +103,10 @@ def build_date_features(data: pd.DataFrame) -> pd.DataFrame:
     """Calcule age_days (découverte → aujourd'hui) et days_to_fix (→ correction)."""
     now = pd.Timestamp(datetime.utcnow())   # toujours UTC tz-naive
 
-    # Colonne de découverte
     date_col = next((c for c in ['date', 'created'] if c in data.columns), None)
     if date_col:
         discovery = _normalize_tz(pd.to_datetime(data[date_col], errors='coerce'))
         raw_age   = (now - discovery).dt.days.fillna(0).clip(lower=0)
-        # Clamp au percentile 99 pour éviter les outliers aberrants
         p99 = raw_age.quantile(0.99) if raw_age.max() > 0 else 1
         data['age_days'] = raw_age.clip(upper=p99)
         logger.info(f"age_days : médiane={data['age_days'].median():.0f}j, max clampé={p99:.0f}j")
@@ -136,7 +115,6 @@ def build_date_features(data: pd.DataFrame) -> pd.DataFrame:
         discovery = None
         logger.warning("Colonne de date absente — age_days forcé à 0")
 
-    # Délai de correction (vraie cible ML)
     fix_col = next((c for c in ['mitigated_date', 'last_reviewed'] if c in data.columns), None)
     if fix_col and discovery is not None:
         fix_date            = _normalize_tz(pd.to_datetime(data[fix_col], errors='coerce'))
@@ -159,14 +137,12 @@ def build_severity_features(data: pd.DataFrame) -> pd.DataFrame:
     else:
         data['severity_num'] = 0
 
-    # CVSS
     cvss_col = next((c for c in ['cvssv3_score', 'cvss_score'] if c in data.columns), None)
     if cvss_col:
         data['cvss_score'] = pd.to_numeric(data[cvss_col], errors='coerce').fillna(0).clip(0, 10)
     else:
         data['cvss_score'] = 0.0
 
-    # Gap entre CVSS normalisé [0-4] et sévérité interne → détecte les incohérences
     cvss_norm             = data['cvss_score'] / 10 * 4
     data['cvss_severity_gap'] = (cvss_norm - data['severity_num']).abs().round(3)
 
@@ -188,10 +164,8 @@ def build_binary_features(data: pd.DataFrame) -> pd.DataFrame:
 
 def build_contextual_features(data: pd.DataFrame) -> pd.DataFrame:
     """Features enrichies croisant plusieurs dimensions."""
-    # Interaction sévérité × actif
     data['severity_x_active'] = data['severity_num'] * data['is_active']
 
-    # Taux de faux positifs par produit (bruit moyen du produit)
     data['product_fp_rate'] = data.groupby('product_id')['is_false_positive'].transform('mean').round(4)
 
     return data
@@ -238,9 +212,6 @@ def build_ml_target(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-# ---------------------------------------------------------------------------
-# 4. Pipeline principal de prétraitement
-# ---------------------------------------------------------------------------
 
 def preprocess_findings(
     findings: pd.DataFrame,
@@ -253,18 +224,14 @@ def preprocess_findings(
     """
     data = findings.copy()
 
-    # IDs de contexte
     data['product_id']    = safe_col(data, 'product_id', 0)
     data['engagement_id'] = safe_col(data, 'engagement_id', 0)
 
-    # Enrichissement depuis products (ex: criticité du produit)
     if 'id' in products.columns:
         prod_meta = products[['id']].copy()
         prod_meta = prod_meta.rename(columns={'id': 'product_id'})
-        # Ajouter d'autres colonnes produit ici si disponibles (ex: business_criticality)
         data = data.merge(prod_meta, on='product_id', how='left')
 
-    # Features
     data = build_date_features(data)
     data = build_severity_features(data)
     data = build_binary_features(data)
@@ -272,7 +239,6 @@ def preprocess_findings(
     data = build_composite_risk(data)
     data = build_ml_target(data)
 
-    # Sélection des colonnes finales (uniquement celles présentes)
     final_cols = [c for c in KEEP_COLS if c in data.columns]
     result     = data[final_cols].copy()
 
@@ -280,27 +246,22 @@ def preprocess_findings(
     return result
 
 
-# ---------------------------------------------------------------------------
-# 5. Validation du DataFrame final
-# ---------------------------------------------------------------------------
+
 
 def validate_output(df: pd.DataFrame) -> bool:
     """Vérifie la cohérence minimale du DataFrame avant sauvegarde."""
     ok = True
 
-    # Colonnes ML obligatoires
     required = ['severity_num', 'cvss_score', 'age_days', 'fixed_in_30d']
     missing  = [c for c in required if c not in df.columns]
     if missing:
         logger.error(f"Colonnes obligatoires manquantes : {missing}")
         ok = False
 
-    # Pas de DataFrame vide
     if len(df) == 0:
         logger.error("DataFrame vide après prétraitement.")
         ok = False
 
-    # Rapport valeurs manquantes
     null_pct = df.isnull().mean() * 100
     high_null = null_pct[null_pct > 30]
     if not high_null.empty:
@@ -309,9 +270,7 @@ def validate_output(df: pd.DataFrame) -> bool:
     return ok
 
 
-# ---------------------------------------------------------------------------
-# 6. Sauvegarde atomique
-# ---------------------------------------------------------------------------
+
 
 def save_atomic(df: pd.DataFrame, path: Path):
     """
@@ -346,34 +305,26 @@ def save_data_report(df: pd.DataFrame):
     logger.info(f"📋 Rapport qualité : {report_path}")
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+
 
 def main():
     logger.info("=" * 60)
     logger.info("🧹 Prétraitement des données — AI Risk Engine")
     logger.info("=" * 60)
 
-    # 1. Chargement
     findings, products, engagements = load_data()
 
-    # 2. Prétraitement complet
     df_clean = preprocess_findings(findings, products, engagements)
 
-    # 3. Validation
     if not validate_output(df_clean):
         logger.error("❌ Validation échouée — vérifiez les données brutes.")
         raise SystemExit(1)
 
-    # 4. Sauvegarde atomique
     output_path = PROCESSED_DIR / 'findings_clean.csv'
     save_atomic(df_clean, output_path)
 
-    # 5. Rapport qualité
     save_data_report(df_clean)
 
-    # 6. Aperçu
     logger.info("\n🔍 Aperçu des 3 premières lignes :")
     logger.info(f"\n{df_clean.head(3).to_string()}")
 
