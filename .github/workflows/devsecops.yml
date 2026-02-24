@@ -44,13 +44,24 @@ jobs:
           echo "jq installe via binaire: $(jq --version)"
         fi
 
+    - name: Cache des dependances Node
+      uses: actions/cache@v3
+      with:
+        path: |
+          juice-shop/node_modules
+          juice-shop/frontend/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('juice-shop/package-lock.json', 'juice-shop/frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
     - name: Installer les dependances Node
       working-directory: ./juice-shop
       run: |
         if [ -f "package-lock.json" ]; then
-          npm ci
+          npm ci --no-audit --no-fund
         else
-          npm install
+          npm install --no-audit --no-fund
         fi
 
     - name: SAST avec Semgrep
