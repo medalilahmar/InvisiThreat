@@ -1,0 +1,105 @@
+name: 🧪 Test DefectDojo (Engagement uniquement)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DD_URL: http://localhost:8080
+
+jobs:
+  test-engagement:
+    runs-on: self-hosted
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Étape 1 : Vérification de l'accessibilité de l'API
+      - name: Vérifier l'accès à l'API DefectDojo
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          echo "🔍 Test de connexion à l'API..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$DD_URL/api/v2/engagements/?limit=1" \
+            -H "Authorization: Token $DD_API_KEY")
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "✅ API accessible (HTTP 200)"
+          else
+            echo "❌ Échec de connexion à l'API (HTTP $RESPONSE)"
+            exit 1
+          fi
+
+      # Étape 2 : Résolution de l'engagement (création ou réutilisation)
+      - name: Définir ou créer l'engagement
+        id: dd_engagement
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
+        run: |
+          set -e
+          BRANCH="${{ github.ref_name }}"
+          YEAR=$(date +%Y)
+          MONTH=$(date +%-m)
+
+          # Déterminer le trimestre
+          if   [ $MONTH -le 3 ]; then PERIOD="Q1"; PERIOD_START="$YEAR-01-01"; PERIOD_END="$YEAR-03-31"
+          elif [ $MONTH -le 6 ]; then PERIOD="Q2"; PERIOD_START="$YEAR-04-01"; PERIOD_END="$YEAR-06-30"
+          elif [ $MONTH -le 9 ]; then PERIOD="Q3"; PERIOD_START="$YEAR-07-01"; PERIOD_END="$YEAR-09-30"
+          else                        PERIOD="Q4"; PERIOD_START="$YEAR-10-01"; PERIOD_END="$YEAR-12-31"
+          fi
+
+          ENGAGEMENT_NAME="${BRANCH} — ${YEAR}-${PERIOD} (test rapide)"
+          echo "🏷️  Engagement cible : $ENGAGEMENT_NAME"
+
+          # ✅ Fix : encodage via variable d'environnement pour éviter les problèmes de guillemets/caractères spéciaux
+          ENCODED_NAME=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$ENGAGEMENT_NAME")
+
+          # Encodage du status pour l'URL
+          ENCODED_STATUS=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "In Progress")
+
+          SEARCH_URL="$DD_URL/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED_NAME&status=$ENCODED_STATUS"
+
+          # Recherche d'un engagement existant
+          SEARCH_RESP=$(curl -s "$SEARCH_URL" -H "Authorization: Token $DD_API_KEY")
+          COUNT=$(echo "$SEARCH_RESP" | jq -r '.count // 0')
+
+          if [ "$COUNT" -gt 0 ]; then
+            ENGAGEMENT_ID=$(echo "$SEARCH_RESP" | jq -r '.results | sort_by(.id) | reverse | .[0].id')
+            echo "♻️  Engagement existant réutilisé — ID: $ENGAGEMENT_ID"
+            curl -s -X PATCH "$DD_URL/api/v2/engagements/$ENGAGEMENT_ID/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"target_end\": \"$PERIOD_END\"}" > /dev/null
+          else
+            CREATE_RESP=$(curl -s -X POST "$DD_URL/api/v2/engagements/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"name\": \"$ENGAGEMENT_NAME\",
+                \"product\": $PRODUCT_ID,
+                \"target_start\": \"$PERIOD_START\",
+                \"target_end\": \"$PERIOD_END\",
+                \"status\": \"In Progress\",
+                \"engagement_type\": \"CI/CD\"
+              }")
+            ENGAGEMENT_ID=$(echo "$CREATE_RESP" | jq -r '.id')
+            if [ -z "$ENGAGEMENT_ID" ] || [ "$ENGAGEMENT_ID" = "null" ]; then
+              echo "❌ Échec de création de l'engagement. Réponse API :"
+              echo "$CREATE_RESP"
+              exit 1
+            fi
+            echo "✅ Nouvel engagement créé — ID: $ENGAGEMENT_ID"
+          fi
+
+          echo "ENGAGEMENT_ID=$ENGAGEMENT_ID" >> $GITHUB_ENV
+          echo "engagement_id=$ENGAGEMENT_ID" >> $GITHUB_OUTPUT
+          echo "ENGAGEMENT_NAME=$ENGAGEMENT_NAME" >> $GITHUB_ENV
+
+      - name: Affichage du résultat
+        run: |
+          echo "🎯 Engagement utilisé : $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
+          echo "🔗 Lien : $DD_URL/engagements/$ENGAGEMENT_ID/finding/"
