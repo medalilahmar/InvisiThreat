@@ -379,12 +379,51 @@ jobs:
         done
         echo "Total avant : $TOTAL findings actifs"
 
-    - name: DefectDojo - Reimport des scans
+    - name: DefectDojo - Creer Tests et Reimport des scans
       if: always()
       continue-on-error: true
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
+        create_test_if_not_exists() {
+          local test_title="$1"
+          local scan_type="$2"
+          
+          echo "  Verification du test: $test_title..."
+          
+          SEARCH_TEST=$(curl -s \
+            "${DD_URL}/api/v2/tests/?engagement=${ENGAGEMENT_ID}&title=${test_title}" \
+            -H "Authorization: Token $DD_API_KEY")
+          
+          TEST_COUNT=$(echo "$SEARCH_TEST" | jq -r '.count // 0')
+          
+          if [ "$TEST_COUNT" -eq "0" ]; then
+            echo "  Creation du test: $test_title"
+            
+            TEST_PAYLOAD=$(jq -n \
+              --arg title "$test_title" \
+              --arg scan "$scan_type" \
+              --arg engagement "$ENGAGEMENT_ID" \
+              '{
+                title: $title,
+                scan_type: $scan,
+                engagement: ($engagement | tonumber),
+                environment: "Development",
+                target_start: "'$(date -Iseconds)'",
+                target_end: "'$(date -Iseconds)'"
+              }')
+            
+            curl -s -X POST "${DD_URL}/api/v2/tests/" \
+              -H "Authorization: Token $DD_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$TEST_PAYLOAD" > /dev/null
+            
+            echo "  Test cree: $test_title"
+          else
+            echo "  Test existe deja: $test_title"
+          fi
+        }
+
         reimport_scan() {
           local file="$1"
           local scan_type="$2"
@@ -441,6 +480,7 @@ jobs:
         echo "================================================"
         echo "  SAST - Semgrep"
         echo "================================================"
+        create_test_if_not_exists "SAST - Semgrep" "Semgrep JSON Report"
         reimport_scan \
           "juice-shop/semgrep-results.json" \
           "Semgrep JSON Report" \
@@ -451,6 +491,7 @@ jobs:
         echo "================================================"
         echo "  SCA - Snyk"
         echo "================================================"
+        create_test_if_not_exists "SCA - Snyk" "Snyk Scan"
         reimport_scan \
           "juice-shop/snyk-results.json" \
           "Snyk Scan" \
@@ -461,18 +502,21 @@ jobs:
         echo "================================================"
         echo "  DAST - ZAP"
         echo "================================================"
+        create_test_if_not_exists "DAST - ZAP OpenAPI" "ZAP Scan"
         reimport_scan \
           "juice-shop/zap-openapi.xml" \
           "ZAP Scan" \
           "DAST - ZAP OpenAPI" \
           "DAST"
 
+        create_test_if_not_exists "DAST - ZAP Spider" "ZAP Scan"
         reimport_scan \
           "juice-shop/zap-spider.xml" \
           "ZAP Scan" \
           "DAST - ZAP Spider" \
           "DAST"
 
+        create_test_if_not_exists "DAST - ZAP Active Scan" "ZAP Scan"
         reimport_scan \
           "juice-shop/zap-active.xml" \
           "ZAP Scan" \
