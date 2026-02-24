@@ -344,6 +344,7 @@ jobs:
           RESPONSE=$(curl -s -X POST "${DD_URL}/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=${ENGAGEMENT_ID}" \
+            -F "engagement_name=${ENGAGEMENT_NAME}" \ 
             -F "product_name=${PRODUCT_NAME}" \
             -F "scan_type=${scan_type}" \
             -F "test_title=${test_title}" \
