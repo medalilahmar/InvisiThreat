@@ -50,7 +50,6 @@ jobs:
         path: |
           juice-shop/node_modules
           juice-shop/frontend/node_modules
-          ~/.npm
         key: ${{ runner.os }}-node-${{ hashFiles('juice-shop/package-lock.json', 'juice-shop/frontend/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-node-
@@ -399,12 +398,14 @@ jobs:
 
           echo "  Import de $test_title..."
           echo "    - Engagement ID: $ENGAGEMENT_ID"
+          echo "    - Engagement Name: $ENGAGEMENT_NAME"
           echo "    - Product Name: $PRODUCT_NAME"
           echo "    - Fichier: $file ($(stat -c%s "$file" 2>/dev/null || echo "0") octets)"
 
           CURL_CMD="curl -s -X POST \"${DD_URL}/api/v2/reimport-scan/\""
           CURL_CMD="$CURL_CMD -H \"Authorization: Token $DD_API_KEY\""
           CURL_CMD="$CURL_CMD -F \"engagement=${ENGAGEMENT_ID}\""
+          CURL_CMD="$CURL_CMD -F \"engagement_name=${ENGAGEMENT_NAME}\""
           CURL_CMD="$CURL_CMD -F \"product_name=${PRODUCT_NAME}\""
           CURL_CMD="$CURL_CMD -F \"scan_type=${scan_type}\""
           CURL_CMD="$CURL_CMD -F \"test_title=${test_title}\""
