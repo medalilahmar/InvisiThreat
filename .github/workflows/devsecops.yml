@@ -704,14 +704,14 @@ jobs:
 
         if [ "$FAIL_ON_NEW_HIGH" = "true" ] && [ "$NEW_HIGH" -gt 0 ]; then
           echo ""
-          echo "⛔ SECURITY GATE FAILED !"
+          echo " SECURITY GATE FAILED !"
           echo "   $NEW_HIGH nouveau(x) finding(s) HIGH introduit(s)."
           GATE_FAILED=1
         fi
 
         if [ "$GATE_FAILED" -eq 0 ]; then
           echo ""
-          echo "✅ Security Gate : PASSED"
+          echo " Security Gate : PASSED"
         fi
 
         exit $GATE_FAILED
