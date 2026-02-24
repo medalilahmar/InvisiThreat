@@ -20,7 +20,7 @@ jobs:
 
     steps:
 
-    - name: Récupérer le code
+    - name: Recuperer le code
       uses: actions/checkout@v4
       with:
         submodules: recursive
@@ -91,7 +91,7 @@ jobs:
     - name: Generer rapports ZAP factices
       working-directory: ./juice-shop
       run: |
-        echo "Generation des rapports ZAP factices pour test DefectDojo..."
+        echo "Generation des rapports ZAP factices..."
 
         printf '%s\n' \
           '<?xml version="1.0"?>' \
@@ -148,7 +148,10 @@ jobs:
         cp zap-openapi.xml zap-spider.xml
         cp zap-openapi.xml zap-active.xml
 
-        echo '[{"pluginid":"10038","alert":"CSP Header Not Set","riskcode":"2"},{"pluginid":"10021","alert":"X-Content-Type-Options Missing","riskcode":"1"}]' > zap-openapi.json
+        printf '%s\n' \
+          '[{"pluginid":"10038","alert":"CSP Header Not Set","riskcode":"2"},' \
+          '{"pluginid":"10021","alert":"X-Content-Type-Options Missing","riskcode":"1"}]' \
+          > zap-openapi.json
         cp zap-openapi.json zap-spider.json
         cp zap-openapi.json zap-active.json
 
@@ -165,7 +168,7 @@ jobs:
         TOTAL=$(jq 'length' zap-consolidated.json 2>/dev/null || echo "0")
         echo "DAST consolide : $TOTAL alertes"
 
-    - name: Upload tous les rapports de securite
+    - name: Upload tous les rapports
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -178,13 +181,15 @@ jobs:
         retention-days: 30
         if-no-files-found: warn
 
+    # ──────────────────────────────────────────────────────────
+    # DEFECTDOJO — ENGAGEMENT (uniquement PRODUCT_ID)
+    # ──────────────────────────────────────────────────────────
     - name: DefectDojo - Resoudre l Engagement
       if: always()
       id: dd_engagement
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
         PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
-        PRODUCT_NAME: "Invisi"
       run: |
         set -e
         BRANCH="${{ github.ref_name }}"
@@ -249,14 +254,14 @@ jobs:
         else
           echo "Creation d un nouvel engagement : $ENGAGEMENT_NAME"
           PAYLOAD=$(jq -n \
-            --arg   name        "$ENGAGEMENT_NAME" \
-            --arg   desc        "Scans CI/CD | Branche: ${BRANCH} | Periode: ${PERIOD_START} -> ${PERIOD_END}" \
-            --argjson product   "$PRODUCT_ID" \
-            --arg   start       "$PERIOD_START" \
-            --arg   target_end  "$PERIOD_END" \
-            --arg   branch      "$BRANCH" \
-            --arg   period_mode "$PERIOD_MODE" \
-            --arg   period      "$PERIOD" \
+            --arg   name       "$ENGAGEMENT_NAME" \
+            --arg   desc       "Scans CI/CD | Branche: ${BRANCH} | Periode: ${PERIOD_START} -> ${PERIOD_END}" \
+            --argjson product  "$PRODUCT_ID" \
+            --arg   start      "$PERIOD_START" \
+            --arg   target_end "$PERIOD_END" \
+            --arg   branch     "$BRANCH" \
+            --arg   pmode      "$PERIOD_MODE" \
+            --arg   period     "$PERIOD" \
             '{
               name:                        $name,
               description:                 $desc,
@@ -267,7 +272,7 @@ jobs:
               target_end:                  $target_end,
               branch_tag:                  $branch,
               deduplication_on_engagement: false,
-              tags: ["github-actions", $branch, $period_mode, $period, "automated"]
+              tags: ["github-actions", $branch, $pmode, $period, "automated"]
             }')
 
           CREATE=$(curl -s -X POST "${DD_URL}/api/v2/engagements/" \
@@ -292,7 +297,6 @@ jobs:
           echo "PERIOD=$PERIOD"
           echo "PERIOD_START=$PERIOD_START"
           echo "PERIOD_END=$PERIOD_END"
-          echo "PRODUCT_NAME=$PRODUCT_NAME"
         } >> $GITHUB_ENV
 
         echo "engagement_id=$ENGAGEMENT_ID" >> $GITHUB_OUTPUT
@@ -324,6 +328,11 @@ jobs:
         done
         echo "Total avant : $TOTAL findings actifs"
 
+    # ──────────────────────────────────────────────────────────
+    # DEFECTDOJO — REIMPORT
+    # Utilise uniquement engagement (ID) — pas de product_name
+    # L'ID seul suffit car l'engagement existe déjà à ce stade
+    # ──────────────────────────────────────────────────────────
     - name: DefectDojo - Reimport des scans
       if: always()
       continue-on-error: true
@@ -344,8 +353,6 @@ jobs:
           RESPONSE=$(curl -s -X POST "${DD_URL}/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=${ENGAGEMENT_ID}" \
-            -F "engagement_name=${ENGAGEMENT_NAME}" \ 
-            -F "product_name=${PRODUCT_NAME}" \
             -F "scan_type=${scan_type}" \
             -F "test_title=${test_title}" \
             -F "file=@${file}" \
@@ -358,8 +365,7 @@ jobs:
             -F "branch_tag=${{ github.ref_name }}" \
             -F "commit_hash=${{ github.sha }}" \
             -F "build_id=${{ github.run_id }}" \
-            -F "tags=${category},github-actions,automated" \
-            2>&1) || true
+            -F "tags=${category},github-actions,automated")
 
           TEST_ID=$(echo "$RESPONSE"  | jq -r '.test // .id // empty' 2>/dev/null || echo "")
           NEW_F=$(echo "$RESPONSE"    | jq -r '.finding_count // 0'   2>/dev/null || echo "0")
@@ -430,7 +436,6 @@ jobs:
         else
           echo "  Statut     : Reutilise (existant)"
         fi
-        echo "  Mode       : TEST RAPIDE (ZAP desactive)"
         echo "  Lien       : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
         echo ""
 
