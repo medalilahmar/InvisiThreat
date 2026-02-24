@@ -388,11 +388,13 @@ jobs:
         create_test_if_not_exists() {
           local test_title="$1"
           local scan_type="$2"
+
+          local encoded_title=$(echo "$test_title" | sed 's/ /%20/g' | sed 's/-/%2D/g')
           
           echo "  Verification du test: $test_title..."
           
           SEARCH_TEST=$(curl -s \
-            "${DD_URL}/api/v2/tests/?engagement=${ENGAGEMENT_ID}&title=${test_title}" \
+            "${DD_URL}/api/v2/tests/?engagement=${ENGAGEMENT_ID}&title=${encoded_title}" \
             -H "Authorization: Token $DD_API_KEY")
           
           TEST_COUNT=$(echo "$SEARCH_TEST" | jq -r '.count // 0')
@@ -469,9 +471,9 @@ jobs:
           SKIP_F=$(echo "$RESPONSE" | jq -r '.skipped_findings // 0' 2>/dev/null || echo "0")
 
           if [ -n "$TEST_ID" ] && [ "$TEST_ID" != "null" ]; then
-            echo "  OK $test_title | Test ID: $TEST_ID | new=$NEW_F closed=$CLOSED_F skipped=$SKIP_F"
+            echo "  ✅ $test_title | Test ID: $TEST_ID | new=$NEW_F closed=$CLOSED_F skipped=$SKIP_F"
           else
-            echo "  ERREUR $test_title | Echec import"
+            echo "  ❌ $test_title | Echec import"
             echo "    Reponse API :"
             echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
           fi
@@ -502,24 +504,24 @@ jobs:
         echo "================================================"
         echo "  DAST - ZAP"
         echo "================================================"
-        create_test_if_not_exists "DAST - ZAP OpenAPI" "ZAP Scan"
+        create_test_if_not_exists "DAST - ZAP OpenAPI" "ZAP OpenAPI"
         reimport_scan \
           "juice-shop/zap-openapi.xml" \
-          "ZAP Scan" \
+          "ZAP OpenAPI" \
           "DAST - ZAP OpenAPI" \
           "DAST"
 
-        create_test_if_not_exists "DAST - ZAP Spider" "ZAP Scan"
+        create_test_if_not_exists "DAST - ZAP Spider" "ZAP Spider"
         reimport_scan \
           "juice-shop/zap-spider.xml" \
-          "ZAP Scan" \
+          "ZAP Spider" \
           "DAST - ZAP Spider" \
           "DAST"
 
-        create_test_if_not_exists "DAST - ZAP Active Scan" "ZAP Scan"
+        create_test_if_not_exists "DAST - ZAP Active Scan" "ZAP Active Scan"
         reimport_scan \
           "juice-shop/zap-active.xml" \
-          "ZAP Scan" \
+          "ZAP Active Scan" \
           "DAST - ZAP Active Scan" \
           "DAST"
 
