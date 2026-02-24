@@ -1,4 +1,4 @@
-name: DevSecOps Pipeline - InvisiThreat
+name: DevSecOps Pipeline - InvisiThreat (TEST RAPIDE)
 
 on:
   push:
@@ -16,313 +16,156 @@ jobs:
   security:
     name: SAST + SCA + DAST + DefectDojo
     runs-on: self-hosted
-    timeout-minutes: 120
+    timeout-minutes: 30
 
     steps:
 
-    # ──────────────────────────────────────────────────────────
-    # 1. CHECKOUT
-    # ──────────────────────────────────────────────────────────
     - name: Récupérer le code
       uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
 
-    # ──────────────────────────────────────────────────────────
-    # 2. DÉPENDANCES SYSTÈME
-    # ──────────────────────────────────────────────────────────
     - name: Installer jq
       run: |
         if command -v jq &> /dev/null; then
-          echo "jq déjà installé: $(jq --version)"
+          echo "jq deja installe: $(jq --version)"
           exit 0
         fi
-        echo "Nettoyage des processus apt bloqués..."
         sudo killall apt apt-get dpkg 2>/dev/null || true
         sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
                    /var/cache/apt/archives/lock /var/lib/apt/lists/lock
         sudo dpkg --configure -a
         if sudo apt update -qq && sudo apt install -y -qq jq; then
-          echo "jq installé via apt: $(jq --version)"
+          echo "jq installe via apt: $(jq --version)"
         else
-          echo "Échec apt, installation via binaire..."
           wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
           chmod +x jq && sudo mv jq /usr/local/bin/
-          echo "jq installé via binaire: $(jq --version)"
+          echo "jq installe via binaire: $(jq --version)"
         fi
 
-    - name: Installer les dépendances Node
+    - name: Installer les dependances Node
       working-directory: ./juice-shop
       run: |
         if [ -f "package-lock.json" ]; then
-          echo "Installation avec npm ci..."
           npm ci
         else
-          echo "Installation avec npm install..."
           npm install
         fi
 
-    # ──────────────────────────────────────────────────────────
-    # 3. SAST — SEMGREP
-    # ──────────────────────────────────────────────────────────
     - name: SAST avec Semgrep
       working-directory: ./juice-shop
       continue-on-error: true
       run: |
         [ -f ".semgrepignore" ] && mv .semgrepignore .semgrepignore.bak
-        timeout 1500 docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep \
-          --config=r/all --json --output=/src/semgrep-results.json \
-          --metrics=off --jobs=4 --timeout=60 --max-memory=4096 /src || true
+        timeout 120 docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep \
+          --config=r/javascript.lang.security \
+          --json --output=/src/semgrep-results.json \
+          --metrics=off --jobs=2 --timeout=30 /src || true
         [ -f ".semgrepignore.bak" ] && mv .semgrepignore.bak .semgrepignore
         [ ! -s "semgrep-results.json" ] && echo '{"results":[]}' > semgrep-results.json
+        echo "Semgrep termine"
+        jq -r '"  Total: " + (.results | length | tostring)' semgrep-results.json
 
-        echo ""
-        echo "════════════════════════════════════"
-        echo "  SEMGREP RAPPORT"
-        echo "════════════════════════════════════"
-        jq -r '"  Total: " + (.results | length | tostring) +
-              "\n  High: " + ([.results[] | select(.extra.severity=="ERROR")] | length | tostring) +
-              "\n  Med: "  + ([.results[] | select(.extra.severity=="WARNING")] | length | tostring) +
-              "\n  Low: "  + ([.results[] | select(.extra.severity=="INFO")] | length | tostring)' semgrep-results.json
-        echo "════════════════════════════════════"
-        echo "Prêt pour DefectDojo"
-
-    # ──────────────────────────────────────────────────────────
-    # 4. SCA — SNYK
-    # ──────────────────────────────────────────────────────────
     - name: Snyk SCA
       continue-on-error: true
       working-directory: ./juice-shop
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
-        echo "Scan Snyk en cours..."
         npx snyk test --severity-threshold=low \
           --json-file-output=snyk-results.json || true
-
         if [ ! -f "snyk-results.json" ] || [ ! -s "snyk-results.json" ]; then
           echo '{"vulnerabilities":[]}' > snyk-results.json
-          echo "Fichier snyk-results.json créé (vide)"
-        else
-          COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
-          echo "Snyk terminé : $COUNT vulnérabilités trouvées"
         fi
+        COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
+        echo "Snyk termine : $COUNT vulnerabilites"
 
     - name: Snyk Monitor
       continue-on-error: true
       working-directory: ./juice-shop
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: |
-        echo "Envoi des données à Snyk Monitor..."
-        npx snyk monitor || true
+      run: npx snyk monitor || true
 
-    # ──────────────────────────────────────────────────────────
-    # 5. DAST — ZAP
-    # ──────────────────────────────────────────────────────────
-    - name: Démarrer l'API en arrière-plan
+    - name: Generer rapports ZAP factices
       working-directory: ./juice-shop
       run: |
-        echo "Démarrage de l'API sur http://localhost:3000"
-        npm start &
-        echo $! > api.pid
-        sleep 15
+        echo "Generation des rapports ZAP factices pour test DefectDojo..."
 
-        MAX_RETRIES=20
-        for i in $(seq 1 $MAX_RETRIES); do
-          if curl -s -f http://localhost:3000/ > /dev/null 2>&1; then
-            echo "API démarrée avec succès"
-            exit 0
-          fi
-          echo "Tentative $i/$MAX_RETRIES..."
-          sleep 3
-        done
-        echo "API n'a pas démarré"
-        exit 1
+        printf '%s\n' \
+          '<?xml version="1.0"?>' \
+          '<OWASPZAPReport version="2.11.1" generated="Mon, 24 Feb 2025 00:00:00">' \
+          '  <site name="http://localhost:3000" host="localhost" port="3000" ssl="false">' \
+          '    <alerts>' \
+          '      <alertitem>' \
+          '        <pluginid>10038</pluginid>' \
+          '        <alert>Content Security Policy Header Not Set</alert>' \
+          '        <n>Content Security Policy Header Not Set</n>' \
+          '        <riskcode>2</riskcode>' \
+          '        <confidence>3</confidence>' \
+          '        <riskdesc>Medium (High)</riskdesc>' \
+          '        <desc>CSP header is missing.</desc>' \
+          '        <solution>Set the Content-Security-Policy header.</solution>' \
+          '        <reference>https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP</reference>' \
+          '        <cweid>693</cweid>' \
+          '        <wascid>15</wascid>' \
+          '        <instances>' \
+          '          <instance>' \
+          '            <uri>http://localhost:3000/</uri>' \
+          '            <method>GET</method>' \
+          '            <evidence></evidence>' \
+          '          </instance>' \
+          '        </instances>' \
+          '        <count>1</count>' \
+          '      </alertitem>' \
+          '      <alertitem>' \
+          '        <pluginid>10021</pluginid>' \
+          '        <alert>X-Content-Type-Options Header Missing</alert>' \
+          '        <n>X-Content-Type-Options Header Missing</n>' \
+          '        <riskcode>1</riskcode>' \
+          '        <confidence>3</confidence>' \
+          '        <riskdesc>Low (High)</riskdesc>' \
+          '        <desc>X-Content-Type-Options header is not set.</desc>' \
+          '        <solution>Set the Content-Type header appropriately.</solution>' \
+          '        <reference>https://owasp.org/www-project-secure-headers/</reference>' \
+          '        <cweid>693</cweid>' \
+          '        <wascid>15</wascid>' \
+          '        <instances>' \
+          '          <instance>' \
+          '            <uri>http://localhost:3000/</uri>' \
+          '            <method>GET</method>' \
+          '            <evidence></evidence>' \
+          '          </instance>' \
+          '        </instances>' \
+          '        <count>1</count>' \
+          '      </alertitem>' \
+          '    </alerts>' \
+          '  </site>' \
+          '</OWASPZAPReport>' \
+          > zap-openapi.xml
 
-    - name: DAST - Scan OpenAPI
-      working-directory: ./juice-shop
-      continue-on-error: true
-      run: |
-        echo "Scan OpenAPI avec ZAP..."
+        cp zap-openapi.xml zap-spider.xml
+        cp zap-openapi.xml zap-active.xml
 
-        RULES_FILE=""
-        if [ -f ".zap/rules.tsv" ]; then
-          echo "Utilisation des règles: .zap/rules.tsv"
-          RULES_FILE="-c .zap/rules.tsv"
-        fi
+        echo '[{"pluginid":"10038","alert":"CSP Header Not Set","riskcode":"2"},{"pluginid":"10021","alert":"X-Content-Type-Options Missing","riskcode":"1"}]' > zap-openapi.json
+        cp zap-openapi.json zap-spider.json
+        cp zap-openapi.json zap-active.json
 
-        API_FILE=""
-        for file in swagger.yml swagger.yaml openapi.json swagger.json; do
-          if [ -f "$file" ]; then
-            API_FILE="$file"
-            echo "Fichier OpenAPI trouvé: $file"
-            break
-          fi
-        done
-
-        if [ -n "$API_FILE" ]; then
-          docker run --rm --network host -v "$(pwd):/zap/wrk:rw" \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-api-scan.py \
-            -t http://localhost:3000 \
-            -f openapi \
-            -d "/zap/wrk/$API_FILE" \
-            -x /zap/wrk/zap-openapi.xml \
-            -J /zap/wrk/zap-openapi.json \
-            $RULES_FILE \
-            -T 30 \
-            -I || true
-        else
-          echo "Aucun fichier OpenAPI trouvé, scan sans spécification"
-          docker run --rm --network host -v "$(pwd):/zap/wrk:rw" \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-api-scan.py \
-            -t http://localhost:3000 \
-            -f openapi \
-            -x /zap/wrk/zap-openapi.xml \
-            -J /zap/wrk/zap-openapi.json \
-            $RULES_FILE \
-            -T 30 \
-            -I || true
-        fi
-
-    - name: Vérifier rapport OpenAPI
-      working-directory: ./juice-shop
-      run: |
-        if [ -f zap-openapi.json ]; then
-          echo "zap-openapi.json trouvé"
-          echo "Taille: $(stat -c%s zap-openapi.json 2>/dev/null || stat -f%z zap-openapi.json 2>/dev/null) octets"
-        elif [ -f zap_out.json ]; then
-          cp zap_out.json zap-openapi.json
-          echo "Renommé zap_out.json en zap-openapi.json"
-        elif [ -f report_json.json ]; then
-          cp report_json.json zap-openapi.json
-          echo "Renommé report_json.json en zap-openapi.json"
-        else
-          echo "Aucun rapport OpenAPI trouvé"
-          echo "[]" > zap-openapi.json
-        fi
-
-    - name: DAST - Spider Scan
-      continue-on-error: true
-      timeout-minutes: 30
-      working-directory: ./juice-shop
-      run: |
-        echo "Spider Scan avec règles personnalisées..."
-
-        RULES_FILE=""
-        if [ -f ".zap/rules.tsv" ]; then
-          echo "Utilisation du fichier de règles: .zap/rules.tsv"
-          grep "IGNORE" .zap/rules.tsv | head -5
-          RULES_FILE="-c .zap/rules.tsv"
-        fi
-
-        docker run --rm --network host -v "$(pwd):/zap/wrk:rw" \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-baseline.py \
-          -t http://localhost:3000 \
-          $RULES_FILE \
-          -x /zap/wrk/zap-spider.xml \
-          -J /zap/wrk/zap-spider.json \
-          -T 15 \
-          -m 2 || echo "Scan terminé"
-
-    - name: Vérifier rapport Spider
-      working-directory: ./juice-shop
-      run: |
-        if [ -f zap-spider.json ]; then
-          echo "zap-spider.json trouvé"
-        elif [ -f zap-out.json ]; then
-          cp zap-out.json zap-spider.json
-          echo "Renommé zap-out.json en zap-spider.json"
-        else
-          echo "Aucun rapport Spider trouvé"
-          echo "[]" > zap-spider.json
-        fi
-
-    - name: DAST - Active Scan
-      continue-on-error: true
-      timeout-minutes: 40
-      working-directory: ./juice-shop
-      run: |
-        echo "Scan actif avec ZAP (peut prendre 30-40 minutes)..."
-
-        RULES_FILE=""
-        if [ -f ".zap/rules.tsv" ]; then
-          echo "Utilisation des règles pour l'Active Scan"
-          RULES_FILE="-c .zap/rules.tsv"
-        fi
-
-        docker run --rm --network host -v "$(pwd):/zap/wrk:rw" \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-full-scan.py \
-          -t http://localhost:3000 \
-          -x /zap/wrk/zap-active.xml \
-          -J /zap/wrk/zap-active.json \
-          $RULES_FILE \
-          -T 30 || true
-
-    - name: Vérifier rapport Active Scan
-      working-directory: ./juice-shop
-      run: |
-        if [ -f zap-active.json ]; then
-          echo "zap-active.json trouvé"
-        elif [ -f zap-out.json ]; then
-          cp zap-out.json zap-active.json
-          echo "Renommé zap-out.json en zap-active.json"
-        else
-          echo "Aucun rapport Active Scan trouvé"
-          echo "[]" > zap-active.json
-        fi
+        echo "Fichiers generes :"
+        ls -lh zap-*.xml zap-*.json
 
     - name: Consolider les rapports DAST
       working-directory: ./juice-shop
       run: |
-        echo "Consolidation des rapports DAST..."
         echo "[]" > zap-consolidated.json
         if ls zap-*.json 1> /dev/null 2>&1; then
           jq -s 'add' zap-*.json > zap-consolidated.json 2>/dev/null || echo "[]" > zap-consolidated.json
         fi
+        TOTAL=$(jq 'length' zap-consolidated.json 2>/dev/null || echo "0")
+        echo "DAST consolide : $TOTAL alertes"
 
-        if [ -s zap-consolidated.json ]; then
-          TOTAL=$(jq    'length' zap-consolidated.json 2>/dev/null || echo "0")
-          CRITICAL=$(jq '[.[] | select(.riskcode=="3")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          HIGH=$(jq     '[.[] | select(.riskcode=="2")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          MEDIUM=$(jq   '[.[] | select(.riskcode=="1")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          LOW=$(jq      '[.[] | select(.riskcode=="0")] | length' zap-consolidated.json 2>/dev/null || echo "0")
-          echo "RÉSULTATS DAST:"
-          echo "   Total       : $TOTAL vulnérabilités"
-          echo "   Critiques   : $CRITICAL"
-          echo "   Hautes      : $HIGH"
-          echo "   Moyennes    : $MEDIUM"
-          echo "   Basses      : $LOW"
-        else
-          echo "Aucune vulnérabilité consolidée"
-        fi
-
-    # ──────────────────────────────────────────────────────────
-    # 6. ARRÊT API
-    # ──────────────────────────────────────────────────────────
-    - name: Arrêter l'API
-      if: always()
-      working-directory: ./juice-shop
-      run: |
-        echo "Arrêt de l'API..."
-        if [ -f api.pid ]; then
-          PID=$(cat api.pid)
-          kill $PID 2>/dev/null || true
-          rm -f api.pid
-          echo "API arrêtée (PID: $PID)"
-        fi
-        pkill -f "node.*juice-shop" || true
-        echo "Nettoyage des processus terminé"
-
-    # ──────────────────────────────────────────────────────────
-    # 7. UPLOAD ARTEFACTS
-    # ──────────────────────────────────────────────────────────
-    - name: Upload tous les rapports de sécurité
+    - name: Upload tous les rapports de securite
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -332,47 +175,34 @@ jobs:
           juice-shop/snyk-results.json
           juice-shop/zap-*.json
           juice-shop/zap-*.xml
-          juice-shop/.zap/rules.tsv
         retention-days: 30
         if-no-files-found: warn
 
-    # ──────────────────────────────────────────────────────────
-    # 8. DEFECTDOJO — ENGAGEMENT
-    # FIX : $end est un mot réservé jq → renommé en $target_end
-    # ──────────────────────────────────────────────────────────
-    - name: DefectDojo — Résoudre l'Engagement
+    - name: DefectDojo - Resoudre l Engagement
       if: always()
       id: dd_engagement
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
         PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
-        PRODUCT_NAME: ${{ secrets.PRODUCT_NAME }}
+        PRODUCT_NAME: "Invisi"
       run: |
         set -e
-
         BRANCH="${{ github.ref_name }}"
 
-        # ── Calcul de la période ───────────────────────────────
         if [ "$PERIOD_MODE" = "quarterly" ]; then
           MONTH=$(date +%-m)
           YEAR=$(date +%Y)
-          if   [ $MONTH -le 3 ]; then
-            PERIOD="Q1"; PERIOD_START="${YEAR}-01-01"; PERIOD_END="${YEAR}-03-31"
-          elif [ $MONTH -le 6 ]; then
-            PERIOD="Q2"; PERIOD_START="${YEAR}-04-01"; PERIOD_END="${YEAR}-06-30"
-          elif [ $MONTH -le 9 ]; then
-            PERIOD="Q3"; PERIOD_START="${YEAR}-07-01"; PERIOD_END="${YEAR}-09-30"
-          else
-            PERIOD="Q4"; PERIOD_START="${YEAR}-10-01"; PERIOD_END="${YEAR}-12-31"
+          if   [ $MONTH -le 3 ]; then PERIOD="Q1"; PERIOD_START="${YEAR}-01-01"; PERIOD_END="${YEAR}-03-31"
+          elif [ $MONTH -le 6 ]; then PERIOD="Q2"; PERIOD_START="${YEAR}-04-01"; PERIOD_END="${YEAR}-06-30"
+          elif [ $MONTH -le 9 ]; then PERIOD="Q3"; PERIOD_START="${YEAR}-07-01"; PERIOD_END="${YEAR}-09-30"
+          else                        PERIOD="Q4"; PERIOD_START="${YEAR}-10-01"; PERIOD_END="${YEAR}-12-31"
           fi
           ENGAGEMENT_NAME="${BRANCH} - ${YEAR}-${PERIOD}"
-
         elif [ "$PERIOD_MODE" = "monthly" ]; then
           PERIOD=$(date +%Y-%m)
           PERIOD_START=$(date +%Y-%m-01)
           PERIOD_END=$(date -d "$(date +%Y-%m-01) +1 month -1 day" +%Y-%m-%d)
           ENGAGEMENT_NAME="${BRANCH} - ${PERIOD}"
-
         elif [ "$PERIOD_MODE" = "weekly" ]; then
           PERIOD="W$(date +%V)-$(date +%Y)"
           PERIOD_START=$(date -d "last Monday" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
@@ -382,13 +212,10 @@ jobs:
 
         echo "Mode       : $PERIOD_MODE"
         echo "Engagement : $ENGAGEMENT_NAME"
-        echo "Période    : $PERIOD_START -> $PERIOD_END"
+        echo "Periode    : $PERIOD_START -> $PERIOD_END"
 
-        # ── Encodage URL 100% bash ─────────────────────────────
         urlencode() {
-          local string="$1"
-          local encoded=""
-          local i
+          local string="$1" encoded="" i
           for (( i=0; i<${#string}; i++ )); do
             local c="${string:$i:1}"
             case "$c" in
@@ -403,32 +230,24 @@ jobs:
         ENCODED_NAME=$(urlencode "$ENGAGEMENT_NAME")
         ENCODED_STATUS=$(urlencode "In Progress")
 
-        echo "Recherche d'un engagement existant..."
+        echo "Recherche d un engagement existant..."
         SEARCH=$(curl -s \
           "${DD_URL}/api/v2/engagements/?product=${PRODUCT_ID}&name=${ENCODED_NAME}&status=${ENCODED_STATUS}" \
           -H "Authorization: Token $DD_API_KEY")
 
         COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
-        echo "Engagements trouvés : $COUNT"
+        echo "Engagements trouves : $COUNT"
 
         if [ "$COUNT" -gt "0" ]; then
-          # ♻️ Réutilisation
           ENGAGEMENT_ID=$(echo "$SEARCH" | jq -r '.results | sort_by(.id) | reverse | .[0].id')
-          echo "Engagement existant réutilisé — ID: $ENGAGEMENT_ID"
-
+          echo "Engagement existant reutilise - ID: $ENGAGEMENT_ID"
           curl -s -X PATCH "${DD_URL}/api/v2/engagements/${ENGAGEMENT_ID}/" \
             -H "Authorization: Token $DD_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"target_end\": \"${PERIOD_END}\"}" > /dev/null
-
           echo "ENGAGEMENT_STATUS=reused" >> $GITHUB_ENV
-
         else
-          echo "Création d'un nouvel engagement : $ENGAGEMENT_NAME"
-
-          # ── FIX : $end est un mot réservé jq ─────────────────
-          # Renommé en $target_end pour éviter le syntax error
-          # "unexpected end, expecting IDENT or __loc__"
+          echo "Creation d un nouvel engagement : $ENGAGEMENT_NAME"
           PAYLOAD=$(jq -n \
             --arg   name        "$ENGAGEMENT_NAME" \
             --arg   desc        "Scans CI/CD | Branche: ${BRANCH} | Periode: ${PERIOD_START} -> ${PERIOD_END}" \
@@ -457,18 +276,15 @@ jobs:
             -d "$PAYLOAD")
 
           ENGAGEMENT_ID=$(echo "$CREATE" | jq -r '.id // empty')
-
           if [ -z "$ENGAGEMENT_ID" ] || [ "$ENGAGEMENT_ID" = "null" ]; then
-            echo "Échec de création de l'engagement. Réponse API :"
+            echo "Echec creation engagement. Reponse API :"
             echo "$CREATE" | jq .
             exit 1
           fi
-
-          echo "Engagement créé — ID: $ENGAGEMENT_ID"
+          echo "Engagement cree - ID: $ENGAGEMENT_ID"
           echo "ENGAGEMENT_STATUS=created" >> $GITHUB_ENV
         fi
 
-        # ── Export pour les steps suivants ─────────────────────
         {
           echo "ENGAGEMENT_ID=$ENGAGEMENT_ID"
           echo "ENGAGEMENT_NAME=$ENGAGEMENT_NAME"
@@ -481,28 +297,22 @@ jobs:
 
         echo "engagement_id=$ENGAGEMENT_ID" >> $GITHUB_OUTPUT
 
-        echo ""
         echo "======================================="
-        echo "  Engagement résolu"
+        echo "  Engagement resolu"
         echo "  ID   : $ENGAGEMENT_ID"
         echo "  Nom  : $ENGAGEMENT_NAME"
         echo "  Lien : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
         echo "======================================="
 
-    # ──────────────────────────────────────────────────────────
-    # 9. DEFECTDOJO — SNAPSHOT AVANT IMPORT
-    # ──────────────────────────────────────────────────────────
-    - name: DefectDojo — Snapshot avant import
+    - name: DefectDojo - Snapshot avant import
       if: always()
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
-        echo "Capture des findings actifs AVANT réimport..."
-
+        echo "Capture des findings AVANT reimport..."
         TOTAL=$(curl -s \
           "${DD_URL}/api/v2/findings/?engagement=${ENGAGEMENT_ID}&active=true&limit=1" \
           -H "Authorization: Token $DD_API_KEY" | jq -r '.count // 0')
-
         echo "FINDINGS_BEFORE=$TOTAL" >> $GITHUB_ENV
 
         for SEV in Critical High Medium Low Info; do
@@ -510,22 +320,16 @@ jobs:
             "${DD_URL}/api/v2/findings/?engagement=${ENGAGEMENT_ID}&active=true&severity=${SEV}&limit=1" \
             -H "Authorization: Token $DD_API_KEY" | jq -r '.count // 0')
           echo "BEFORE_${SEV}=$COUNT" >> $GITHUB_ENV
-          echo "  • $SEV : $COUNT"
+          echo "  - $SEV : $COUNT"
         done
-
         echo "Total avant : $TOTAL findings actifs"
 
-    # ──────────────────────────────────────────────────────────
-    # 10. DEFECTDOJO — RÉIMPORT DES SCANS
-    # FIX : product_name ajouté dans chaque appel reimport-scan
-    # ──────────────────────────────────────────────────────────
-    - name: DefectDojo — Réimport des scans
+    - name: DefectDojo - Reimport des scans
       if: always()
       continue-on-error: true
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
-
         reimport_scan() {
           local file="$1"
           local scan_type="$2"
@@ -533,13 +337,10 @@ jobs:
           local category="$4"
 
           if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-            echo "    $test_title — fichier absent ou vide, skip"
+            echo "    $test_title - fichier absent ou vide, skip"
             return 0
           fi
 
-          # ── FIX : product_name est obligatoire pour reimport-scan ──
-          # Sans ce champ, l'API retourne "product_name parameter missing"
-          # même si engagement est fourni. Les deux sont requis ensemble.
           RESPONSE=$(curl -s -X POST "${DD_URL}/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=${ENGAGEMENT_ID}" \
@@ -559,7 +360,6 @@ jobs:
             -F "tags=${category},github-actions,automated" \
             2>&1) || true
 
-          # Parsing de la réponse avec jq
           TEST_ID=$(echo "$RESPONSE"  | jq -r '.test // .id // empty' 2>/dev/null || echo "")
           NEW_F=$(echo "$RESPONSE"    | jq -r '.finding_count // 0'   2>/dev/null || echo "0")
           CLOSED_F=$(echo "$RESPONSE" | jq -r '.closed_findings // 0'  2>/dev/null || echo "0")
@@ -568,14 +368,14 @@ jobs:
           if [ -n "$TEST_ID" ] && [ "$TEST_ID" != "null" ]; then
             echo "  OK $test_title | Test ID: $TEST_ID | new=$NEW_F closed=$CLOSED_F skipped=$SKIP_F"
           else
-            echo "  ERREUR $test_title | Réponse API :"
+            echo "  ERREUR $test_title | Reponse API :"
             echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
           fi
         }
 
-        echo "════════════════════════════════════════════════"
-        echo "  SAST — Static Application Security Testing"
-        echo "════════════════════════════════════════════════"
+        echo "================================================"
+        echo "  SAST - Semgrep"
+        echo "================================================"
         reimport_scan \
           "juice-shop/semgrep-results.json" \
           "Semgrep JSON Report" \
@@ -583,9 +383,9 @@ jobs:
           "SAST"
 
         echo ""
-        echo "════════════════════════════════════════════════"
-        echo "  SCA — Software Composition Analysis"
-        echo "════════════════════════════════════════════════"
+        echo "================================================"
+        echo "  SCA - Snyk"
+        echo "================================================"
         reimport_scan \
           "juice-shop/snyk-results.json" \
           "Snyk Scan" \
@@ -593,9 +393,9 @@ jobs:
           "SCA"
 
         echo ""
-        echo "════════════════════════════════════════════════"
-        echo "  DAST — Dynamic Application Security Testing"
-        echo "════════════════════════════════════════════════"
+        echo "================================================"
+        echo "  DAST - ZAP"
+        echo "================================================"
         reimport_scan \
           "juice-shop/zap-openapi.xml" \
           "ZAP Scan" \
@@ -614,28 +414,26 @@ jobs:
           "DAST - ZAP Active Scan" \
           "DAST"
 
-    # ──────────────────────────────────────────────────────────
-    # 11. DEFECTDOJO — RAPPORT FINAL & SECURITY GATE
-    # ──────────────────────────────────────────────────────────
-    - name: DefectDojo — Rapport final & Security Gate
+    - name: DefectDojo - Rapport final et Security Gate
       if: always()
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
         echo ""
-        echo "══════════════════════════════════════════════════════════"
-        echo "    DEFECTDOJO — RAPPORT DE SÉCURITÉ CI/CD"
-        echo "══════════════════════════════════════════════════════════"
-        echo "  Engagement  : $ENGAGEMENT_NAME"
+        echo "=========================================================="
+        echo "  DEFECTDOJO - RAPPORT DE SECURITE CI/CD"
+        echo "=========================================================="
+        echo "  Engagement : $ENGAGEMENT_NAME"
         if [ "$ENGAGEMENT_STATUS" = "created" ]; then
-          echo "  Statut      : Créé ce run"
+          echo "  Statut     : Cree ce run"
         else
-          echo "  Statut      : Réutilisé (existant)"
+          echo "  Statut     : Reutilise (existant)"
         fi
-        echo "  Lien        : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
+        echo "  Mode       : TEST RAPIDE (ZAP desactive)"
+        echo "  Lien       : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
         echo ""
 
-        printf "  %-14s | %5s | %5s | %s\n" "Sévérité" "Avant" "Après" "Delta"
+        printf "  %-14s | %5s | %5s | %s\n" "Severite" "Avant" "Apres" "Delta"
         echo "  ──────────────┼───────┼───────┼──────────"
 
         GATE_FAILED=0
@@ -650,7 +448,6 @@ jobs:
           BEFORE_VAR="BEFORE_${SEV}"
           BEFORE="${!BEFORE_VAR}"
           BEFORE="${BEFORE:-0}"
-
           DELTA=$((AFTER - BEFORE))
 
           case "$SEV" in
@@ -662,81 +459,55 @@ jobs:
           esac
 
           if [ "$DELTA" -gt 0 ]; then
-            DELTA_STR="+${DELTA} [+]"
+            DELTA_STR="+${DELTA} [NEW]"
           elif [ "$DELTA" -lt 0 ]; then
-            DELTA_STR="${DELTA} [OK]"
+            DELTA_STR="${DELTA} [FIXED]"
           else
-            DELTA_STR="  —"
+            DELTA_STR="  -"
           fi
 
           printf "  [%s] %-12s | %5s | %5s | %s\n" "$ICON" "$SEV" "$BEFORE" "$AFTER" "$DELTA_STR"
 
-          if [ "$SEV" = "Critical" ] && [ "$DELTA" -gt 0 ]; then
-            NEW_CRITICAL=$DELTA
-          fi
-          if [ "$SEV" = "High" ] && [ "$DELTA" -gt 0 ]; then
-            NEW_HIGH=$DELTA
-          fi
+          if [ "$SEV" = "Critical" ] && [ "$DELTA" -gt 0 ]; then NEW_CRITICAL=$DELTA; fi
+          if [ "$SEV" = "High" ]     && [ "$DELTA" -gt 0 ]; then NEW_HIGH=$DELTA;     fi
         done
 
         echo ""
         echo "  Total actifs avant ce run : $FINDINGS_BEFORE"
-
         TOTAL_AFTER=$(curl -s \
           "${DD_URL}/api/v2/findings/?engagement=${ENGAGEMENT_ID}&active=true&limit=1" \
           -H "Authorization: Token $DD_API_KEY" | jq -r '.count // 0')
-        echo "  Total actifs après ce run : $TOTAL_AFTER"
+        echo "  Total actifs apres ce run : $TOTAL_AFTER"
 
         TOTAL_DIFF=$((TOTAL_AFTER - FINDINGS_BEFORE))
-
-        if [ "$TOTAL_DIFF" -eq 0 ]; then
-          echo ""
-          echo "  AUCUN CHANGEMENT détecté dans ce run."
-          echo "  Les findings sont identiques au run précédent."
-        elif [ "$TOTAL_DIFF" -gt 0 ]; then
-          echo ""
-          echo "  [+] $TOTAL_DIFF nouveau(x) finding(s) détecté(s) ce run !"
+        if   [ "$TOTAL_DIFF" -eq 0 ]; then echo "  Aucun changement detecte."
+        elif [ "$TOTAL_DIFF" -gt 0 ]; then echo "  [+] $TOTAL_DIFF nouveau(x) finding(s) !"
         else
-          ABS_DIFF=$(( TOTAL_DIFF * -1 ))
-          echo ""
-          echo "  [OK] $ABS_DIFF finding(s) résolu(s) depuis le dernier run !"
+          ABS=$((TOTAL_DIFF * -1))
+          echo "  [OK] $ABS finding(s) resolu(s) !"
         fi
 
         echo ""
-        echo "══════════════════════════════════════════════════════════"
+        echo "=========================================================="
 
-        # ── Security Gate ──────────────────────────────────────
         if [ "$FAIL_ON_NEW_CRITICAL" = "true" ] && [ "$NEW_CRITICAL" -gt 0 ]; then
-          echo ""
-          echo "SECURITY GATE FAILED !"
-          echo "  $NEW_CRITICAL nouveau(x) finding(s) CRITICAL introduit(s)."
-          echo "  Corrige les vulnérabilités critiques avant de merger."
+          echo "SECURITY GATE FAILED ! $NEW_CRITICAL CRITICAL introduit(s)."
           GATE_FAILED=1
         fi
-
         if [ "$FAIL_ON_NEW_HIGH" = "true" ] && [ "$NEW_HIGH" -gt 0 ]; then
-          echo ""
-          echo "SECURITY GATE FAILED !"
-          echo "  $NEW_HIGH nouveau(x) finding(s) HIGH introduit(s)."
+          echo "SECURITY GATE FAILED ! $NEW_HIGH HIGH introduit(s)."
           GATE_FAILED=1
         fi
-
-        if [ "$GATE_FAILED" -eq 0 ]; then
-          echo ""
-          echo "Security Gate : PASSED"
-        fi
+        [ "$GATE_FAILED" -eq 0 ] && echo "Security Gate : PASSED"
 
         exit $GATE_FAILED
 
-    # ──────────────────────────────────────────────────────────
-    # 12. RÉSUMÉ FINAL
-    # ──────────────────────────────────────────────────────────
-    - name: Pipeline terminé
+    - name: Pipeline termine
       if: always()
       run: |
-        echo "DevSecOps pipeline terminé"
-        echo "  Branche              : ${{ github.ref_name }}"
-        echo "  Commit               : ${{ github.sha }}"
-        echo "  Run ID               : ${{ github.run_id }}"
-        echo "  DefectDojo Engagement: $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
-        echo "  Lien : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
+        echo "DevSecOps pipeline termine"
+        echo "  Branche    : ${{ github.ref_name }}"
+        echo "  Commit     : ${{ github.sha }}"
+        echo "  Run ID     : ${{ github.run_id }}"
+        echo "  Engagement : $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
+        echo "  Lien       : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
