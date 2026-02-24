@@ -182,18 +182,78 @@ jobs:
         if-no-files-found: warn
 
     # ──────────────────────────────────────────────────────────
-    # DEFECTDOJO — ENGAGEMENT (uniquement PRODUCT_ID)
+    # DEFECTDOJO — CREATION PRODUIT + ENGAGEMENT
     # ──────────────────────────────────────────────────────────
-    - name: DefectDojo - Resoudre l Engagement
+    - name: DefectDojo - Creer Produit et Engagement
       if: always()
-      id: dd_engagement
+      id: dd_setup
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-        PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
+        PRODUCT_NAME: "InvisiThreat"
       run: |
         set -e
+        
+        # Fonction d'encodage URL
+        urlencode() {
+          local string="$1" encoded="" i
+          for (( i=0; i<${#string}; i++ )); do
+            local c="${string:$i:1}"
+            case "$c" in
+              [a-zA-Z0-9._~-]) encoded+="$c" ;;
+              ' ') encoded+="%20" ;;
+              *) encoded+=$(printf '%%%02X' "'$c") ;;
+            esac
+          done
+          echo "$encoded"
+        }
+        
+        # ── 1. GESTION DU PRODUIT ───────────────────────────
+        echo "🔍 Recherche du produit: $PRODUCT_NAME..."
+        ENC_PRODUCT=$(urlencode "$PRODUCT_NAME")
+        
+        SEARCH_P=$(curl -s \
+          "${DD_URL}/api/v2/products/?name=${ENC_PRODUCT}" \
+          -H "Authorization: Token $DD_API_KEY")
+        
+        COUNT_P=$(echo "$SEARCH_P" | jq -r '.count // 0')
+        
+        if [ "$COUNT_P" -gt "0" ]; then
+          # Produit existant
+          PRODUCT_ID=$(echo "$SEARCH_P" | jq -r '.results[0].id')
+          echo "✅ Produit existant - ID: $PRODUCT_ID"
+          PRODUCT_STATUS="exists"
+        else
+          # Creation du produit
+          echo "📦 Creation du produit: $PRODUCT_NAME"
+          PAYLOAD_P=$(jq -n \
+            --arg name "$PRODUCT_NAME" \
+            --arg desc "Produit pour les scans de securite InvisiThreat" \
+            '{
+              name: $name,
+              description: $desc,
+              prod_type: 1
+            }')
+          
+          CREATE_P=$(curl -s -X POST "${DD_URL}/api/v2/products/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD_P")
+          
+          PRODUCT_ID=$(echo "$CREATE_P" | jq -r '.id // empty')
+          
+          if [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ]; then
+            echo "❌ Echec creation produit. Reponse API :"
+            echo "$CREATE_P" | jq .
+            exit 1
+          fi
+          echo "✅ Produit cree - ID: $PRODUCT_ID"
+          PRODUCT_STATUS="created"
+        fi
+        
+        # ── 2. GESTION DE L'ENGAGEMENT ──────────────────────
         BRANCH="${{ github.ref_name }}"
-
+        
+        # Calcul de la periode
         if [ "$PERIOD_MODE" = "quarterly" ]; then
           MONTH=$(date +%-m)
           YEAR=$(date +%Y)
@@ -214,54 +274,43 @@ jobs:
           PERIOD_END=$(date -d "next Sunday" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
           ENGAGEMENT_NAME="${BRANCH} - ${PERIOD}"
         fi
-
-        echo "Mode       : $PERIOD_MODE"
-        echo "Engagement : $ENGAGEMENT_NAME"
-        echo "Periode    : $PERIOD_START -> $PERIOD_END"
-
-        urlencode() {
-          local string="$1" encoded="" i
-          for (( i=0; i<${#string}; i++ )); do
-            local c="${string:$i:1}"
-            case "$c" in
-              [a-zA-Z0-9._~-]) encoded+="$c" ;;
-              ' ') encoded+="%20" ;;
-              *) encoded+=$(printf '%%%02X' "'$c") ;;
-            esac
-          done
-          echo "$encoded"
-        }
-
-        ENCODED_NAME=$(urlencode "$ENGAGEMENT_NAME")
-        ENCODED_STATUS=$(urlencode "In Progress")
-
-        echo "Recherche d un engagement existant..."
-        SEARCH=$(curl -s \
-          "${DD_URL}/api/v2/engagements/?product=${PRODUCT_ID}&name=${ENCODED_NAME}&status=${ENCODED_STATUS}" \
+        
+        echo ""
+        echo "📅 Engagement: $ENGAGEMENT_NAME"
+        echo "   Periode: $PERIOD_START -> $PERIOD_END"
+        
+        ENC_ENGAGEMENT=$(urlencode "$ENGAGEMENT_NAME")
+        ENC_STATUS=$(urlencode "In Progress")
+        
+        # Recherche engagement existant
+        SEARCH_E=$(curl -s \
+          "${DD_URL}/api/v2/engagements/?product=${PRODUCT_ID}&name=${ENC_ENGAGEMENT}&status=${ENC_STATUS}" \
           -H "Authorization: Token $DD_API_KEY")
-
-        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
-        echo "Engagements trouves : $COUNT"
-
-        if [ "$COUNT" -gt "0" ]; then
-          ENGAGEMENT_ID=$(echo "$SEARCH" | jq -r '.results | sort_by(.id) | reverse | .[0].id')
-          echo "Engagement existant reutilise - ID: $ENGAGEMENT_ID"
+        
+        COUNT_E=$(echo "$SEARCH_E" | jq -r '.count // 0')
+        
+        if [ "$COUNT_E" -gt "0" ]; then
+          # Engagement existant
+          ENGAGEMENT_ID=$(echo "$SEARCH_E" | jq -r '.results | sort_by(.id) | reverse | .[0].id')
+          echo "♻️ Engagement existant - ID: $ENGAGEMENT_ID"
+          
+          # Mise a jour de la date de fin
           curl -s -X PATCH "${DD_URL}/api/v2/engagements/${ENGAGEMENT_ID}/" \
             -H "Authorization: Token $DD_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"target_end\": \"${PERIOD_END}\"}" > /dev/null
-          echo "ENGAGEMENT_STATUS=reused" >> $GITHUB_ENV
+          
+          ENGAGEMENT_STATUS="reused"
         else
-          echo "Creation d un nouvel engagement : $ENGAGEMENT_NAME"
-          PAYLOAD=$(jq -n \
-            --arg   name       "$ENGAGEMENT_NAME" \
-            --arg   desc       "Scans CI/CD | Branche: ${BRANCH} | Periode: ${PERIOD_START} -> ${PERIOD_END}" \
-            --argjson product  "$PRODUCT_ID" \
-            --arg   start      "$PERIOD_START" \
-            --arg   target_end "$PERIOD_END" \
-            --arg   branch     "$BRANCH" \
-            --arg   pmode      "$PERIOD_MODE" \
-            --arg   period     "$PERIOD" \
+          # Creation engagement
+          echo "🆕 Creation engagement: $ENGAGEMENT_NAME"
+          PAYLOAD_E=$(jq -n \
+            --arg name       "$ENGAGEMENT_NAME" \
+            --arg desc       "Scans CI/CD | Branche: ${BRANCH} | Periode: ${PERIOD_START} -> ${PERIOD_END}" \
+            --argjson product "$PRODUCT_ID" \
+            --arg start       "$PERIOD_START" \
+            --arg end         "$PERIOD_END" \
+            --arg branch      "$BRANCH" \
             '{
               name:                        $name,
               description:                 $desc,
@@ -269,43 +318,49 @@ jobs:
               engagement_type:             "CI/CD",
               status:                      "In Progress",
               target_start:                $start,
-              target_end:                  $target_end,
+              target_end:                  $end,
               branch_tag:                  $branch,
               deduplication_on_engagement: false,
-              tags: ["github-actions", $branch, $pmode, $period, "automated"]
+              tags: ["github-actions", $branch, "automated"]
             }')
-
-          CREATE=$(curl -s -X POST "${DD_URL}/api/v2/engagements/" \
+          
+          CREATE_E=$(curl -s -X POST "${DD_URL}/api/v2/engagements/" \
             -H "Authorization: Token $DD_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-
-          ENGAGEMENT_ID=$(echo "$CREATE" | jq -r '.id // empty')
+            -d "$PAYLOAD_E")
+          
+          ENGAGEMENT_ID=$(echo "$CREATE_E" | jq -r '.id // empty')
+          
           if [ -z "$ENGAGEMENT_ID" ] || [ "$ENGAGEMENT_ID" = "null" ]; then
-            echo "Echec creation engagement. Reponse API :"
-            echo "$CREATE" | jq .
+            echo "❌ Echec creation engagement. Reponse API :"
+            echo "$CREATE_E" | jq .
             exit 1
           fi
-          echo "Engagement cree - ID: $ENGAGEMENT_ID"
-          echo "ENGAGEMENT_STATUS=created" >> $GITHUB_ENV
+          echo "✅ Engagement cree - ID: $ENGAGEMENT_ID"
+          ENGAGEMENT_STATUS="created"
         fi
-
+        
+        # ── 3. EXPORT DES VARIABLES ─────────────────────────
         {
+          echo "PRODUCT_ID=$PRODUCT_ID"
+          echo "PRODUCT_NAME=$PRODUCT_NAME"
+          echo "PRODUCT_STATUS=$PRODUCT_STATUS"
           echo "ENGAGEMENT_ID=$ENGAGEMENT_ID"
           echo "ENGAGEMENT_NAME=$ENGAGEMENT_NAME"
+          echo "ENGAGEMENT_STATUS=$ENGAGEMENT_STATUS"
           echo "BRANCH=$BRANCH"
           echo "PERIOD=$PERIOD"
           echo "PERIOD_START=$PERIOD_START"
           echo "PERIOD_END=$PERIOD_END"
         } >> $GITHUB_ENV
-
+        
+        echo "product_id=$PRODUCT_ID" >> $GITHUB_OUTPUT
         echo "engagement_id=$ENGAGEMENT_ID" >> $GITHUB_OUTPUT
-
+        
+        echo ""
         echo "======================================="
-        echo "  Engagement resolu"
-        echo "  ID   : $ENGAGEMENT_ID"
-        echo "  Nom  : $ENGAGEMENT_NAME"
-        echo "  Lien : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
+        echo "  PRODUIT: $PRODUCT_NAME (ID: $PRODUCT_ID)"
+        echo "  ENGAGEMENT: $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
         echo "======================================="
 
     - name: DefectDojo - Snapshot avant import
@@ -329,9 +384,7 @@ jobs:
         echo "Total avant : $TOTAL findings actifs"
 
     # ──────────────────────────────────────────────────────────
-    # DEFECTDOJO — REIMPORT
-    # Utilise uniquement engagement (ID) — pas de product_name
-    # L'ID seul suffit car l'engagement existe déjà à ce stade
+    # DEFECTDOJO — REIMPORT DES SCANS
     # ──────────────────────────────────────────────────────────
     - name: DefectDojo - Reimport des scans
       if: always()
@@ -350,32 +403,43 @@ jobs:
             return 0
           fi
 
-          RESPONSE=$(curl -s -X POST "${DD_URL}/api/v2/reimport-scan/" \
-            -H "Authorization: Token $DD_API_KEY" \
-            -F "engagement=${ENGAGEMENT_ID}" \
-            -F "scan_type=${scan_type}" \
-            -F "test_title=${test_title}" \
-            -F "file=@${file}" \
-            -F "active=true" \
-            -F "verified=false" \
-            -F "close_old_findings=true" \
-            -F "close_old_findings_product_scope=false" \
-            -F "minimum_severity=Info" \
-            -F "environment=Development" \
-            -F "branch_tag=${{ github.ref_name }}" \
-            -F "commit_hash=${{ github.sha }}" \
-            -F "build_id=${{ github.run_id }}" \
-            -F "tags=${category},github-actions,automated")
+          echo "  Import de $test_title..."
+          echo "    - Engagement ID: $ENGAGEMENT_ID"
+          echo "    - Fichier: $file ($(stat -c%s "$file" 2>/dev/null || echo "0") octets)"
 
-          TEST_ID=$(echo "$RESPONSE"  | jq -r '.test // .id // empty' 2>/dev/null || echo "")
-          NEW_F=$(echo "$RESPONSE"    | jq -r '.finding_count // 0'   2>/dev/null || echo "0")
-          CLOSED_F=$(echo "$RESPONSE" | jq -r '.closed_findings // 0'  2>/dev/null || echo "0")
-          SKIP_F=$(echo "$RESPONSE"   | jq -r '.skipped_findings // 0' 2>/dev/null || echo "0")
+          # Construction de la commande curl sans backslash problématique
+          CURL_CMD="curl -s -X POST \"${DD_URL}/api/v2/reimport-scan/\""
+          CURL_CMD="$CURL_CMD -H \"Authorization: Token $DD_API_KEY\""
+          CURL_CMD="$CURL_CMD -F \"engagement=${ENGAGEMENT_ID}\""
+          CURL_CMD="$CURL_CMD -F \"scan_type=${scan_type}\""
+          CURL_CMD="$CURL_CMD -F \"test_title=${test_title}\""
+          CURL_CMD="$CURL_CMD -F \"file=@${file}\""
+          CURL_CMD="$CURL_CMD -F \"active=true\""
+          CURL_CMD="$CURL_CMD -F \"verified=false\""
+          CURL_CMD="$CURL_CMD -F \"close_old_findings=true\""
+          CURL_CMD="$CURL_CMD -F \"close_old_findings_product_scope=false\""
+          CURL_CMD="$CURL_CMD -F \"minimum_severity=Info\""
+          CURL_CMD="$CURL_CMD -F \"environment=Development\""
+          CURL_CMD="$CURL_CMD -F \"branch_tag=${{ github.ref_name }}\""
+          CURL_CMD="$CURL_CMD -F \"commit_hash=${{ github.sha }}\""
+          CURL_CMD="$CURL_CMD -F \"build_id=${{ github.run_id }}\""
+          CURL_CMD="$CURL_CMD -F \"tags=${category},github-actions,automated\""
+          CURL_CMD="$CURL_CMD 2>&1"
+
+          # Exécution de la commande
+          RESPONSE=$(eval $CURL_CMD) || true
+
+          # Parsing de la réponse
+          TEST_ID=$(echo "$RESPONSE" | jq -r '.test // .id // empty' 2>/dev/null || echo "")
+          NEW_F=$(echo "$RESPONSE" | jq -r '.finding_count // 0' 2>/dev/null || echo "0")
+          CLOSED_F=$(echo "$RESPONSE" | jq -r '.closed_findings // 0' 2>/dev/null || echo "0")
+          SKIP_F=$(echo "$RESPONSE" | jq -r '.skipped_findings // 0' 2>/dev/null || echo "0")
 
           if [ -n "$TEST_ID" ] && [ "$TEST_ID" != "null" ]; then
-            echo "  OK $test_title | Test ID: $TEST_ID | new=$NEW_F closed=$CLOSED_F skipped=$SKIP_F"
+            echo "  ✅ $test_title | Test ID: $TEST_ID | new=$NEW_F closed=$CLOSED_F skipped=$SKIP_F"
           else
-            echo "  ERREUR $test_title | Reponse API :"
+            echo "  ❌ $test_title | Échec import"
+            echo "    Réponse API :"
             echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
           fi
         }
@@ -430,6 +494,7 @@ jobs:
         echo "=========================================================="
         echo "  DEFECTDOJO - RAPPORT DE SECURITE CI/CD"
         echo "=========================================================="
+        echo "  Produit    : $PRODUCT_NAME (ID: $PRODUCT_ID)"
         echo "  Engagement : $ENGAGEMENT_NAME"
         if [ "$ENGAGEMENT_STATUS" = "created" ]; then
           echo "  Statut     : Cree ce run"
@@ -515,5 +580,6 @@ jobs:
         echo "  Branche    : ${{ github.ref_name }}"
         echo "  Commit     : ${{ github.sha }}"
         echo "  Run ID     : ${{ github.run_id }}"
+        echo "  Produit    : $PRODUCT_NAME (ID: $PRODUCT_ID)"
         echo "  Engagement : $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
         echo "  Lien       : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
