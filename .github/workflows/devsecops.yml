@@ -1,244 +1,323 @@
-name: DevSecOps Pipeline - InvisiThreat (TEST RAPIDE)
+name: DevSecOps - TEST DefectDojo Import
 
 on:
   push:
     branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
 
 env:
   DD_URL: http://localhost:8080
-  PERIOD_MODE: "quarterly"
+  APP_NAME: InvisiThreat
   FAIL_ON_NEW_CRITICAL: "true"
   FAIL_ON_NEW_HIGH: "false"
 
 jobs:
-  security:
-    name: SAST + SCA + DAST + DefectDojo
+  test-defectdojo:
+    name: Test Product + Engagement + Import
     runs-on: self-hosted
-    timeout-minutes: 30
+    timeout-minutes: 10
 
     steps:
 
-    - name: Recuperer le code
+    # ─────────────────────────────────────────────
+    # 1. CHECKOUT
+    # ─────────────────────────────────────────────
+    - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0
 
+    # ─────────────────────────────────────────────
+    # 2. OUTILLAGE
+    # ─────────────────────────────────────────────
     - name: Installer jq
       run: |
-        if command -v jq &> /dev/null; then
-          echo "jq deja installe: $(jq --version)"
-          exit 0
+        if command -v jq &>/dev/null; then
+          echo "jq OK : $(jq --version)"; exit 0
         fi
         sudo killall apt apt-get dpkg 2>/dev/null || true
         sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
                    /var/cache/apt/archives/lock /var/lib/apt/lists/lock
         sudo dpkg --configure -a
         if sudo apt update -qq && sudo apt install -y -qq jq; then
-          echo "jq installe via apt: $(jq --version)"
+          echo "jq installe via apt"
         else
           wget -q -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
           chmod +x jq && sudo mv jq /usr/local/bin/
-          echo "jq installe via binaire: $(jq --version)"
+          echo "jq installe via binaire"
         fi
 
-    - name: Cache des dependances Node
-      uses: actions/cache@v3
-      with:
-        path: |
-          juice-shop/node_modules
-          juice-shop/frontend/node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('juice-shop/package-lock.json', 'juice-shop/frontend/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-
-    - name: Installer les dependances Node
-      working-directory: ./juice-shop
-      run: |
-        if [ -f "package-lock.json" ]; then
-          npm ci --no-audit --no-fund
-        else
-          npm install --no-audit --no-fund
-        fi
-
-    - name: SAST avec Semgrep
-      working-directory: ./juice-shop
-      continue-on-error: true
-      run: |
-        [ -f ".semgrepignore" ] && mv .semgrepignore .semgrepignore.bak
-        timeout 120 docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep \
-          --config=r/javascript.lang.security \
-          --json --output=/src/semgrep-results.json \
-          --metrics=off --jobs=2 --timeout=30 /src || true
-        [ -f ".semgrepignore.bak" ] && mv .semgrepignore.bak .semgrepignore
-        [ ! -s "semgrep-results.json" ] && echo '{"results":[]}' > semgrep-results.json
-        echo "Semgrep termine"
-        jq -r '"  Total: " + (.results | length | tostring)' semgrep-results.json
-
-    - name: Snyk SCA
-      continue-on-error: true
-      working-directory: ./juice-shop
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: |
-        npx snyk test --severity-threshold=low \
-          --json-file-output=snyk-results.json || true
-        if [ ! -f "snyk-results.json" ] || [ ! -s "snyk-results.json" ]; then
-          echo '{"vulnerabilities":[]}' > snyk-results.json
-        fi
-        COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo "0")
-        echo "Snyk termine : $COUNT vulnerabilites"
-
-    - name: Snyk Monitor
-      continue-on-error: true
-      working-directory: ./juice-shop
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: npx snyk monitor || true
-
-    - name: Generer rapports ZAP factices
-      working-directory: ./juice-shop
-      run: |
-        echo "Generation des rapports ZAP factices..."
-
-        printf '%s\n' \
-          '<?xml version="1.0"?>' \
-          '<OWASPZAPReport version="2.11.1" generated="Mon, 24 Feb 2025 00:00:00">' \
-          '  <site name="http://localhost:3000" host="localhost" port="3000" ssl="false">' \
-          '    <alerts>' \
-          '      <alertitem>' \
-          '        <pluginid>10038</pluginid>' \
-          '        <alert>Content Security Policy Header Not Set</alert>' \
-          '        <n>Content Security Policy Header Not Set</n>' \
-          '        <riskcode>2</riskcode>' \
-          '        <confidence>3</confidence>' \
-          '        <riskdesc>Medium (High)</riskdesc>' \
-          '        <desc>CSP header is missing.</desc>' \
-          '        <solution>Set the Content-Security-Policy header.</solution>' \
-          '        <reference>https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP</reference>' \
-          '        <cweid>693</cweid>' \
-          '        <wascid>15</wascid>' \
-          '        <instances>' \
-          '          <instance>' \
-          '            <uri>http://localhost:3000/</uri>' \
-          '            <method>GET</method>' \
-          '            <evidence></evidence>' \
-          '          </instance>' \
-          '        </instances>' \
-          '        <count>1</count>' \
-          '      </alertitem>' \
-          '      <alertitem>' \
-          '        <pluginid>10021</pluginid>' \
-          '        <alert>X-Content-Type-Options Header Missing</alert>' \
-          '        <n>X-Content-Type-Options Header Missing</n>' \
-          '        <riskcode>1</riskcode>' \
-          '        <confidence>3</confidence>' \
-          '        <riskdesc>Low (High)</riskdesc>' \
-          '        <desc>X-Content-Type-Options header is not set.</desc>' \
-          '        <solution>Set the Content-Type header appropriately.</solution>' \
-          '        <reference>https://owasp.org/www-project-secure-headers/</reference>' \
-          '        <cweid>693</cweid>' \
-          '        <wascid>15</wascid>' \
-          '        <instances>' \
-          '          <instance>' \
-          '            <uri>http://localhost:3000/</uri>' \
-          '            <method>GET</method>' \
-          '            <evidence></evidence>' \
-          '          </instance>' \
-          '        </instances>' \
-          '        <count>1</count>' \
-          '      </alertitem>' \
-          '    </alerts>' \
-          '  </site>' \
-          '</OWASPZAPReport>' \
-          > zap-openapi.xml
-
-        cp zap-openapi.xml zap-spider.xml
-        cp zap-openapi.xml zap-active.xml
-
-        printf '%s\n' \
-          '[{"pluginid":"10038","alert":"CSP Header Not Set","riskcode":"2"},' \
-          '{"pluginid":"10021","alert":"X-Content-Type-Options Missing","riskcode":"1"}]' \
-          > zap-openapi.json
-        cp zap-openapi.json zap-spider.json
-        cp zap-openapi.json zap-active.json
-
-        echo "Fichiers generes :"
-        ls -lh zap-*.xml zap-*.json
-
-    - name: Consolider les rapports DAST
-      working-directory: ./juice-shop
-      run: |
-        echo "[]" > zap-consolidated.json
-        if ls zap-*.json 1> /dev/null 2>&1; then
-          jq -s 'add' zap-*.json > zap-consolidated.json 2>/dev/null || echo "[]" > zap-consolidated.json
-        fi
-        TOTAL=$(jq 'length' zap-consolidated.json 2>/dev/null || echo "0")
-        echo "DAST consolide : $TOTAL alertes"
-
-    - name: Upload tous les rapports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports-${{ github.sha }}
-        path: |
-          juice-shop/semgrep-results.json
-          juice-shop/snyk-results.json
-          juice-shop/zap-*.json
-          juice-shop/zap-*.xml
-        retention-days: 30
-        if-no-files-found: warn
-
-    - name: DefectDojo - Creer Produit et Engagement
-      if: always()
-      id: dd_setup
+    # ─────────────────────────────────────────────
+    # 3. DEFECTDOJO — PRODUCT
+    # ─────────────────────────────────────────────
+    - name: DefectDojo - Produit
+      id: dd_product
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-        PRODUCT_NAME: "InvisiThreat"
       run: |
-        # (Ton code original - inchangé)
         set -e
-        # ... [tout ton code de création produit/engagement reste exactement le même]
-        # Je ne le recopie pas ici pour gagner de la place, mais il est conservé à 100%
-        # (le code que tu avais est parfait)
+        PRODUCT_NAME="${{ env.APP_NAME }}"
+        DD_BASE="${{ env.DD_URL }}"
 
-    - name: DefectDojo - Snapshot avant import
-      if: always()
+        echo "=== PRODUIT ==="
+        ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$PRODUCT_NAME'))")
+
+        SEARCH=$(curl -sf "$DD_BASE/api/v2/products/?name=$ENCODED" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
+
+        if [ "$COUNT" -gt 0 ]; then
+          PRODUCT_ID=$(echo "$SEARCH" | jq -r '.results[0].id')
+          echo "Produit existant — ID=$PRODUCT_ID"
+        else
+          CREATE=$(curl -sf -X POST "$DD_BASE/api/v2/products/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"$PRODUCT_NAME\",
+              \"description\": \"Analyse securite automatisee — $PRODUCT_NAME\",
+              \"prod_type\": 1
+            }")
+          PRODUCT_ID=$(echo "$CREATE" | jq -r '.id')
+          echo "Produit cree — ID=$PRODUCT_ID"
+        fi
+
+        if [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ]; then
+          echo "ERREUR : PRODUCT_ID invalide"
+          exit 1
+        fi
+
+        echo "product_id=$PRODUCT_ID" >> "$GITHUB_OUTPUT"
+        echo "OK — $PRODUCT_NAME (ID=$PRODUCT_ID)"
+
+    # ─────────────────────────────────────────────
+    # 4. DEFECTDOJO — ENGAGEMENT (branche + trimestre)
+    # ─────────────────────────────────────────────
+    - name: DefectDojo - Engagement
+      id: dd_engagement
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
-        # (Ton code original - inchangé)
-        echo "Capture des findings AVANT reimport..."
-        # ... [ton code complet reste identique]
+        set -e
+        PRODUCT_ID="${{ steps.dd_product.outputs.product_id }}"
+        BRANCH="${{ github.ref_name }}"
+        DD_BASE="${{ env.DD_URL }}"
 
-    # ==================== CORRECTION PRINCIPALE ====================
-    - name: DefectDojo - Importer les scans (Version fiable)
-      if: always()
-      continue-on-error: true
+        # Calcul du trimestre
+        YEAR=$(date +%Y)
+        MONTH=$(date +%-m)
+        if   [ "$MONTH" -le 3 ]; then PERIOD="Q1"; START="${YEAR}-01-01"; END="${YEAR}-03-31"
+        elif [ "$MONTH" -le 6 ]; then PERIOD="Q2"; START="${YEAR}-04-01"; END="${YEAR}-06-30"
+        elif [ "$MONTH" -le 9 ]; then PERIOD="Q3"; START="${YEAR}-07-01"; END="${YEAR}-09-30"
+        else                          PERIOD="Q4"; START="${YEAR}-10-01"; END="${YEAR}-12-31"
+        fi
+
+        NAME="${BRANCH} - ${YEAR}-${PERIOD}"
+        echo "=== ENGAGEMENT ==="
+        echo "Nom    : $NAME"
+        echo "Produit: $PRODUCT_ID"
+        echo "Periode: $START → $END"
+
+        ENCODED=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$NAME'))")
+        SEARCH=$(curl -sf \
+          "$DD_BASE/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
+
+        if [ "$COUNT" -gt 0 ]; then
+          EID=$(echo "$SEARCH" | jq -r '.results[0].id')
+          echo "Engagement existant — ID=$EID"
+          # Mise à jour métadonnées du run courant
+          curl -sf -X PATCH "$DD_BASE/api/v2/engagements/$EID/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"target_end\":\"$END\",\"branch_tag\":\"$BRANCH\",\"commit_hash\":\"${{ github.sha }}\",\"build_id\":\"${{ github.run_id }}\"}" \
+            > /dev/null && echo "Metadonnees mises a jour"
+        else
+          CREATE=$(curl -sf -X POST "$DD_BASE/api/v2/engagements/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"$NAME\",
+              \"product\": $PRODUCT_ID,
+              \"engagement_type\": \"CI/CD\",
+              \"status\": \"In Progress\",
+              \"branch_tag\": \"$BRANCH\",
+              \"build_id\": \"${{ github.run_id }}\",
+              \"commit_hash\": \"${{ github.sha }}\",
+              \"source_code_management_uri\": \"${{ github.server_url }}/${{ github.repository }}\",
+              \"target_start\": \"$START\",
+              \"target_end\": \"$END\",
+              \"description\": \"CI/CD auto — branche $BRANCH — $YEAR-$PERIOD\"
+            }")
+          EID=$(echo "$CREATE" | jq -r '.id')
+          echo "Engagement cree — ID=$EID"
+        fi
+
+        if [ -z "$EID" ] || [ "$EID" = "null" ]; then
+          echo "ERREUR : ENGAGEMENT_ID invalide"
+          exit 1
+        fi
+
+        echo "engagement_id=$EID"   >> "$GITHUB_OUTPUT"
+        echo "engagement_name=$NAME" >> "$GITHUB_OUTPUT"
+        echo "start_date=$START"     >> "$GITHUB_OUTPUT"
+        echo "end_date=$END"         >> "$GITHUB_OUTPUT"
+        echo "period=$PERIOD"        >> "$GITHUB_OUTPUT"
+        echo "OK — $NAME (ID=$EID)"
+
+    # ─────────────────────────────────────────────
+    # 5. RAPPORTS FACTICES (simule SAST / SCA / DAST)
+    # ─────────────────────────────────────────────
+    - name: Generer rapports factices
+      run: |
+        mkdir -p reports
+
+        # Semgrep JSON
+        cat > reports/semgrep-results.json << 'EOF'
+        {
+          "results": [
+            {
+              "check_id": "javascript.lang.security.audit.node-child-process.node-child-process",
+              "path": "routes/login.js",
+              "start": {"line": 42},
+              "extra": {
+                "message": "Potential command injection via child_process",
+                "severity": "ERROR",
+                "metadata": {"cwe": ["CWE-78"], "owasp": ["A03:2021"]}
+              }
+            }
+          ],
+          "errors": [],
+          "stats": {"total_time": 1.2}
+        }
+        EOF
+
+        # Snyk JSON
+        cat > reports/snyk-results.json << 'EOF'
+        {
+          "vulnerabilities": [
+            {
+              "id": "SNYK-JS-LODASH-567746",
+              "title": "Prototype Pollution",
+              "severity": "high",
+              "packageName": "lodash",
+              "version": "4.17.15",
+              "fixedIn": ["4.17.21"],
+              "CVSSv3": "7.4"
+            }
+          ],
+          "ok": false
+        }
+        EOF
+
+        # ZAP XML (OpenAPI + Spider + Active — même contenu pour le test)
+        cat > reports/zap-scan.xml << 'EOF'
+        <?xml version="1.0"?>
+        <OWASPZAPReport version="2.11.1" generated="Thu, 26 Feb 2026 00:00:00">
+          <site name="http://localhost:3000" host="localhost" port="3000" ssl="false">
+            <alerts>
+              <alertitem>
+                <pluginid>10038</pluginid>
+                <alert>Content Security Policy Header Not Set</alert>
+                <n>Content Security Policy Header Not Set</n>
+                <riskcode>2</riskcode>
+                <confidence>3</confidence>
+                <riskdesc>Medium (High)</riskdesc>
+                <desc>CSP header is missing.</desc>
+                <solution>Set the Content-Security-Policy header.</solution>
+                <cweid>693</cweid><wascid>15</wascid>
+                <instances>
+                  <instance><uri>http://localhost:3000/</uri><method>GET</method></instance>
+                </instances>
+                <count>1</count>
+              </alertitem>
+              <alertitem>
+                <pluginid>10021</pluginid>
+                <alert>X-Content-Type-Options Header Missing</alert>
+                <n>X-Content-Type-Options Header Missing</n>
+                <riskcode>1</riskcode>
+                <confidence>3</confidence>
+                <riskdesc>Low (High)</riskdesc>
+                <desc>X-Content-Type-Options header is not set.</desc>
+                <solution>Set the Content-Type header appropriately.</solution>
+                <cweid>693</cweid><wascid>15</wascid>
+                <instances>
+                  <instance><uri>http://localhost:3000/</uri><method>GET</method></instance>
+                </instances>
+                <count>1</count>
+              </alertitem>
+            </alerts>
+          </site>
+        </OWASPZAPReport>
+        EOF
+
+        cp reports/zap-scan.xml reports/zap-openapi.xml
+        cp reports/zap-scan.xml reports/zap-spider.xml
+        cp reports/zap-scan.xml reports/zap-active.xml
+        rm reports/zap-scan.xml
+
+        echo "Rapports generes :"
+        ls -lh reports/
+
+    # ─────────────────────────────────────────────
+    # 6. DEFECTDOJO — Snapshot AVANT import
+    # ─────────────────────────────────────────────
+    - name: DefectDojo - Snapshot AVANT import
+      id: dd_snapshot
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
-        echo "🚀 Import vers DefectDojo - Engagement: $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
+        EID="${{ steps.dd_engagement.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        RESP=$(curl -sf \
+          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        BEFORE_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        BEFORE_CRIT=$(echo "$RESP" | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        BEFORE_HIGH=$(echo "$RESP" | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+
+        echo "AVANT import — Total=$BEFORE_TOTAL | Critical=$BEFORE_CRIT | High=$BEFORE_HIGH"
+        echo "before_total=$BEFORE_TOTAL"   >> "$GITHUB_OUTPUT"
+        echo "before_critical=$BEFORE_CRIT" >> "$GITHUB_OUTPUT"
+        echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
+
+    # ─────────────────────────────────────────────
+    # 7. DEFECTDOJO — Import des rapports
+    # ─────────────────────────────────────────────
+    - name: DefectDojo - Import des rapports
+      id: dd_import
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        EID="${{ steps.dd_engagement.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        echo "=== IMPORT — Engagement ID=$EID ==="
 
         import_scan() {
-          local file="$1"
-          local scan_type="$2"
-          local category="$3"
+          local FILE="$1"
+          local SCAN_TYPE="$2"
+          local LABEL="$3"
 
-          if [ ! -f "$file" ] || [ ! -s "$file" ]; then
-            echo "⚠️ Fichier absent ou vide → $file"
+          if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
+            echo "  SKIP $LABEL — fichier manquant ($FILE)"
             return 0
           fi
 
-          echo "📤 Import $scan_type → $file"
-
-          RESPONSE=$(curl -s -X POST "${DD_URL}/api/v2/import-scan/" \
+          RESP=$(curl -sf -X POST "$DD_BASE/api/v2/import-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
-            -F "engagement=$ENGAGEMENT_ID" \
-            -F "scan_type=$scan_type" \
-            -F "file=@$file" \
+            -F "engagement=$EID" \
+            -F "scan_type=$SCAN_TYPE" \
+            -F "file=@$FILE" \
             -F "close_old_findings=true" \
             -F "minimum_severity=Info" \
             -F "active=true" \
@@ -247,42 +326,76 @@ jobs:
             -F "branch_tag=${{ github.ref_name }}" \
             -F "commit_hash=${{ github.sha }}" \
             -F "build_id=${{ github.run_id }}" \
-            -F "tags=$category,github-actions,automated")
+            || echo '{}')
 
-          if echo "$RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
-            echo "✅ Succès : $scan_type"
+          if echo "$RESP" | jq -e '.id' >/dev/null 2>&1; then
+            IID=$(echo "$RESP" | jq -r '.id')
+            CNT=$(echo "$RESP" | jq -r '.finding_count // "?"')
+            echo "  OK $LABEL — Import ID=$IID | Findings=$CNT"
           else
-            echo "❌ Échec import $scan_type"
-            echo "Réponse : $RESPONSE"
+            echo "  ERREUR $LABEL — Reponse: $RESP"
           fi
         }
 
-        # Imports
-        import_scan "juice-shop/semgrep-results.json"  "Semgrep JSON Report"  "sast"
-        import_scan "juice-shop/snyk-results.json"     "Snyk Scan"            "sca"
-        import_scan "juice-shop/zap-openapi.xml"       "ZAP Scan"             "dast,openapi"
-        import_scan "juice-shop/zap-spider.xml"        "ZAP Scan"             "dast,spider"
-        import_scan "juice-shop/zap-active.xml"        "ZAP Scan"             "dast,active"
+        import_scan "reports/semgrep-results.json" "Semgrep JSON Report" "Semgrep SAST"
+        import_scan "reports/snyk-results.json"    "Snyk Scan"           "Snyk SCA"
+        import_scan "reports/zap-openapi.xml"      "ZAP Scan"            "ZAP OpenAPI"
+        import_scan "reports/zap-spider.xml"       "ZAP Scan"            "ZAP Spider"
+        import_scan "reports/zap-active.xml"       "ZAP Scan"            "ZAP Active"
 
-        echo "🎉 Tous les imports DefectDojo terminés !"
+        echo "Import termine."
 
-    - name: DefectDojo - Rapport final et Security Gate
+    - name: Rapport final et Security Gate
       if: always()
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
-        # (Ton code original - inchangé)
-        echo ""
-        echo "=========================================================="
-        # ... [tout ton code de rapport final et security gate reste identique]
+        EID="${{ steps.dd_engagement.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
 
-    - name: Pipeline termine
-      if: always()
-      run: |
-        echo "DevSecOps pipeline termine"
+        RESP=$(curl -sf \
+          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        AFTER_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        AFTER_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        AFTER_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+        AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
+        AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
+
+        NEW_CRIT=$(( AFTER_CRIT - ${{ steps.dd_snapshot.outputs.before_critical }} ))
+        NEW_HIGH=$(( AFTER_HIGH - ${{ steps.dd_snapshot.outputs.before_high }} ))
+        [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
+        [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
+
+        echo ""
+        echo "============================================================"
+        echo "  RAPPORT FINAL"
+        echo "============================================================"
+        echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_product.outputs.product_id }})"
+        echo "  Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=$EID)"
+        echo "  Periode    : ${{ steps.dd_engagement.outputs.start_date }} → ${{ steps.dd_engagement.outputs.end_date }}"
         echo "  Branche    : ${{ github.ref_name }}"
         echo "  Commit     : ${{ github.sha }}"
-        echo "  Run ID     : ${{ github.run_id }}"
-        echo "  Produit    : $PRODUCT_NAME (ID: $PRODUCT_ID)"
-        echo "  Engagement : $ENGAGEMENT_NAME (ID: $ENGAGEMENT_ID)"
-        echo "  Lien       : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
+        echo ""
+        echo "  FINDINGS ACTIFS :"
+        echo "    Total    : $AFTER_TOTAL"
+        echo "    Critical : $AFTER_CRIT  (nouveaux: $NEW_CRIT)"
+        echo "    High     : $AFTER_HIGH  (nouveaux: $NEW_HIGH)"
+        echo "    Medium   : $AFTER_MED"
+        echo "    Low      : $AFTER_LOW"
+        echo ""
+        echo "  Lien : $DD_BASE/engagements/$EID/finding/"
+        echo "============================================================"
+
+        # Security Gate
+        FAILED=false
+        [ "${{ env.FAIL_ON_NEW_CRITICAL }}" = "true" ] && [ "$NEW_CRIT" -gt 0 ] && \
+          { echo "SECURITY GATE ECHEC : $NEW_CRIT nouveau(x) Critical !"; FAILED=true; }
+        [ "${{ env.FAIL_ON_NEW_HIGH }}" = "true" ] && [ "$NEW_HIGH" -gt 0 ] && \
+          { echo "SECURITY GATE ECHEC : $NEW_HIGH nouveau(x) High !"; FAILED=true; }
+
+        [ "$FAILED" = "true" ] && exit 1
+        echo "Security Gate : OK"
