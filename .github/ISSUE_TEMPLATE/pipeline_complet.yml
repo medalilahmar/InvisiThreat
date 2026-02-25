@@ -20,18 +20,14 @@ jobs:
 
     steps:
 
-    # ──────────────────────────────────────────────────────────
-    # 1. CHECKOUT
-    # ──────────────────────────────────────────────────────────
+   
     - name: Récupérer le code
       uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
 
-    # ──────────────────────────────────────────────────────────
-    # 2. DÉPENDANCES SYSTÈME
-    # ──────────────────────────────────────────────────────────
+   
     - name: Installer jq
       run: |
         if command -v jq &> /dev/null; then
@@ -63,9 +59,7 @@ jobs:
           npm install
         fi
 
-    # ──────────────────────────────────────────────────────────
-    # 3. SAST — SEMGREP
-    # ──────────────────────────────────────────────────────────
+   
     - name: SAST avec Semgrep
       working-directory: ./juice-shop
       continue-on-error: true
@@ -88,9 +82,7 @@ jobs:
         echo "════════════════════════════════════"
         echo "Prêt pour DefectDojo"
 
-    # ──────────────────────────────────────────────────────────
-    # 4. SCA — SNYK
-    # ──────────────────────────────────────────────────────────
+    
     - name: Snyk SCA
       continue-on-error: true
       working-directory: ./juice-shop
@@ -118,9 +110,7 @@ jobs:
         echo "Envoi des données à Snyk Monitor..."
         npx snyk monitor || true
 
-    # ──────────────────────────────────────────────────────────
-    # 5. DAST — ZAP
-    # ──────────────────────────────────────────────────────────
+    
     - name: Démarrer l'API en arrière-plan
       working-directory: ./juice-shop
       run: |
@@ -302,9 +292,7 @@ jobs:
           echo "Aucune vulnérabilité consolidée"
         fi
 
-    # ──────────────────────────────────────────────────────────
-    # 6. ARRÊT API
-    # ──────────────────────────────────────────────────────────
+    
     - name: Arrêter l'API
       if: always()
       working-directory: ./juice-shop
@@ -319,9 +307,7 @@ jobs:
         pkill -f "node.*juice-shop" || true
         echo "Nettoyage des processus terminé"
 
-    # ──────────────────────────────────────────────────────────
-    # 7. UPLOAD ARTEFACTS
-    # ──────────────────────────────────────────────────────────
+    
     - name: Upload tous les rapports de sécurité
       if: always()
       uses: actions/upload-artifact@v4
@@ -336,10 +322,7 @@ jobs:
         retention-days: 30
         if-no-files-found: warn
 
-    # ──────────────────────────────────────────────────────────
-    # 8. DEFECTDOJO — ENGAGEMENT
-    # FIX : $end est un mot réservé jq → renommé en $target_end
-    # ──────────────────────────────────────────────────────────
+    
     - name: DefectDojo — Résoudre l'Engagement
       if: always()
       id: dd_engagement
@@ -490,9 +473,7 @@ jobs:
         echo "  Lien : ${DD_URL}/engagements/${ENGAGEMENT_ID}/finding/"
         echo "======================================="
 
-    # ──────────────────────────────────────────────────────────
-    # 9. DEFECTDOJO — SNAPSHOT AVANT IMPORT
-    # ──────────────────────────────────────────────────────────
+    
     - name: DefectDojo — Snapshot avant import
       if: always()
       env:
@@ -516,10 +497,7 @@ jobs:
 
         echo "Total avant : $TOTAL findings actifs"
 
-    # ──────────────────────────────────────────────────────────
-    # 10. DEFECTDOJO — RÉIMPORT DES SCANS
-    # FIX : product_name ajouté dans chaque appel reimport-scan
-    # ──────────────────────────────────────────────────────────
+    
     - name: DefectDojo — Réimport des scans
       if: always()
       continue-on-error: true
@@ -538,9 +516,7 @@ jobs:
             return 0
           fi
 
-          # ── FIX : product_name est obligatoire pour reimport-scan ──
-          # Sans ce champ, l'API retourne "product_name parameter missing"
-          # même si engagement est fourni. Les deux sont requis ensemble.
+          
           RESPONSE=$(curl -s -X POST "${DD_URL}/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=${ENGAGEMENT_ID}" \
@@ -560,7 +536,6 @@ jobs:
             -F "tags=${category},github-actions,automated" \
             2>&1) || true
 
-          # Parsing de la réponse avec jq
           TEST_ID=$(echo "$RESPONSE"  | jq -r '.test // .id // empty' 2>/dev/null || echo "")
           NEW_F=$(echo "$RESPONSE"    | jq -r '.finding_count // 0'   2>/dev/null || echo "0")
           CLOSED_F=$(echo "$RESPONSE" | jq -r '.closed_findings // 0'  2>/dev/null || echo "0")
@@ -615,9 +590,7 @@ jobs:
           "DAST - ZAP Active Scan" \
           "DAST"
 
-    # ──────────────────────────────────────────────────────────
-    # 11. DEFECTDOJO — RAPPORT FINAL & SECURITY GATE
-    # ──────────────────────────────────────────────────────────
+    
     - name: DefectDojo — Rapport final & Security Gate
       if: always()
       env:
@@ -729,9 +702,7 @@ jobs:
 
         exit $GATE_FAILED
 
-    # ──────────────────────────────────────────────────────────
-    # 12. RÉSUMÉ FINAL
-    # ──────────────────────────────────────────────────────────
+    
     - name: Pipeline terminé
       if: always()
       run: |
