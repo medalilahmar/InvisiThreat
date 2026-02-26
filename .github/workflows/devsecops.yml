@@ -32,41 +32,31 @@ jobs:
         fetch-depth: 0
 
     # ─────────────────────────────────────────────
-    # 2. OUTILLAGE
+    # 2. OUTILLAGE — jq uniquement (pas de python)
     # ─────────────────────────────────────────────
-    - name: Installer jq et python3
+    - name: Installer jq
       run: |
-        MISSING=""
-        command -v jq      &>/dev/null || MISSING="$MISSING jq"
-        command -v python3 &>/dev/null || MISSING="$MISSING python3"
-
-        if [ -z "$MISSING" ]; then
-          echo "OK — jq $(jq --version) | python3 $(python3 --version)"
+        if command -v jq &>/dev/null; then
+          echo "OK — jq $(jq --version)"
           exit 0
         fi
-
-        echo "Installation de :$MISSING"
         sudo killall apt apt-get dpkg 2>/dev/null || true
-        sudo rm -f /var/lib/dpkg/lock-frontend \
-                   /var/lib/dpkg/lock \
-                   /var/cache/apt/archives/lock \
-                   /var/lib/apt/lists/lock
+        sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+                   /var/cache/apt/archives/lock /var/lib/apt/lists/lock
         sudo dpkg --configure -a
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq $MISSING || {
-          # Fallback binaire pour jq uniquement
-          if ! command -v jq &>/dev/null; then
-            wget -q -O jq \
-              https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
-            chmod +x jq && sudo mv jq /usr/local/bin/
-          fi
-        }
-        echo "OK — jq $(jq --version) | python3 $(python3 --version)"
+        if sudo apt-get update -qq && sudo apt-get install -y -qq jq; then
+          echo "OK — jq installé via apt : $(jq --version)"
+        else
+          wget -q -O jq \
+            https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq && sudo mv jq /usr/local/bin/
+          echo "OK — jq installé via binaire : $(jq --version)"
+        fi
 
     # ─────────────────────────────────────────────
     # 3. NODE — Cache + Install
-    # NOTE: hashFiles() n'interpole pas les variables env,
-    #       le chemin doit être littéral.
+    # IMPORTANT : hashFiles() n'interpole pas env.*
+    # → chemins littéraux obligatoires
     # ─────────────────────────────────────────────
     - name: Cache des dependances Node
       uses: actions/cache@v3
@@ -89,6 +79,7 @@ jobs:
 
     # ─────────────────────────────────────────────
     # 4. DEFECTDOJO — PRODUCT
+    # Encodage URL via sed (pas de python)
     # ─────────────────────────────────────────────
     - name: DefectDojo - Produit
       id: dd_product
@@ -99,9 +90,30 @@ jobs:
         PRODUCT_NAME="${{ env.APP_NAME }}"
         DD_BASE="${{ env.DD_URL }}"
 
+        # Encodage URL sans python : espaces → %20, caractères spéciaux via sed
+        url_encode() {
+          echo "$1" | sed \
+            -e 's/ /%20/g' \
+            -e 's/!/%21/g' \
+            -e 's/"/%22/g' \
+            -e "s/'/%27/g" \
+            -e 's/#/%23/g' \
+            -e 's/\$/%24/g' \
+            -e 's/&/%26/g' \
+            -e 's/+/%2B/g' \
+            -e 's/,/%2C/g' \
+            -e 's|/|%2F|g' \
+            -e 's/:/%3A/g' \
+            -e 's/;/%3B/g' \
+            -e 's/=/%3D/g' \
+            -e 's/?/%3F/g' \
+            -e 's/@/%40/g'
+        }
+
         echo "=== PRODUIT ==="
-        ENCODED=$(python3 -c \
-          "import urllib.parse; print(urllib.parse.quote('$PRODUCT_NAME'))")
+        echo "Recherche : $PRODUCT_NAME"
+
+        ENCODED=$(url_encode "$PRODUCT_NAME")
 
         SEARCH=$(curl -sf "$DD_BASE/api/v2/products/?name=$ENCODED" \
           -H "Authorization: Token $DD_API_KEY" \
@@ -128,7 +140,7 @@ jobs:
         fi
 
         [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ] && \
-          { echo "ERREUR : PRODUCT_ID invalide"; exit 1; }
+          { echo "ERREUR : PRODUCT_ID invalide — Reponse: $CREATE"; exit 1; }
 
         echo "product_id=$PRODUCT_ID" >> "$GITHUB_OUTPUT"
         echo "OK — $PRODUCT_NAME (ID=$PRODUCT_ID)"
@@ -146,6 +158,27 @@ jobs:
         BRANCH="${{ github.ref_name }}"
         DD_BASE="${{ env.DD_URL }}"
 
+        # Encodage URL sans python
+        url_encode() {
+          echo "$1" | sed \
+            -e 's/ /%20/g' \
+            -e 's/!/%21/g' \
+            -e 's/"/%22/g' \
+            -e "s/'/%27/g" \
+            -e 's/#/%23/g' \
+            -e 's/\$/%24/g' \
+            -e 's/&/%26/g' \
+            -e 's/+/%2B/g' \
+            -e 's/,/%2C/g' \
+            -e 's|/|%2F|g' \
+            -e 's/:/%3A/g' \
+            -e 's/;/%3B/g' \
+            -e 's/=/%3D/g' \
+            -e 's/?/%3F/g' \
+            -e 's/@/%40/g'
+        }
+
+        # Calcul du trimestre
         YEAR=$(date +%Y)
         MONTH=$(date +%-m)
 
@@ -156,13 +189,13 @@ jobs:
         fi
 
         NAME="${BRANCH} - ${YEAR}-${PERIOD}"
+
         echo "=== ENGAGEMENT ==="
         echo "Nom     : $NAME"
         echo "Produit : $PRODUCT_ID"
         echo "Periode : $START → $END"
 
-        ENCODED=$(python3 -c \
-          "import urllib.parse; print(urllib.parse.quote('$NAME'))")
+        ENCODED=$(url_encode "$NAME")
 
         SEARCH=$(curl -sf \
           "$DD_BASE/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED" \
@@ -175,6 +208,7 @@ jobs:
         if [ "$COUNT" -gt 0 ]; then
           EID=$(echo "$SEARCH" | jq -r '.results[0].id')
           echo "Engagement existant — ID=$EID"
+          # Mise à jour des métadonnées du run courant
           curl -sf -X PATCH "$DD_BASE/api/v2/engagements/$EID/" \
             -H "Authorization: Token $DD_API_KEY" \
             -H "Content-Type: application/json" \
@@ -207,7 +241,7 @@ jobs:
         fi
 
         [ -z "$EID" ] || [ "$EID" = "null" ] && \
-          { echo "ERREUR : ENGAGEMENT_ID invalide"; exit 1; }
+          { echo "ERREUR : ENGAGEMENT_ID invalide — Reponse: $CREATE"; exit 1; }
 
         echo "engagement_id=$EID"     >> "$GITHUB_OUTPUT"
         echo "engagement_name=$NAME"  >> "$GITHUB_OUTPUT"
@@ -234,9 +268,9 @@ jobs:
           -H "Accept: application/json" \
           || echo '{"count":0,"results":[]}')
 
-        BEFORE_TOTAL=$(echo "$RESP"    | jq -r '.count // 0')
-        BEFORE_CRIT=$(echo "$RESP"     | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
-        BEFORE_HIGH=$(echo "$RESP"     | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+        BEFORE_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        BEFORE_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        BEFORE_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
 
         echo "Total=$BEFORE_TOTAL | Critical=$BEFORE_CRIT | High=$BEFORE_HIGH"
         echo "before_total=$BEFORE_TOTAL"   >> "$GITHUB_OUTPUT"
@@ -305,14 +339,13 @@ jobs:
         if-no-files-found: warn
 
     # ─────────────────────────────────────────────
-    # 10. IMPORT DANS DEFECTDOJO
+    # 10. IMPORT DANS DEFECTDOJO — reimport-scan
     #
-    # CORRECTION PRINCIPALE :
-    #   - Suppression de la vérification /api/v2/scan_types/
-    #     (endpoint absent ou vide sur certaines versions DD)
-    #   - Import direct avec les scan_type exacts de DD
-    #   - Semgrep : "Semgrep JSON Report"
-    #   - Snyk    : "Snyk Scan"
+    # Pourquoi reimport-scan + auto_create_context ?
+    #   - Crée le Test automatiquement si inexistant (résout scan_type côté serveur DD)
+    #   - Déduplique les findings sur les runs suivants
+    #   - auto_create_context=true → zéro configuration préalable dans DD
+    #   - test_title unique par outil pour organiser les Tests dans l'engagement
     # ─────────────────────────────────────────────
     - name: DefectDojo - Import des rapports
       if: always()
@@ -328,32 +361,34 @@ jobs:
 
         echo "=== IMPORT DEFECTDOJO ==="
         echo "Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=$EID)"
-        echo "Branche    : $BRANCH | Commit : $SHA"
 
-        # ── Fonction d'import sans vérification scan_type ──────────────
-        dd_import() {
+        # ── Fonction reimport-scan ────────────────────────────────────
+        dd_reimport() {
           local LABEL="$1"
           local SCAN_TYPE="$2"
           local FILE="$3"
+          local TEST_TITLE="$4"
 
           echo ""
-          echo "Import : $LABEL"
+          echo "--- $LABEL ---"
           echo "  Fichier    : $FILE"
           echo "  Scan type  : $SCAN_TYPE"
+          echo "  Test title : $TEST_TITLE"
 
           if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
             echo "  SKIP — fichier absent ou vide"
             return 0
           fi
 
-          SIZE=$(du -h "$FILE" | cut -f1)
-          echo "  Taille     : $SIZE"
+          echo "  Taille : $(du -h "$FILE" | cut -f1)"
 
-          RESP=$(curl -s -X POST "$DD_BASE/api/v2/import-scan/" \
+          RESP=$(curl -s -X POST "$DD_BASE/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=$EID" \
             -F "scan_type=$SCAN_TYPE" \
             -F "file=@$FILE" \
+            -F "test_title=$TEST_TITLE" \
+            -F "auto_create_context=true" \
             -F "close_old_findings=true" \
             -F "minimum_severity=Info" \
             -F "active=true" \
@@ -363,30 +398,36 @@ jobs:
             -F "commit_hash=$SHA" \
             -F "build_id=$RUN_ID")
 
-          # Succès si la réponse contient un champ "id"
-          if echo "$RESP" | jq -e '.id' >/dev/null 2>&1; then
-            IID=$(echo "$RESP"   | jq -r '.id')
-            TCNT=$(echo "$RESP"  | jq -r '.finding_count // "?"')
-            TID=$(echo "$RESP"   | jq -r '.test_id // "?"')
-            echo "  OK — Import ID=$IID | Test ID=$TID | Findings=$TCNT"
+          if echo "$RESP" | jq -e '.test' >/dev/null 2>&1; then
+            TEST_ID=$(echo "$RESP"  | jq -r '.test // "?"')
+            NEW_F=$(echo "$RESP"    | jq -r '.new_findings // 0')
+            CLOSED_F=$(echo "$RESP" | jq -r '.closed_findings // 0')
+            REACT_F=$(echo "$RESP"  | jq -r '.reactivated_findings // 0')
+            UNCH_F=$(echo "$RESP"   | jq -r '.untouched_findings // 0')
+            echo "  OK — Test ID=$TEST_ID"
+            echo "    Nouveaux   : $NEW_F"
+            echo "    Fermes     : $CLOSED_F"
+            echo "    Reactives  : $REACT_F"
+            echo "    Inchanges  : $UNCH_F"
           else
-            # Affichage de l'erreur brute pour diagnostic
             echo "  ERREUR — Reponse DefectDojo :"
             echo "$RESP" | jq '.' 2>/dev/null || echo "$RESP"
           fi
         }
 
-        # ── Semgrep ────────────────────────────────────────────────────
-        # scan_type exact dans DefectDojo : "Semgrep JSON Report"
-        dd_import "Semgrep SAST" \
-                  "Semgrep JSON Report" \
-                  "${{ env.APP_DIR }}/semgrep-results.json"
+        # ── Semgrep ───────────────────────────────────────────────────
+        dd_reimport \
+          "Semgrep SAST" \
+          "Semgrep JSON Report" \
+          "${{ env.APP_DIR }}/semgrep-results.json" \
+          "Semgrep SAST - ${{ github.ref_name }}"
 
-        # ── Snyk ───────────────────────────────────────────────────────
-        # scan_type exact dans DefectDojo : "Snyk Scan"
-        dd_import "Snyk SCA" \
-                  "Snyk Scan" \
-                  "${{ env.APP_DIR }}/snyk-results.json"
+        # ── Snyk ──────────────────────────────────────────────────────
+        dd_reimport \
+          "Snyk SCA" \
+          "Snyk Scan" \
+          "${{ env.APP_DIR }}/snyk-results.json" \
+          "Snyk SCA - ${{ github.ref_name }}"
 
         echo ""
         echo "Import termine."
@@ -409,25 +450,21 @@ jobs:
           -H "Accept: application/json" \
           || echo '{"count":0,"results":[]}')
 
-        AFTER_TOTAL=$(echo "$RESP"  | jq -r '.count // 0')
-        AFTER_CRIT=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
-        AFTER_HIGH=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
-        AFTER_MED=$(echo "$RESP"    | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
-        AFTER_LOW=$(echo "$RESP"    | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
+        AFTER_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        AFTER_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        AFTER_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+        AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
+        AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
 
-        BEFORE_TOTAL="${{ steps.dd_snapshot.outputs.before_total }}"
-        BEFORE_CRIT="${{ steps.dd_snapshot.outputs.before_critical }}"
-        BEFORE_HIGH="${{ steps.dd_snapshot.outputs.before_high }}"
-
-        NEW_TOTAL=$(( AFTER_TOTAL - BEFORE_TOTAL ))
-        NEW_CRIT=$(( AFTER_CRIT - BEFORE_CRIT ))
-        NEW_HIGH=$(( AFTER_HIGH - BEFORE_HIGH ))
+        NEW_CRIT=$(( AFTER_CRIT  - ${{ steps.dd_snapshot.outputs.before_critical }} ))
+        NEW_HIGH=$(( AFTER_HIGH  - ${{ steps.dd_snapshot.outputs.before_high }} ))
+        NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
         [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
         [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
 
         echo ""
         echo "========================================================"
-        echo "  RAPPORT SECURITE — ${{ steps.dd_engagement.outputs.engagement_name }}"
+        echo "  RAPPORT SECURITE"
         echo "========================================================"
         echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_product.outputs.product_id }})"
         echo "  Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=$EID)"
@@ -435,7 +472,7 @@ jobs:
         echo "  Branche    : ${{ github.ref_name }}"
         echo "  Commit     : ${{ github.sha }}"
         echo ""
-        echo "  EVOLUTION : $BEFORE_TOTAL → $AFTER_TOTAL findings ($NEW_TOTAL nouveau(x))"
+        echo "  EVOLUTION : ${{ steps.dd_snapshot.outputs.before_total }} → $AFTER_TOTAL ($NEW_TOTAL nouveau(x))"
         echo ""
         echo "  FINDINGS ACTIFS :"
         echo "    Critical : $AFTER_CRIT  (nouveaux: $NEW_CRIT)"
@@ -456,7 +493,9 @@ jobs:
         [ "$FAILED" = "true" ] && exit 1
         echo "Security Gate : OK"
 
-    
+    # ─────────────────────────────────────────────
+    # 12. RESUME FINAL
+    # ─────────────────────────────────────────────
     - name: Pipeline termine
       if: always()
       run: |
