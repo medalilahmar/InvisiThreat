@@ -493,9 +493,7 @@ jobs:
         [ "$FAILED" = "true" ] && exit 1
         echo "Security Gate : OK"
 
-    # ─────────────────────────────────────────────
-    # 12. RESUME FINAL
-    # ─────────────────────────────────────────────
+   
     - name: Pipeline termine
       if: always()
       run: |
