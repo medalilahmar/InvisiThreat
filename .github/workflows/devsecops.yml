@@ -361,8 +361,16 @@ jobs:
 
         echo "=== IMPORT DEFECTDOJO ==="
         echo "Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=$EID)"
+        PRODUCT_TYPE_NAME="Research and Development"
+        PRODUCT_NAME="${{ env.APP_NAME }}"
+        ENGAGEMENT_NAME="${{ steps.dd_engagement.outputs.engagement_name }}"
 
         # ── Fonction reimport-scan ────────────────────────────────────
+        # auto_create_context=true requiert les 3 paramètres de contexte :
+        #   - product_type_name  (catégorie du produit dans DD)
+        #   - product_name       (nom du produit)
+        #   - engagement_name    (nom de l'engagement — engagement_name EXISTE bien dans l'API)
+        # Sans ces 3 champs → erreur "product_name parameter missing"
         dd_reimport() {
           local LABEL="$1"
           local SCAN_TYPE="$2"
@@ -385,6 +393,9 @@ jobs:
           RESP=$(curl -s -X POST "$DD_BASE/api/v2/reimport-scan/" \
             -H "Authorization: Token $DD_API_KEY" \
             -F "engagement=$EID" \
+            -F "product_type_name=$PRODUCT_TYPE_NAME" \
+            -F "product_name=$PRODUCT_NAME" \
+            -F "engagement_name=$ENGAGEMENT_NAME" \
             -F "scan_type=$SCAN_TYPE" \
             -F "file=@$FILE" \
             -F "test_title=$TEST_TITLE" \
@@ -493,7 +504,9 @@ jobs:
         [ "$FAILED" = "true" ] && exit 1
         echo "Security Gate : OK"
 
-   
+    # ─────────────────────────────────────────────
+    # 12. RESUME FINAL
+    # ─────────────────────────────────────────────
     - name: Pipeline termine
       if: always()
       run: |
