@@ -1,0 +1,518 @@
+name: DevSecOps Pipeline - InvisiThreat (SAST + SCA)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  APP_NAME: InvisiThreat
+  APP_DIR: ./juice-shop
+  DD_URL: http://localhost:8080
+  FAIL_ON_NEW_CRITICAL: "true"
+  FAIL_ON_NEW_HIGH: "false"
+
+jobs:
+  security:
+    name: SAST + SCA + DefectDojo
+    runs-on: self-hosted
+    timeout-minutes: 60
+
+    steps:
+
+    # ─────────────────────────────────────────────
+    # 1. CHECKOUT
+    # ─────────────────────────────────────────────
+    - name: Recuperer le code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    # ─────────────────────────────────────────────
+    # 2. OUTILLAGE — jq uniquement (pas de python)
+    # ─────────────────────────────────────────────
+    - name: Installer jq
+      run: |
+        if command -v jq &>/dev/null; then
+          echo "OK — jq $(jq --version)"
+          exit 0
+        fi
+        sudo killall apt apt-get dpkg 2>/dev/null || true
+        sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+                   /var/cache/apt/archives/lock /var/lib/apt/lists/lock
+        sudo dpkg --configure -a
+        if sudo apt-get update -qq && sudo apt-get install -y -qq jq; then
+          echo "OK — jq installé via apt : $(jq --version)"
+        else
+          wget -q -O jq \
+            https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq && sudo mv jq /usr/local/bin/
+          echo "OK — jq installé via binaire : $(jq --version)"
+        fi
+
+    
+    - name: Cache des dépendances Node
+      uses: actions/cache@v4
+      id: node-cache
+      with:
+        path: |
+          juice-shop/node_modules
+          juice-shop/frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('juice-shop/package-lock.json', 'juice-shop/frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Installer les dépendances Node
+      working-directory: ${{ env.APP_DIR }}
+      run: |
+        if [ ! -d "node_modules" ] || [ ! -d "frontend/node_modules" ]; then
+          if [ -f "package-lock.json" ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+        else
+          echo "Les dépendances sont déjà en cache, pas d'installation nécessaire."
+        fi
+
+    
+    - name: DefectDojo - Produit
+      id: dd_product
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        set -e
+        PRODUCT_NAME="${{ env.APP_NAME }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        # Encodage URL sans python : espaces → %20, caractères spéciaux via sed
+        url_encode() {
+          echo "$1" | sed \
+            -e 's/ /%20/g' \
+            -e 's/!/%21/g' \
+            -e 's/"/%22/g' \
+            -e "s/'/%27/g" \
+            -e 's/#/%23/g' \
+            -e 's/\$/%24/g' \
+            -e 's/&/%26/g' \
+            -e 's/+/%2B/g' \
+            -e 's/,/%2C/g' \
+            -e 's|/|%2F|g' \
+            -e 's/:/%3A/g' \
+            -e 's/;/%3B/g' \
+            -e 's/=/%3D/g' \
+            -e 's/?/%3F/g' \
+            -e 's/@/%40/g'
+        }
+
+        echo "=== PRODUIT ==="
+        echo "Recherche : $PRODUCT_NAME"
+
+        ENCODED=$(url_encode "$PRODUCT_NAME")
+
+        SEARCH=$(curl -sf "$DD_BASE/api/v2/products/?name=$ENCODED" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
+
+        if [ "$COUNT" -gt 0 ]; then
+          PRODUCT_ID=$(echo "$SEARCH" | jq -r '.results[0].id')
+          echo "Produit existant — ID=$PRODUCT_ID"
+        else
+          echo "Creation du produit..."
+          CREATE=$(curl -sf -X POST "$DD_BASE/api/v2/products/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"$PRODUCT_NAME\",
+              \"description\": \"Analyse securite automatisee — $PRODUCT_NAME\",
+              \"prod_type\": 1
+            }")
+          PRODUCT_ID=$(echo "$CREATE" | jq -r '.id')
+          echo "Produit cree — ID=$PRODUCT_ID"
+        fi
+
+        [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ] && \
+          { echo "ERREUR : PRODUCT_ID invalide — Reponse: $CREATE"; exit 1; }
+
+        echo "product_id=$PRODUCT_ID" >> "$GITHUB_OUTPUT"
+        echo "OK — $PRODUCT_NAME (ID=$PRODUCT_ID)"
+
+   
+    - name: DefectDojo - Engagement
+      id: dd_engagement
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        set -e
+        PRODUCT_ID="${{ steps.dd_product.outputs.product_id }}"
+        BRANCH="${{ github.ref_name }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        # Encodage URL sans python
+        url_encode() {
+          echo "$1" | sed \
+            -e 's/ /%20/g' \
+            -e 's/!/%21/g' \
+            -e 's/"/%22/g' \
+            -e "s/'/%27/g" \
+            -e 's/#/%23/g' \
+            -e 's/\$/%24/g' \
+            -e 's/&/%26/g' \
+            -e 's/+/%2B/g' \
+            -e 's/,/%2C/g' \
+            -e 's|/|%2F|g' \
+            -e 's/:/%3A/g' \
+            -e 's/;/%3B/g' \
+            -e 's/=/%3D/g' \
+            -e 's/?/%3F/g' \
+            -e 's/@/%40/g'
+        }
+
+        YEAR=$(date +%Y)
+        MONTH=$(date +%-m)
+
+        if   [ "$MONTH" -le 3 ]; then PERIOD="Q1"; START="${YEAR}-01-01"; END="${YEAR}-03-31"
+        elif [ "$MONTH" -le 6 ]; then PERIOD="Q2"; START="${YEAR}-04-01"; END="${YEAR}-06-30"
+        elif [ "$MONTH" -le 9 ]; then PERIOD="Q3"; START="${YEAR}-07-01"; END="${YEAR}-09-30"
+        else                          PERIOD="Q4"; START="${YEAR}-10-01"; END="${YEAR}-12-31"
+        fi
+
+        NAME="${BRANCH} - ${YEAR}-${PERIOD}"
+
+        echo "=== ENGAGEMENT ==="
+        echo "Nom     : $NAME"
+        echo "Produit : $PRODUCT_ID"
+        echo "Periode : $START → $END"
+
+        ENCODED=$(url_encode "$NAME")
+
+        SEARCH=$(curl -sf \
+          "$DD_BASE/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
+
+        if [ "$COUNT" -gt 0 ]; then
+          EID=$(echo "$SEARCH" | jq -r '.results[0].id')
+          echo "Engagement existant — ID=$EID"
+          # Mise à jour des métadonnées du run courant
+          curl -sf -X PATCH "$DD_BASE/api/v2/engagements/$EID/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"target_end\": \"$END\",
+              \"branch_tag\": \"$BRANCH\",
+              \"build_id\": \"${{ github.run_id }}\",
+              \"commit_hash\": \"${{ github.sha }}\"
+            }" > /dev/null && echo "Metadonnees mises a jour"
+        else
+          echo "Creation de l'engagement..."
+          CREATE=$(curl -sf -X POST "$DD_BASE/api/v2/engagements/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"$NAME\",
+              \"product\": $PRODUCT_ID,
+              \"engagement_type\": \"CI/CD\",
+              \"status\": \"In Progress\",
+              \"branch_tag\": \"$BRANCH\",
+              \"build_id\": \"${{ github.run_id }}\",
+              \"commit_hash\": \"${{ github.sha }}\",
+              \"source_code_management_uri\": \"${{ github.server_url }}/${{ github.repository }}\",
+              \"target_start\": \"$START\",
+              \"target_end\": \"$END\",
+              \"description\": \"CI/CD auto — $BRANCH — $YEAR-$PERIOD\"
+            }")
+          EID=$(echo "$CREATE" | jq -r '.id')
+          echo "Engagement cree — ID=$EID"
+        fi
+
+        [ -z "$EID" ] || [ "$EID" = "null" ] && \
+          { echo "ERREUR : ENGAGEMENT_ID invalide — Reponse: $CREATE"; exit 1; }
+
+        echo "engagement_id=$EID"     >> "$GITHUB_OUTPUT"
+        echo "engagement_name=$NAME"  >> "$GITHUB_OUTPUT"
+        echo "start_date=$START"      >> "$GITHUB_OUTPUT"
+        echo "end_date=$END"          >> "$GITHUB_OUTPUT"
+        echo "period=$PERIOD"         >> "$GITHUB_OUTPUT"
+        echo "OK — $NAME (ID=$EID)"
+
+    # ─────────────────────────────────────────────
+    # 6. SNAPSHOT AVANT IMPORT
+    # ─────────────────────────────────────────────
+    - name: DefectDojo - Snapshot AVANT import
+      id: dd_snapshot
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        EID="${{ steps.dd_engagement.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        echo "=== SNAPSHOT AVANT IMPORT ==="
+        RESP=$(curl -sf \
+          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        BEFORE_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        BEFORE_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        BEFORE_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+
+        echo "Total=$BEFORE_TOTAL | Critical=$BEFORE_CRIT | High=$BEFORE_HIGH"
+        echo "before_total=$BEFORE_TOTAL"   >> "$GITHUB_OUTPUT"
+        echo "before_critical=$BEFORE_CRIT" >> "$GITHUB_OUTPUT"
+        echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
+
+    # ─────────────────────────────────────────────
+    # 7. SAST — Semgrep
+    # ─────────────────────────────────────────────
+    - name: SAST - Semgrep
+      working-directory: ${{ env.APP_DIR }}
+      continue-on-error: true
+      run: |
+        echo "=== SEMGREP SCAN ==="
+        docker run --rm -v "$(pwd)":/src returntocorp/semgrep semgrep \
+          --config=p/security-audit \
+          --config=p/owasp-top-ten \
+          --json \
+          --output=/src/semgrep-results.json \
+          /src || true
+
+        [ ! -s semgrep-results.json ] && \
+          echo '{"results":[]}' > semgrep-results.json
+
+        COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
+        echo "Semgrep termine — $COUNT resultat(s)"
+
+    # ─────────────────────────────────────────────
+    # 8. SCA — Snyk
+    # ─────────────────────────────────────────────
+    - name: SCA - Snyk test
+      working-directory: ${{ env.APP_DIR }}
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: |
+        echo "=== SNYK SCAN ==="
+        npx snyk test --severity-threshold=low \
+          --json-file-output=snyk-results.json || true
+
+        [ ! -s snyk-results.json ] && \
+          echo '{"vulnerabilities":[]}' > snyk-results.json
+
+        COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo 0)
+        echo "Snyk termine — $COUNT vulnerabilite(s)"
+
+    - name: SCA - Snyk monitor
+      working-directory: ${{ env.APP_DIR }}
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: npx snyk monitor || true
+
+    # ─────────────────────────────────────────────
+    # 9. UPLOAD ARTEFACTS CI
+    # ─────────────────────────────────────────────
+    - name: Upload des rapports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports-${{ github.sha }}
+        path: |
+          juice-shop/semgrep-results.json
+          juice-shop/snyk-results.json
+        retention-days: 30
+        if-no-files-found: warn
+
+    # ─────────────────────────────────────────────
+    # 10. IMPORT DANS DEFECTDOJO — reimport-scan
+    #
+    # Pourquoi reimport-scan + auto_create_context ?
+    #   - Crée le Test automatiquement si inexistant (résout scan_type côté serveur DD)
+    #   - Déduplique les findings sur les runs suivants
+    #   - auto_create_context=true → zéro configuration préalable dans DD
+    #   - test_title unique par outil pour organiser les Tests dans l'engagement
+    # ─────────────────────────────────────────────
+    - name: DefectDojo - Import des rapports
+      if: always()
+      continue-on-error: true
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        EID="${{ steps.dd_engagement.outputs.engagement_id }}"
+        BRANCH="${{ github.ref_name }}"
+        SHA="${{ github.sha }}"
+        RUN_ID="${{ github.run_id }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        echo "=== IMPORT DEFECTDOJO ==="
+        echo "Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=$EID)"
+        PRODUCT_TYPE_NAME="Research and Development"
+        PRODUCT_NAME="${{ env.APP_NAME }}"
+        ENGAGEMENT_NAME="${{ steps.dd_engagement.outputs.engagement_name }}"
+
+        # ── Fonction reimport-scan ────────────────────────────────────
+        # auto_create_context=true requiert les 3 paramètres de contexte :
+        #   - product_type_name  (catégorie du produit dans DD)
+        #   - product_name       (nom du produit)
+        #   - engagement_name    (nom de l'engagement — engagement_name EXISTE bien dans l'API)
+        # Sans ces 3 champs → erreur "product_name parameter missing"
+        dd_reimport() {
+          local LABEL="$1"
+          local SCAN_TYPE="$2"
+          local FILE="$3"
+          local TEST_TITLE="$4"
+
+          echo ""
+          echo "--- $LABEL ---"
+          echo "  Fichier    : $FILE"
+          echo "  Scan type  : $SCAN_TYPE"
+          echo "  Test title : $TEST_TITLE"
+
+          if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
+            echo "  SKIP — fichier absent ou vide"
+            return 0
+          fi
+
+          echo "  Taille : $(du -h "$FILE" | cut -f1)"
+
+          RESP=$(curl -s -X POST "$DD_BASE/api/v2/reimport-scan/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -F "engagement=$EID" \
+            -F "product_type_name=$PRODUCT_TYPE_NAME" \
+            -F "product_name=$PRODUCT_NAME" \
+            -F "engagement_name=$ENGAGEMENT_NAME" \
+            -F "scan_type=$SCAN_TYPE" \
+            -F "file=@$FILE" \
+            -F "test_title=$TEST_TITLE" \
+            -F "auto_create_context=true" \
+            -F "close_old_findings=true" \
+            -F "minimum_severity=Info" \
+            -F "active=true" \
+            -F "verified=false" \
+            -F "environment=Development" \
+            -F "branch_tag=$BRANCH" \
+            -F "commit_hash=$SHA" \
+            -F "build_id=$RUN_ID")
+
+          if echo "$RESP" | jq -e '.test' >/dev/null 2>&1; then
+            TEST_ID=$(echo "$RESP"  | jq -r '.test // "?"')
+            NEW_F=$(echo "$RESP"    | jq -r '.new_findings // 0')
+            CLOSED_F=$(echo "$RESP" | jq -r '.closed_findings // 0')
+            REACT_F=$(echo "$RESP"  | jq -r '.reactivated_findings // 0')
+            UNCH_F=$(echo "$RESP"   | jq -r '.untouched_findings // 0')
+            echo "  OK — Test ID=$TEST_ID"
+            echo "    Nouveaux   : $NEW_F"
+            echo "    Fermes     : $CLOSED_F"
+            echo "    Reactives  : $REACT_F"
+            echo "    Inchanges  : $UNCH_F"
+          else
+            echo "  ERREUR — Reponse DefectDojo :"
+            echo "$RESP" | jq '.' 2>/dev/null || echo "$RESP"
+          fi
+        }
+
+        # ── Semgrep ───────────────────────────────────────────────────
+        dd_reimport \
+          "Semgrep SAST" \
+          "Semgrep JSON Report" \
+          "${{ env.APP_DIR }}/semgrep-results.json" \
+          "Semgrep SAST - ${{ github.ref_name }}"
+
+        # ── Snyk ──────────────────────────────────────────────────────
+        dd_reimport \
+          "Snyk SCA" \
+          "Snyk Scan" \
+          "${{ env.APP_DIR }}/snyk-results.json" \
+          "Snyk SCA - ${{ github.ref_name }}"
+
+        echo ""
+        echo "Import termine."
+
+    # ─────────────────────────────────────────────
+    # 11. RAPPORT FINAL + SECURITY GATE
+    # ─────────────────────────────────────────────
+    - name: Rapport final et Security Gate
+      if: always()
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        EID="${{ steps.dd_engagement.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        echo "=== RAPPORT FINAL ==="
+        RESP=$(curl -sf \
+          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        AFTER_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        AFTER_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        AFTER_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+        AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
+        AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
+
+        NEW_CRIT=$(( AFTER_CRIT  - ${{ steps.dd_snapshot.outputs.before_critical }} ))
+        NEW_HIGH=$(( AFTER_HIGH  - ${{ steps.dd_snapshot.outputs.before_high }} ))
+        NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
+        [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
+        [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
+
+        echo ""
+        echo "========================================================"
+        echo "  RAPPORT SECURITE"
+        echo "========================================================"
+        echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_product.outputs.product_id }})"
+        echo "  Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=$EID)"
+        echo "  Periode    : ${{ steps.dd_engagement.outputs.start_date }} → ${{ steps.dd_engagement.outputs.end_date }}"
+        echo "  Branche    : ${{ github.ref_name }}"
+        echo "  Commit     : ${{ github.sha }}"
+        echo ""
+        echo "  EVOLUTION : ${{ steps.dd_snapshot.outputs.before_total }} → $AFTER_TOTAL ($NEW_TOTAL nouveau(x))"
+        echo ""
+        echo "  FINDINGS ACTIFS :"
+        echo "    Critical : $AFTER_CRIT  (nouveaux: $NEW_CRIT)"
+        echo "    High     : $AFTER_HIGH  (nouveaux: $NEW_HIGH)"
+        echo "    Medium   : $AFTER_MED"
+        echo "    Low      : $AFTER_LOW"
+        echo ""
+        echo "  Lien : $DD_BASE/engagements/$EID/finding/"
+        echo "========================================================"
+
+        # Security Gate
+        FAILED=false
+        [ "${{ env.FAIL_ON_NEW_CRITICAL }}" = "true" ] && [ "$NEW_CRIT" -gt 0 ] && \
+          { echo "SECURITY GATE ECHEC : $NEW_CRIT nouveau(x) Critical !"; FAILED=true; }
+        [ "${{ env.FAIL_ON_NEW_HIGH }}" = "true" ]     && [ "$NEW_HIGH" -gt 0 ] && \
+          { echo "SECURITY GATE ECHEC : $NEW_HIGH nouveau(x) High !"; FAILED=true; }
+
+        [ "$FAILED" = "true" ] && exit 1
+        echo "Security Gate : OK"
+
+    # ─────────────────────────────────────────────
+    # 12. RESUME FINAL
+    # ─────────────────────────────────────────────
+    - name: Pipeline termine
+      if: always()
+      run: |
+        echo "========================================================"
+        echo "  DEVSECOPS PIPELINE — ${{ env.APP_NAME }}"
+        echo "========================================================"
+        echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_product.outputs.product_id }})"
+        echo "  Engagement : ${{ steps.dd_engagement.outputs.engagement_name }} (ID=${{ steps.dd_engagement.outputs.engagement_id }})"
+        echo "  Periode    : ${{ steps.dd_engagement.outputs.start_date }} → ${{ steps.dd_engagement.outputs.end_date }}"
+        echo "  Branche    : ${{ github.ref_name }}"
+        echo "  Commit     : ${{ github.sha }}"
+        echo "  Run ID     : ${{ github.run_id }}"
+        echo "  Lien       : ${{ env.DD_URL }}/engagements/${{ steps.dd_engagement.outputs.engagement_id }}/finding/"
+        echo "========================================================"

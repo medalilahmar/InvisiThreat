@@ -1,0 +1,200 @@
+name: DefectDojo - Setup Product & Engagement
+description: >
+  Crée ou récupère automatiquement le Produit et l'Engagement DefectDojo
+  selon la branche et la période trimestrielle.
+
+inputs:
+  dd_url:
+    description: URL de l'instance DefectDojo
+    required: true
+  dd_api_key:
+    description: Token API DefectDojo
+    required: true
+  app_name:
+    description: Nom du produit dans DefectDojo
+    required: true
+  branch:
+    description: Nom de la branche Git
+    required: true
+  run_id:
+    description: GitHub run ID
+    required: true
+  sha:
+    description: SHA du commit
+    required: true
+  repo_url:
+    description: URL du dépôt source
+    required: true
+
+outputs:
+  product_id:
+    description: ID du produit DefectDojo
+    value: ${{ steps.product.outputs.product_id }}
+  engagement_id:
+    description: ID de l'engagement DefectDojo
+    value: ${{ steps.engagement.outputs.engagement_id }}
+  engagement_name:
+    description: Nom de l'engagement (branche - année-période)
+    value: ${{ steps.engagement.outputs.engagement_name }}
+  start_date:
+    description: Date de début de la période
+    value: ${{ steps.engagement.outputs.start_date }}
+  end_date:
+    description: Date de fin de la période
+    value: ${{ steps.engagement.outputs.end_date }}
+  period:
+    description: Période trimestrielle (Q1/Q2/Q3/Q4)
+    value: ${{ steps.engagement.outputs.period }}
+
+runs:
+  using: composite
+  steps:
+
+    - name: Créer helper url_encode
+      shell: bash
+      run: |
+        cat > /tmp/url_encode.sh << 'ENCODE_EOF'
+        url_encode() {
+          echo "$1" | sed \
+            -e 's/ /%20/g' \
+            -e 's/!/%21/g' \
+            -e 's/"/%22/g' \
+            -e "s/'/%27/g" \
+            -e 's/#/%23/g' \
+            -e 's/\$/%24/g' \
+            -e 's/&/%26/g' \
+            -e 's/+/%2B/g' \
+            -e 's/,/%2C/g' \
+            -e 's|/|%2F|g' \
+            -e 's/:/%3A/g' \
+            -e 's/;/%3B/g' \
+            -e 's/=/%3D/g' \
+            -e 's/?/%3F/g' \
+            -e 's/@/%40/g'
+        }
+        ENCODE_EOF
+        chmod +x /tmp/url_encode.sh
+
+    - name: Produit — Créer ou récupérer
+      id: product
+      shell: bash
+      env:
+        DD_API_KEY: ${{ inputs.dd_api_key }}
+      run: |
+        set -e
+        source /tmp/url_encode.sh
+
+        PRODUCT_NAME="${{ inputs.app_name }}"
+        DD_BASE="${{ inputs.dd_url }}"
+
+        echo "=== PRODUIT : $PRODUCT_NAME ==="
+        ENCODED=$(url_encode "$PRODUCT_NAME")
+
+        SEARCH=$(curl -sf "$DD_BASE/api/v2/products/?name=$ENCODED" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
+
+        if [ "$COUNT" -gt 0 ]; then
+          PRODUCT_ID=$(echo "$SEARCH" | jq -r '.results[0].id')
+          echo "Produit existant — ID=$PRODUCT_ID"
+        else
+          echo "Création du produit..."
+          CREATE=$(curl -sf -X POST "$DD_BASE/api/v2/products/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"$PRODUCT_NAME\",
+              \"description\": \"Analyse securite automatisee — $PRODUCT_NAME\",
+              \"prod_type\": 1
+            }")
+          PRODUCT_ID=$(echo "$CREATE" | jq -r '.id')
+          echo "Produit créé — ID=$PRODUCT_ID"
+        fi
+
+        [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ] && \
+          { echo "ERREUR : PRODUCT_ID invalide"; exit 1; }
+
+        echo "product_id=$PRODUCT_ID" >> "$GITHUB_OUTPUT"
+        echo "OK — $PRODUCT_NAME (ID=$PRODUCT_ID)"
+
+    - name: Engagement — Créer ou récupérer
+      id: engagement
+      shell: bash
+      env:
+        DD_API_KEY: ${{ inputs.dd_api_key }}
+      run: |
+        set -e
+        source /tmp/url_encode.sh
+
+        PRODUCT_ID="${{ steps.product.outputs.product_id }}"
+        BRANCH="${{ inputs.branch }}"
+        DD_BASE="${{ inputs.dd_url }}"
+
+        # Calcul du trimestre
+        YEAR=$(date +%Y)
+        MONTH=$(date +%-m)
+        if   [ "$MONTH" -le 3 ]; then PERIOD="Q1"; START="${YEAR}-01-01"; END="${YEAR}-03-31"
+        elif [ "$MONTH" -le 6 ]; then PERIOD="Q2"; START="${YEAR}-04-01"; END="${YEAR}-06-30"
+        elif [ "$MONTH" -le 9 ]; then PERIOD="Q3"; START="${YEAR}-07-01"; END="${YEAR}-09-30"
+        else                          PERIOD="Q4"; START="${YEAR}-10-01"; END="${YEAR}-12-31"
+        fi
+
+        NAME="${BRANCH} - ${YEAR}-${PERIOD}"
+        echo "=== ENGAGEMENT : $NAME ==="
+        echo "Période : $START → $END"
+
+        ENCODED=$(url_encode "$NAME")
+        SEARCH=$(curl -sf \
+          "$DD_BASE/api/v2/engagements/?product=$PRODUCT_ID&name=$ENCODED" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        COUNT=$(echo "$SEARCH" | jq -r '.count // 0')
+
+        if [ "$COUNT" -gt 0 ]; then
+          EID=$(echo "$SEARCH" | jq -r '.results[0].id')
+          echo "Engagement existant — ID=$EID"
+          curl -sf -X PATCH "$DD_BASE/api/v2/engagements/$EID/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"target_end\": \"$END\",
+              \"branch_tag\": \"$BRANCH\",
+              \"build_id\": \"${{ inputs.run_id }}\",
+              \"commit_hash\": \"${{ inputs.sha }}\"
+            }" > /dev/null && echo "Métadonnées mises à jour"
+        else
+          echo "Création de l'engagement..."
+          CREATE=$(curl -sf -X POST "$DD_BASE/api/v2/engagements/" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"$NAME\",
+              \"product\": $PRODUCT_ID,
+              \"engagement_type\": \"CI/CD\",
+              \"status\": \"In Progress\",
+              \"branch_tag\": \"$BRANCH\",
+              \"build_id\": \"${{ inputs.run_id }}\",
+              \"commit_hash\": \"${{ inputs.sha }}\",
+              \"source_code_management_uri\": \"${{ inputs.repo_url }}\",
+              \"target_start\": \"$START\",
+              \"target_end\": \"$END\",
+              \"description\": \"CI/CD auto — $BRANCH — $YEAR-$PERIOD\"
+            }")
+          EID=$(echo "$CREATE" | jq -r '.id')
+          echo "Engagement créé — ID=$EID"
+        fi
+
+        [ -z "$EID" ] || [ "$EID" = "null" ] && \
+          { echo "ERREUR : ENGAGEMENT_ID invalide"; exit 1; }
+
+        echo "engagement_id=$EID"     >> "$GITHUB_OUTPUT"
+        echo "engagement_name=$NAME"  >> "$GITHUB_OUTPUT"
+        echo "start_date=$START"      >> "$GITHUB_OUTPUT"
+        echo "end_date=$END"          >> "$GITHUB_OUTPUT"
+        echo "period=$PERIOD"         >> "$GITHUB_OUTPUT"
+        echo "OK — $NAME (ID=$EID)"
