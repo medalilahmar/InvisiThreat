@@ -1,0 +1,264 @@
+name: DAST - ZAP Scans
+description: >
+  Exécute les scans ZAP DAST sur l'application cible.
+  - OpenAPI scan  : scan authentifié des endpoints REST (swagger /b2b/v2)
+  - Full scan     : AJAX Spider + Active Scan (remplace Spider HTTP classique)
+
+  FIXES appliqués vs ancienne version :
+    1. servers.url relatif (/b2b/v2) → patché avec host complet avant scan
+    2. Bearer JWT obligatoire → token obtenu via /rest/user/login, injecté via ZAP_AUTH_HEADER_VALUE
+    3. Spider HTTP classique supprimé → SPA Angular = 0 URL trouvée
+
+inputs:
+  target_url:
+    description: URL de l'application cible
+    required: true
+    default: http://localhost:3000
+  app_dir:
+    description: Répertoire de travail de l'application
+    required: true
+  jwt_email:
+    description: Email pour obtenir le JWT Juice Shop
+    required: false
+    default: admin@juice-sh.op
+  jwt_password:
+    description: Mot de passe pour obtenir le JWT Juice Shop
+    required: false
+    default: admin123
+  full_scan_timeout:
+    description: Timeout du full scan en minutes
+    required: false
+    default: "30"
+
+outputs:
+  openapi_report_xml:
+    description: Chemin rapport XML OpenAPI
+    value: ${{ steps.resolve.outputs.openapi_xml }}
+  fullscan_report_xml:
+    description: Chemin rapport XML Full Scan
+    value: ${{ steps.resolve.outputs.fullscan_xml }}
+  total_alerts:
+    description: Nombre total d'alertes consolidées
+    value: ${{ steps.consolidate.outputs.total_alerts }}
+  high_alerts:
+    description: Nombre d'alertes HIGH+
+    value: ${{ steps.consolidate.outputs.high_alerts }}
+  medium_alerts:
+    description: Nombre d'alertes MEDIUM
+    value: ${{ steps.consolidate.outputs.medium_alerts }}
+
+runs:
+  using: composite
+  steps:
+
+    
+    - name: Obtenir JWT Juice Shop
+      id: jwt
+      shell: bash
+      run: |
+        echo "=== OBTENTION DU JWT ==="
+        TARGET="${{ inputs.target_url }}"
+
+        LOGIN_RESP=$(curl -sf -X POST "$TARGET/rest/user/login" \
+          -H "Content-Type: application/json" \
+          -d "{\"email\": \"${{ inputs.jwt_email }}\", \"password\": \"${{ inputs.jwt_password }}\"}" \
+          2>/dev/null || echo '{}')
+
+        JWT_TOKEN=$(echo "$LOGIN_RESP" | jq -r '.authentication.token // empty' 2>/dev/null)
+
+        if [ -z "$JWT_TOKEN" ] || [ "$JWT_TOKEN" = "null" ]; then
+          echo "AVERTISSEMENT : JWT non obtenu — scan sans authentification"
+          echo "  Réponse : $LOGIN_RESP"
+          JWT_TOKEN=""
+        else
+          echo "JWT obtenu (${#JWT_TOKEN} caractères)"
+        fi
+
+        echo "jwt_token=$JWT_TOKEN" >> "$GITHUB_OUTPUT"
+
+    
+    - name: Préparer swagger avec URL absolue
+      id: swagger
+      shell: bash
+      working-directory: ${{ inputs.app_dir }}
+      run: |
+        echo "=== PRÉPARATION SWAGGER ==="
+        TARGET="${{ inputs.target_url }}"
+
+        # Chercher le fichier swagger source
+        SWAGGER_SRC=""
+        for f in swagger.yml swagger.yaml openapi.yml openapi.yaml swagger.json openapi.json; do
+          if [ -f "$f" ]; then
+            SWAGGER_SRC="$f"
+            echo "Swagger source trouvé : $f"
+            break
+          fi
+        done
+
+        # Fallback : télécharger depuis l'API
+        if [ -z "$SWAGGER_SRC" ]; then
+          for ENDPOINT in "/api-docs" "/api-docs/swagger.json" "/swagger.json"; do
+            if curl -sf "$TARGET$ENDPOINT" -o swagger-downloaded.json 2>/dev/null; then
+              SWAGGER_SRC="swagger-downloaded.json"
+              echo "Swagger téléchargé depuis $TARGET$ENDPOINT"
+              break
+            fi
+          done
+        fi
+
+        if [ -z "$SWAGGER_SRC" ]; then
+          echo "AVERTISSEMENT : aucun swagger disponible — OpenAPI scan ignoré"
+          echo "swagger_ready=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Patcher l'URL relative → absolue
+        cp "$SWAGGER_SRC" zap-swagger-patched.yaml
+        sed -i "s|url: /|url: $TARGET/|g" zap-swagger-patched.yaml
+
+        echo "Patch appliqué — servers.url relatifs → $TARGET/..."
+        grep -A2 "servers:" zap-swagger-patched.yaml | head -4 || true
+
+        echo "swagger_ready=true"                        >> "$GITHUB_OUTPUT"
+        echo "swagger_file=zap-swagger-patched.yaml"     >> "$GITHUB_OUTPUT"
+
+    
+    - name: ZAP — OpenAPI Scan
+      id: openapi
+      shell: bash
+      working-directory: ${{ inputs.app_dir }}
+      run: |
+        echo "=== ZAP OPENAPI SCAN ==="
+
+        if [ "${{ steps.swagger.outputs.swagger_ready }}" != "true" ]; then
+          echo "Swagger non disponible — scan ignoré"
+          echo '{"site":[]}' > zap-openapi.json
+          echo "<OWASPZAPReport/>" > zap-openapi.xml
+          exit 0
+        fi
+
+        TARGET="${{ inputs.target_url }}"
+        JWT="${{ steps.jwt.outputs.jwt_token }}"
+        SWAGGER_FILE="${{ steps.swagger.outputs.swagger_file }}"
+
+        echo "Cible   : $TARGET"
+        echo "Swagger : $SWAGGER_FILE"
+        echo "Auth    : $([ -n "$JWT" ] && echo 'Bearer JWT ✓' || echo 'Aucune (401 attendus)')"
+
+        AUTH_ENV=""
+        [ -n "$JWT" ] && AUTH_ENV="-e ZAP_AUTH_HEADER_VALUE=Bearer $JWT"
+
+        docker run --rm --network host \
+          $AUTH_ENV \
+          -v "$(pwd):/zap/wrk:rw" \
+          ghcr.io/zaproxy/zaproxy:stable \
+          zap-api-scan.py \
+          -t "$TARGET/b2b/v2" \
+          -f openapi \
+          -d "/zap/wrk/$SWAGGER_FILE" \
+          -x /zap/wrk/zap-openapi.xml \
+          -J /zap/wrk/zap-openapi.json \
+          -T 20 \
+          -I || true
+
+        [ ! -f zap-openapi.json ] && echo '{"site":[]}' > zap-openapi.json
+        [ ! -f zap-openapi.xml ]  && echo "<OWASPZAPReport/>" > zap-openapi.xml
+
+        ALERTS=$(jq '[.. | objects | select(has("alert"))] | length' \
+          zap-openapi.json 2>/dev/null || echo 0)
+        echo "OpenAPI scan terminé — $ALERTS alertes"
+
+    
+    - name: ZAP — Full Scan (AJAX Spider + Active)
+      id: fullscan
+      shell: bash
+      working-directory: ${{ inputs.app_dir }}
+      run: |
+        echo "=== ZAP FULL SCAN ==="
+        TARGET="${{ inputs.target_url }}"
+        TIMEOUT="${{ inputs.full_scan_timeout }}"
+        JWT="${{ steps.jwt.outputs.jwt_token }}"
+
+        echo "Cible   : $TARGET"
+        echo "Timeout : ${TIMEOUT} min"
+        echo "Auth    : $([ -n "$JWT" ] && echo 'Bearer JWT ✓' || echo 'Aucune')"
+
+        AUTH_ENV=""
+        [ -n "$JWT" ] && AUTH_ENV="-e ZAP_AUTH_HEADER_VALUE=Bearer $JWT"
+
+        docker run --rm --network host \
+          $AUTH_ENV \
+          -v "$(pwd):/zap/wrk:rw" \
+          ghcr.io/zaproxy/zaproxy:stable \
+          zap-full-scan.py \
+          -t "$TARGET" \
+          -x /zap/wrk/zap-fullscan.xml \
+          -J /zap/wrk/zap-fullscan.json \
+          -z "-addoninstall pscanrulesBeta" \
+          -T "$TIMEOUT" \
+          -I || true
+
+        [ ! -f zap-fullscan.json ] && echo '{"site":[]}' > zap-fullscan.json
+        [ ! -f zap-fullscan.xml ]  && echo "<OWASPZAPReport/>" > zap-fullscan.xml
+
+        ALERTS=$(jq '[.. | objects | select(has("alert"))] | length' \
+          zap-fullscan.json 2>/dev/null || echo 0)
+        echo "Full scan terminé — $ALERTS alertes"
+
+    
+    - name: Résoudre les chemins des rapports
+      id: resolve
+      shell: bash
+      working-directory: ${{ inputs.app_dir }}
+      run: |
+        ABS=$(pwd)
+        echo "openapi_xml=$ABS/zap-openapi.xml"  >> "$GITHUB_OUTPUT"
+        echo "fullscan_xml=$ABS/zap-fullscan.xml" >> "$GITHUB_OUTPUT"
+        echo "Rapports générés :"
+        ls -lh zap-*.xml zap-*.json 2>/dev/null || echo "Aucun rapport ZAP"
+
+   
+    - name: Consolider les rapports DAST
+      id: consolidate
+      shell: bash
+      working-directory: ${{ inputs.app_dir }}
+      run: |
+        echo "=== CONSOLIDATION DAST ==="
+
+        extract_alerts() {
+          local FILE="$1"
+          jq '[.. | objects | select(has("alert"))] |
+              map({
+                alert:    .alert,
+                riskcode: (.riskcode // "0"),
+                riskdesc: (.riskdesc // "Info"),
+                url:      (if .instances then .instances[0].uri else (.url // "") end)
+              }) | unique_by(.alert)' \
+            "$FILE" 2>/dev/null || echo "[]"
+        }
+
+        OPENAPI_ALERTS=$(extract_alerts zap-openapi.json)
+        FULLSCAN_ALERTS=$(extract_alerts zap-fullscan.json)
+
+        printf '[%s, %s]' "$OPENAPI_ALERTS" "$FULLSCAN_ALERTS" | \
+          jq 'add // [] | unique_by(.alert)' > zap-consolidated.json 2>/dev/null \
+          || echo "[]" > zap-consolidated.json
+
+        TOTAL=$(jq 'length' zap-consolidated.json 2>/dev/null || echo 0)
+        HIGH=$(jq '[.[] | select(.riskcode=="3" or .riskcode=="2")] | length' \
+          zap-consolidated.json 2>/dev/null || echo 0)
+        MEDIUM=$(jq '[.[] | select(.riskcode=="1")] | length' \
+          zap-consolidated.json 2>/dev/null || echo 0)
+        LOW=$(jq '[.[] | select(.riskcode=="0")] | length' \
+          zap-consolidated.json 2>/dev/null || echo 0)
+
+        echo ""
+        echo "  RÉSULTATS DAST CONSOLIDÉS :"
+        echo "    Total alertes uniques : $TOTAL"
+        echo "    High+                 : $HIGH"
+        echo "    Medium                : $MEDIUM"
+        echo "    Low                   : $LOW"
+
+        echo "total_alerts=$TOTAL"   >> "$GITHUB_OUTPUT"
+        echo "high_alerts=$HIGH"     >> "$GITHUB_OUTPUT"
+        echo "medium_alerts=$MEDIUM" >> "$GITHUB_OUTPUT"

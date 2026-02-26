@@ -1,4 +1,4 @@
-name: DevSecOps Pipeline - InvisiThreat
+name: DevSecOps Pipeline - InvisiThreat (SAST + SCA)
 
 on:
   push:
@@ -10,16 +10,15 @@ on:
 env:
   APP_NAME: InvisiThreat
   APP_DIR: ./juice-shop
-  TARGET_URL: http://localhost:3000
   DD_URL: http://localhost:8080
   FAIL_ON_NEW_CRITICAL: "true"
   FAIL_ON_NEW_HIGH: "false"
 
 jobs:
   security:
-    name: SAST + SCA + DAST + DefectDojo
+    name: SAST + SCA + DefectDojo
     runs-on: self-hosted
-    timeout-minutes: 120
+    timeout-minutes: 60
 
     steps:
 
@@ -113,21 +112,16 @@ jobs:
         echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
 
     
-    - name: SAST — Semgrep
-      working-directory: ${{ env.APP_DIR }}
+    - name: SAST avec Semgrep
+      working-directory: ./juice-shop
       continue-on-error: true
       run: |
-        echo "=== SEMGREP SCAN ==="
-        docker run --rm -v "$(pwd)":/src returntocorp/semgrep semgrep \
-          --config=p/security-audit \
-          --config=p/owasp-top-ten \
-          --json \
-          --output=/src/semgrep-results.json \
-          /src || true
-
-        [ ! -s semgrep-results.json ] && \
-          echo '{"results":[]}' > semgrep-results.json
-
+        [ -f ".semgrepignore" ] && mv .semgrepignore .semgrepignore.bak
+        timeout 1500 docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep \
+          --config=r/all --json --output=/src/semgrep-results.json \
+          --metrics=off --jobs=4 --timeout=60 --max-memory=4096 /src || true
+        [ -f ".semgrepignore.bak" ] && mv .semgrepignore.bak .semgrepignore
+        [ ! -s semgrep-results.json ] && echo '{"results":[]}' > semgrep-results.json
         COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
         echo "Semgrep terminé — $COUNT résultat(s)"
 
@@ -156,48 +150,6 @@ jobs:
       run: npx snyk monitor || true
 
     
-    - name: DAST — Démarrer Juice Shop
-      working-directory: ${{ env.APP_DIR }}
-      run: |
-        echo "=== DÉMARRAGE APPLICATION ==="
-        npm start &
-        echo $! > api.pid
-
-        MAX_RETRIES=30
-        for i in $(seq 1 $MAX_RETRIES); do
-          if curl -sf "${{ env.TARGET_URL }}/" >/dev/null 2>&1; then
-            echo "Application prête (tentative $i)"
-            exit 0
-          fi
-          [ "$i" -eq 1 ] && sleep 15 || sleep 3
-          echo "Attente... $i/$MAX_RETRIES"
-        done
-        echo "ERREUR : application non disponible"
-        exit 1
-
-    
-    - name: DAST — ZAP Scans
-      id: zap
-      uses: ./.github/actions/zap-scan
-      with:
-        target_url: ${{ env.TARGET_URL }}
-        app_dir: ${{ env.APP_DIR }}
-        full_scan_timeout: "30"
-
-    
-    - name: DAST — Arrêter Juice Shop
-      if: always()
-      working-directory: ${{ env.APP_DIR }}
-      run: |
-        if [ -f api.pid ]; then
-          PID=$(cat api.pid)
-          kill "$PID" 2>/dev/null || true
-          rm -f api.pid
-          echo "Application arrêtée (PID=$PID)"
-        fi
-        pkill -f "node.*juice-shop" 2>/dev/null || true
-
-    
     - name: Upload des rapports
       if: always()
       uses: actions/upload-artifact@v4
@@ -206,8 +158,6 @@ jobs:
         path: |
           juice-shop/semgrep-results.json
           juice-shop/snyk-results.json
-          juice-shop/zap-*.json
-          juice-shop/zap-*.xml
         retention-days: 30
         if-no-files-found: warn
 
@@ -228,6 +178,7 @@ jobs:
         sha: ${{ github.sha }}
         run_id: ${{ github.run_id }}
 
+    
     - name: DefectDojo — Import Snyk
       if: always()
       uses: ./.github/actions/dd-import
@@ -240,36 +191,6 @@ jobs:
         scan_type: Snyk Scan
         file: ${{ env.APP_DIR }}/snyk-results.json
         test_title: Snyk SCA - ${{ github.ref_name }}
-        branch: ${{ github.ref_name }}
-        sha: ${{ github.sha }}
-        run_id: ${{ github.run_id }}
-
-    - name: DefectDojo — Import ZAP OpenAPI
-      if: always()
-      uses: ./.github/actions/dd-import-zap
-      with:
-        dd_url: ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id: ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name: ${{ env.APP_NAME }}
-        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        file: ${{ env.APP_DIR }}/zap-openapi.xml
-        test_title: ZAP OpenAPI - ${{ github.ref_name }}
-        branch: ${{ github.ref_name }}
-        sha: ${{ github.sha }}
-        run_id: ${{ github.run_id }}
-
-    - name: DefectDojo — Import ZAP Full Scan
-      if: always()
-      uses: ./.github/actions/dd-import-zap
-      with:
-        dd_url: ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id: ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name: ${{ env.APP_NAME }}
-        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        file: ${{ env.APP_DIR }}/zap-fullscan.xml
-        test_title: ZAP Full Scan - ${{ github.ref_name }}
         branch: ${{ github.ref_name }}
         sha: ${{ github.sha }}
         run_id: ${{ github.run_id }}
@@ -303,20 +224,13 @@ jobs:
 
         echo ""
         echo "========================================================"
-        echo "  RAPPORT SECURITE FINAL"
+        echo "  RAPPORT SECURITE"
         echo "========================================================"
         echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_setup.outputs.product_id }})"
         echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=$EID)"
         echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
         echo "  Branche    : ${{ github.ref_name }}"
         echo "  Commit     : ${{ github.sha }}"
-        echo ""
-        echo "  SCANS :"
-        echo "    SAST  : Semgrep"
-        echo "    SCA   : Snyk"
-        echo "    DAST  : ZAP OpenAPI + ZAP Full Scan (AJAX Spider + Active)"
-        echo "            Total alertes : ${{ steps.zap.outputs.total_alerts }}"
-        echo "            High+         : ${{ steps.zap.outputs.high_alerts }}"
         echo ""
         echo "  ÉVOLUTION : ${{ steps.dd_snapshot.outputs.before_total }} → $AFTER_TOTAL ($NEW_TOTAL nouveau(x))"
         echo ""
@@ -329,6 +243,7 @@ jobs:
         echo "  Lien : $DD_BASE/engagements/$EID/finding/"
         echo "========================================================"
 
+        # Security Gate
         FAILED=false
         [ "${{ env.FAIL_ON_NEW_CRITICAL }}" = "true" ] && [ "$NEW_CRIT" -gt 0 ] && \
           { echo "SECURITY GATE ECHEC : $NEW_CRIT nouveau(x) Critical !"; FAILED=true; }

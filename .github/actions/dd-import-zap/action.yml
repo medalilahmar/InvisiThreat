@@ -1,0 +1,116 @@
+name: DefectDojo - Import ZAP Scan
+description: >
+  Importe un rapport ZAP XML dans DefectDojo via reimport-scan.
+  Spécialisé pour les rapports ZAP (scan_type = "ZAP Scan").
+
+inputs:
+  dd_url:
+    description: URL de l'instance DefectDojo
+    required: true
+  dd_api_key:
+    description: Token API DefectDojo
+    required: true
+  engagement_id:
+    description: ID de l'engagement DefectDojo
+    required: true
+  product_name:
+    description: Nom du produit (requis par auto_create_context)
+    required: true
+  engagement_name:
+    description: Nom de l'engagement (requis par auto_create_context)
+    required: true
+  file:
+    description: Chemin vers le rapport ZAP XML
+    required: true
+  test_title:
+    description: Titre du Test dans DefectDojo
+    required: true
+  branch:
+    description: Branche Git
+    required: true
+  sha:
+    description: SHA du commit
+    required: true
+  run_id:
+    description: GitHub run ID
+    required: true
+
+outputs:
+  test_id:
+    description: ID du Test créé ou mis à jour
+    value: ${{ steps.import.outputs.test_id }}
+  new_findings:
+    description: Nombre de nouveaux findings
+    value: ${{ steps.import.outputs.new_findings }}
+
+runs:
+  using: composite
+  steps:
+
+    - name: Import ZAP via reimport-scan
+      id: import
+      shell: bash
+      env:
+        DD_API_KEY: ${{ inputs.dd_api_key }}
+      run: |
+        set -e
+
+        FILE="${{ inputs.file }}"
+        TEST_TITLE="${{ inputs.test_title }}"
+        EID="${{ inputs.engagement_id }}"
+        DD_BASE="${{ inputs.dd_url }}"
+
+        echo "--- Import ZAP : $TEST_TITLE ---"
+        echo "  Fichier : $FILE"
+
+        if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
+          # Fichier vide ou absent = scan sans alerte = OK
+          echo "  INFO — Rapport absent ou vide (aucune alerte trouvée)"
+          echo "test_id=skipped"  >> "$GITHUB_OUTPUT"
+          echo "new_findings=0"   >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Vérifier que le XML n'est pas un placeholder vide
+        if grep -q "<OWASPZAPReport/>" "$FILE" 2>/dev/null; then
+          echo "  INFO — Rapport ZAP vide (placeholder)"
+          echo "test_id=skipped"  >> "$GITHUB_OUTPUT"
+          echo "new_findings=0"   >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "  Taille  : $(du -h "$FILE" | cut -f1)"
+
+        RESP=$(curl -s -X POST "$DD_BASE/api/v2/reimport-scan/" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -F "engagement=$EID" \
+          -F "product_name=${{ inputs.product_name }}" \
+          -F "engagement_name=${{ inputs.engagement_name }}" \
+          -F "scan_type=ZAP Scan" \
+          -F "file=@$FILE" \
+          -F "test_title=$TEST_TITLE" \
+          -F "auto_create_context=true" \
+          -F "close_old_findings=true" \
+          -F "minimum_severity=Info" \
+          -F "active=true" \
+          -F "verified=false" \
+          -F "environment=Development" \
+          -F "branch_tag=${{ inputs.branch }}" \
+          -F "commit_hash=${{ inputs.sha }}" \
+          -F "build_id=${{ inputs.run_id }}")
+
+        if echo "$RESP" | jq -e '.test' >/dev/null 2>&1; then
+          TEST_ID=$(echo "$RESP"   | jq -r '.test // "?"')
+          NEW_F=$(echo "$RESP"     | jq -r '.new_findings // 0')
+          CLOSED_F=$(echo "$RESP"  | jq -r '.closed_findings // 0')
+          REACT_F=$(echo "$RESP"   | jq -r '.reactivated_findings // 0')
+          echo "  OK — Test ID=$TEST_ID | Nouveaux=$NEW_F | Fermés=$CLOSED_F | Réactivés=$REACT_F"
+          echo "test_id=$TEST_ID"    >> "$GITHUB_OUTPUT"
+          echo "new_findings=$NEW_F" >> "$GITHUB_OUTPUT"
+        else
+          echo "  ERREUR — Réponse DefectDojo :"
+          echo "$RESP" | jq '.' 2>/dev/null || echo "$RESP"
+          echo "test_id=error"     >> "$GITHUB_OUTPUT"
+          echo "new_findings=0"    >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
