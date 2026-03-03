@@ -36,3 +36,324 @@
 2026-02-21 17:10:35,944 [INFO]    2 engagements
 2026-02-21 17:10:35,944 [INFO]    321 findings uniques
 2026-02-21 17:10:35,944 [INFO] ============================================================
+2026-03-03 02:36:25,510 [INFO] ============================================================
+2026-03-03 02:36:25,511 [INFO] 📡 Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 02:36:25,511 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 02:36:25,511 [INFO] ============================================================
+2026-03-03 02:36:27,323 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 02:36:27,341 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 02:36:27,341 [INFO] 
+ Produit 4 : Invisi
+2026-03-03 02:36:27,416 [INFO] [engagements/product=4] Total récupéré : 3 éléments (1 page(s))
+2026-03-03 02:36:41,356 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 02:36:41,357 [INFO]    ↳ Engagement 2 : 1311 findings
+2026-03-03 02:36:50,492 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 02:36:50,492 [INFO]    ↳ Engagement 3 : 1311 findings
+2026-03-03 02:37:00,088 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 02:37:00,089 [INFO]    ↳ Engagement 4 : 1311 findings
+2026-03-03 02:37:00,089 [INFO]    Produit 4 total : 3 engagement(s), 3933 finding(s)
+2026-03-03 02:37:00,089 [INFO] 
+ Produit 5 : InvisiThreat
+2026-03-03 02:37:00,140 [INFO] [engagements/product=5] Total récupéré : 1 éléments (1 page(s))
+2026-03-03 02:37:09,471 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 02:37:09,472 [INFO]    ↳ Engagement 5 : 1311 findings
+2026-03-03 02:37:09,472 [INFO]    Produit 5 total : 1 engagement(s), 1311 finding(s)
+2026-03-03 02:37:09,472 [INFO] 
+ Produit 2 : automation-hub
+2026-03-03 02:37:09,517 [INFO] [engagements/product=2] Total récupéré : 1 éléments (1 page(s))
+2026-03-03 02:37:18,132 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 02:37:18,133 [INFO]    ↳ Engagement 1 : 1311 findings
+2026-03-03 02:37:18,133 [INFO]    Produit 2 total : 1 engagement(s), 1311 finding(s)
+2026-03-03 02:37:18,133 [INFO] 
+ Produit 3 : testdefectdojo
+2026-03-03 02:37:18,165 [INFO] [engagements/product=3] Total récupéré : 0 éléments (1 page(s))
+2026-03-03 02:37:18,165 [INFO]    Produit 3 total : 0 engagement(s), 0 finding(s)
+2026-03-03 02:37:18,165 [INFO] 
+ Produit 1 : teste
+2026-03-03 02:37:18,199 [INFO] [engagements/product=1] Total récupéré : 0 éléments (1 page(s))
+2026-03-03 02:37:18,199 [INFO]    Produit 1 total : 0 engagement(s), 0 finding(s)
+2026-03-03 02:37:18,201 [WARNING] Doublons supprimés : 5244 findings
+2026-03-03 02:37:18,202 [INFO] Findings uniques : 1311
+2026-03-03 02:37:18,213 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 02:37:18,331 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (1311 lignes, 92 colonnes)
+2026-03-03 02:37:18,333 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-03-03 02:37:18,333 [INFO] 
+============================================================
+2026-03-03 02:37:18,333 [INFO] ✅ Collecte terminée avec succès
+2026-03-03 02:37:18,333 [INFO]    5 produits
+2026-03-03 02:37:18,333 [INFO]    5 engagements
+2026-03-03 02:37:18,333 [INFO]    1311 findings uniques
+2026-03-03 02:37:18,333 [INFO] ============================================================
+2026-03-03 15:30:54,850 [INFO] ============================================================
+2026-03-03 15:30:54,850 [INFO]  Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 15:30:54,850 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 15:30:54,850 [INFO] ============================================================
+2026-03-03 15:30:56,243 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 15:30:56,261 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 15:30:57,930 [INFO] [engagements_all] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 15:30:57,930 [INFO] Total engagements récupérés : 5
+2026-03-03 15:31:10,361 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:31:10,361 [INFO]    ↳ Engagement 1 (produit 2) : 1311 findings
+2026-03-03 15:31:19,834 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:31:19,835 [INFO]    ↳ Engagement 2 (produit 4) : 1311 findings
+2026-03-03 15:31:29,196 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:31:29,197 [INFO]    ↳ Engagement 3 (produit 4) : 1311 findings
+2026-03-03 15:31:38,611 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:31:38,612 [INFO]    ↳ Engagement 4 (produit 4) : 1311 findings
+2026-03-03 15:31:47,684 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:31:47,685 [INFO]    ↳ Engagement 5 (produit 5) : 1311 findings
+2026-03-03 15:31:47,688 [WARNING] Doublons supprimés : 5244 findings
+2026-03-03 15:31:47,688 [INFO] Findings uniques : 1311
+2026-03-03 15:31:47,702 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 15:31:47,781 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (1311 lignes, 92 colonnes)
+2026-03-03 15:31:47,784 [INFO]  Rapport de collecte : data\raw\collection_report.json
+2026-03-03 15:31:47,784 [INFO] 
+============================================================
+2026-03-03 15:31:47,784 [INFO]  Collecte terminée avec succès
+2026-03-03 15:31:47,784 [INFO]    5 produits
+2026-03-03 15:31:47,785 [INFO]    5 engagements
+2026-03-03 15:31:47,785 [INFO]    1311 findings uniques
+2026-03-03 15:31:47,785 [INFO] ============================================================
+2026-03-03 15:56:48,020 [INFO] ============================================================
+2026-03-03 15:56:48,020 [INFO]  Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 15:56:48,020 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 15:56:48,020 [INFO] ============================================================
+2026-03-03 15:56:48,145 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 15:56:48,158 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 15:56:48,215 [INFO] [engagements_all] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 15:56:48,215 [INFO] Total engagements récupérés : 5
+2026-03-03 15:56:57,875 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:56:57,876 [INFO]    ↳ Engagement 1 (produit 2) : 1311 findings
+2026-03-03 15:57:07,209 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:57:07,210 [INFO]    ↳ Engagement 2 (produit 4) : 1311 findings
+2026-03-03 15:57:16,386 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:57:16,387 [INFO]    ↳ Engagement 3 (produit 4) : 1311 findings
+2026-03-03 15:57:27,763 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:57:27,764 [INFO]    ↳ Engagement 4 (produit 4) : 1311 findings
+2026-03-03 15:57:37,964 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 15:57:37,965 [INFO]    ↳ Engagement 5 (produit 5) : 1311 findings
+2026-03-03 15:57:37,969 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 16:00:02,529 [INFO] ============================================================
+2026-03-03 16:00:02,529 [INFO]  Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 16:00:02,529 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 16:00:02,529 [INFO] ============================================================
+2026-03-03 16:00:02,633 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:00:02,640 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 16:00:02,692 [INFO] [engagements_all] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:00:02,692 [INFO] Total engagements récupérés : 5
+2026-03-03 16:00:11,898 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:00:11,899 [INFO]    ↳ Engagement 1 (produit 2) : 1311 findings
+2026-03-03 16:00:23,014 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:00:23,016 [INFO]    ↳ Engagement 2 (produit 4) : 1311 findings
+2026-03-03 16:00:33,627 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:00:33,628 [INFO]    ↳ Engagement 3 (produit 4) : 1311 findings
+2026-03-03 16:00:43,267 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:00:43,268 [INFO]    ↳ Engagement 4 (produit 4) : 1311 findings
+2026-03-03 16:00:54,371 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:00:54,372 [INFO]    ↳ Engagement 5 (produit 5) : 1311 findings
+2026-03-03 16:00:54,376 [WARNING] Doublons supprimés : 5244 findings
+2026-03-03 16:00:54,376 [INFO] Findings uniques : 1311
+2026-03-03 16:00:54,445 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 16:00:54,566 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (1311 lignes, 92 colonnes)
+2026-03-03 16:00:54,567 [INFO]  Rapport de collecte : data\raw\collection_report.json
+2026-03-03 16:00:54,567 [INFO] 
+============================================================
+2026-03-03 16:00:54,567 [INFO]  Collecte terminée avec succès
+2026-03-03 16:00:54,567 [INFO]    5 produits
+2026-03-03 16:00:54,568 [INFO]    5 engagements
+2026-03-03 16:00:54,568 [INFO]    1311 findings uniques
+2026-03-03 16:00:54,568 [INFO] ============================================================
+2026-03-03 16:09:37,165 [INFO] ============================================================
+2026-03-03 16:09:37,165 [INFO] 📡 Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 16:09:37,165 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 16:09:37,165 [INFO] ============================================================
+2026-03-03 16:09:37,306 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:09:37,315 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 16:09:37,316 [INFO] ✅ Produits récupérés : 5
+2026-03-03 16:09:37,366 [INFO] [engagements_all] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:09:37,366 [INFO] ✅ Engagements récupérés : 5
+2026-03-03 16:09:46,938 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:09:46,938 [INFO]    ↳ Engagement 1 (produit 2 - automation-hub) : 1311 findings
+2026-03-03 16:09:55,995 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:09:55,995 [INFO]    ↳ Engagement 2 (produit 4 - Invisi) : 1311 findings
+2026-03-03 16:10:05,428 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:10:05,429 [INFO]    ↳ Engagement 3 (produit 4 - Invisi) : 1311 findings
+2026-03-03 16:10:15,042 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:10:15,043 [INFO]    ↳ Engagement 4 (produit 4 - Invisi) : 1311 findings
+2026-03-03 16:10:24,268 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:10:24,269 [INFO]    ↳ Engagement 5 (produit 5 - InvisiThreat) : 1311 findings
+2026-03-03 16:10:24,274 [INFO] Findings uniques après déduplication : 6555
+2026-03-03 16:10:24,280 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 16:10:24,620 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (6555 lignes, 92 colonnes)
+2026-03-03 16:10:24,624 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-03-03 16:10:24,624 [INFO] 
+============================================================
+2026-03-03 16:10:24,624 [INFO] ✅ Collecte terminée avec succès
+2026-03-03 16:10:24,624 [INFO]    5 produits
+2026-03-03 16:10:24,624 [INFO]    5 engagements
+2026-03-03 16:10:24,625 [INFO]    6555 findings uniques
+2026-03-03 16:10:24,625 [INFO] ============================================================
+2026-03-03 16:12:33,115 [INFO] ============================================================
+2026-03-03 16:12:33,116 [INFO] 📡 Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 16:12:33,116 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 16:12:33,116 [INFO] ============================================================
+2026-03-03 16:12:33,218 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:12:33,225 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 16:12:33,226 [INFO] ✅ Produits récupérés : 5
+2026-03-03 16:12:33,272 [INFO] [engagements_all] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:12:33,272 [INFO] ✅ Engagements récupérés : 5
+2026-03-03 16:12:42,437 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:12:42,437 [INFO]    ↳ Engagement 1 (produit 2 - automation-hub) : 1311 findings
+2026-03-03 16:12:53,112 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:12:53,113 [INFO]    ↳ Engagement 2 (produit 4 - Invisi) : 1311 findings
+2026-03-03 16:13:02,817 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:13:02,817 [INFO]    ↳ Engagement 3 (produit 4 - Invisi) : 1311 findings
+2026-03-03 16:13:12,442 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:13:12,442 [INFO]    ↳ Engagement 4 (produit 4 - Invisi) : 1311 findings
+2026-03-03 16:13:21,913 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:13:21,914 [INFO]    ↳ Engagement 5 (produit 5 - InvisiThreat) : 1311 findings
+2026-03-03 16:13:21,919 [WARNING] Doublons supprimés : 2622 findings (même ID dans le même produit)
+2026-03-03 16:13:21,919 [INFO] Findings uniques après déduplication : 3933
+2026-03-03 16:13:21,930 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 16:13:22,288 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (3933 lignes, 92 colonnes)
+2026-03-03 16:13:22,290 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-03-03 16:13:22,290 [INFO] 
+============================================================
+2026-03-03 16:13:22,291 [INFO] ✅ Collecte terminée avec succès
+2026-03-03 16:13:22,291 [INFO]    5 produits
+2026-03-03 16:13:22,291 [INFO]    5 engagements
+2026-03-03 16:13:22,291 [INFO]    3933 findings uniques
+2026-03-03 16:13:22,291 [INFO] ============================================================
+2026-03-03 16:13:35,793 [INFO] ============================================================
+2026-03-03 16:13:35,793 [INFO]  Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 16:13:35,793 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 16:13:35,793 [INFO] ============================================================
+2026-03-03 16:13:35,907 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:13:35,915 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 16:13:35,966 [INFO] [engagements_all] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:13:35,966 [INFO] Total engagements récupérés : 5
+2026-03-03 16:13:45,497 [INFO] [findings/engagement=1] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:13:45,498 [INFO]    ↳ Engagement 1 (produit 'automation-hub' id=2) : 1311 findings
+2026-03-03 16:13:54,880 [INFO] [findings/engagement=2] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:13:54,881 [INFO]    ↳ Engagement 2 (produit 'Invisi' id=4) : 1311 findings
+2026-03-03 16:14:05,031 [INFO] [findings/engagement=3] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:14:05,032 [INFO]    ↳ Engagement 3 (produit 'Invisi' id=4) : 1311 findings
+2026-03-03 16:14:14,311 [INFO] [findings/engagement=4] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:14:14,312 [INFO]    ↳ Engagement 4 (produit 'Invisi' id=4) : 1311 findings
+2026-03-03 16:14:24,119 [INFO] [findings/engagement=5] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:14:24,120 [INFO]    ↳ Engagement 5 (produit 'InvisiThreat' id=5) : 1311 findings
+2026-03-03 16:14:24,128 [WARNING] Doublons supprimés : 5244 findings (conservés dans findings_associations.csv)
+2026-03-03 16:14:24,128 [INFO] Findings uniques          : 1311
+2026-03-03 16:14:24,129 [INFO] Associations (finding×eng): 6555
+2026-03-03 16:14:24,129 [INFO]    ↳ automation-hub : 1311 association(s)
+2026-03-03 16:14:24,129 [INFO]    ↳ Invisi : 3933 association(s)
+2026-03-03 16:14:24,130 [INFO]    ↳ InvisiThreat : 1311 association(s)
+2026-03-03 16:14:24,135 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 16:14:24,213 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (1311 lignes, 92 colonnes)
+2026-03-03 16:14:24,227 [INFO] 💾 Sauvegardé : data\raw\findings_associations.csv (6555 lignes, 4 colonnes)
+2026-03-03 16:14:24,228 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-03-03 16:14:24,228 [INFO] 
+============================================================
+2026-03-03 16:14:24,228 [INFO]  Collecte terminée avec succès
+2026-03-03 16:14:24,228 [INFO]    5     produits
+2026-03-03 16:14:24,229 [INFO]    5     engagements
+2026-03-03 16:14:24,229 [INFO]    1311  findings uniques
+2026-03-03 16:14:24,229 [INFO]    6555  associations finding×engagement
+2026-03-03 16:14:24,229 [INFO] ============================================================
+2026-03-03 16:56:30,074 [INFO] ============================================================
+2026-03-03 16:56:30,075 [INFO]  Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 16:56:30,075 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 16:56:30,075 [INFO] ============================================================
+2026-03-03 16:56:30,167 [INFO] [products] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:56:30,178 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 16:56:30,179 [INFO] Produits : ['Invisi', 'InvisiThreat', 'automation-hub', 'testdefectdojo', 'teste']
+2026-03-03 16:56:30,229 [INFO] [engagements] Total récupéré : 5 éléments (1 page(s))
+2026-03-03 16:56:30,234 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 16:56:30,234 [INFO] Récupération globale des findings (sans filtre, passe unique)…
+2026-03-03 16:56:41,801 [INFO] [findings_all] Total récupéré : 1311 éléments (14 page(s))
+2026-03-03 16:56:41,801 [INFO] ── Schéma finding (champs product/engagement) ──
+2026-03-03 16:56:41,801 [INFO]    'test': 1
+2026-03-03 16:56:41,801 [INFO] ────────────────────────────────────────────────
+2026-03-03 16:56:41,805 [WARNING] ⚠️  1311 finding(s) sans product résolu. Activer le niveau DEBUG pour le détail (--log-level=DEBUG).
+2026-03-03 16:56:41,805 [INFO] ══════════════════════════════════════════════════
+2026-03-03 16:56:41,805 [INFO]   Distribution des findings par produit
+2026-03-03 16:56:41,805 [INFO] ══════════════════════════════════════════════════
+2026-03-03 16:56:41,812 [INFO]   Unknown                              1311  ████████████████████████████████████████
+2026-03-03 16:56:41,813 [INFO] ══════════════════════════════════════════════════
+2026-03-03 16:56:41,960 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (1311 lignes, 92 colonnes)
+2026-03-03 16:56:42,015 [INFO] Sauvegarde par produit :
+2026-03-03 16:56:42,154 [INFO] 💾 Sauvegardé : data\raw\findings_Unknown.csv (1311 lignes, 92 colonnes)
+2026-03-03 16:56:42,172 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-03-03 16:56:42,172 [INFO] 
+============================================================
+2026-03-03 16:56:42,172 [INFO]  Collecte terminée
+2026-03-03 16:56:42,172 [INFO]    5  produits
+2026-03-03 16:56:42,172 [INFO]    5  engagements
+2026-03-03 16:56:42,172 [INFO]    1311 findings
+2026-03-03 16:56:42,173 [INFO] ============================================================
+2026-03-03 17:00:05,971 [INFO] ============================================================
+2026-03-03 17:00:05,972 [INFO]  Récupération des données DefectDojo — AI Risk Engine
+2026-03-03 17:00:05,972 [INFO]    URL : http://192.168.11.170:8080
+2026-03-03 17:00:05,972 [INFO] ============================================================
+2026-03-03 17:00:06,055 [INFO] [products] Total : 5 éléments (1 page(s))
+2026-03-03 17:00:06,062 [INFO] 💾 Sauvegardé : data\raw\products.csv (5 lignes, 29 colonnes)
+2026-03-03 17:00:06,062 [INFO] Produits : ['Invisi', 'InvisiThreat', 'automation-hub', 'testdefectdojo', 'teste']
+2026-03-03 17:00:06,110 [INFO] [engagements] Total : 5 éléments (1 page(s))
+2026-03-03 17:00:06,115 [INFO] 💾 Sauvegardé : data\raw\engagements.csv (5 lignes, 39 colonnes)
+2026-03-03 17:00:06,115 [INFO] Engagements : 5
+2026-03-03 17:00:06,115 [INFO]    engagement id=1  product=2  name=Scan #1
+2026-03-03 17:00:06,115 [INFO]    engagement id=2  product=4  name=Pipeline DevSecOps
+2026-03-03 17:00:06,115 [INFO]    engagement id=3  product=4  name=main — 2026-Q1 (test rapide)
+2026-03-03 17:00:06,116 [INFO]    engagement id=4  product=4  name=main - 2026-Q1
+2026-03-03 17:00:06,116 [INFO]    engagement id=5  product=5  name=main - 2026-Q1
+2026-03-03 17:00:06,116 [INFO] Récupération des Tests (pont finding → engagement → product)…
+2026-03-03 17:00:06,222 [INFO] [tests] Total : 25 éléments (1 page(s))
+2026-03-03 17:00:06,226 [INFO] 💾 Sauvegardé : data\raw\tests.csv (25 lignes, 23 colonnes)
+2026-03-03 17:00:06,226 [INFO] Tests récupérés : 25
+2026-03-03 17:00:06,226 [INFO]    test id=1  engagement=1  title=Semgrep Scan
+2026-03-03 17:00:06,226 [INFO]    test id=2  engagement=1  title=None
+2026-03-03 17:00:06,226 [INFO]    test id=4  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=6  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=7  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=8  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=9  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=10  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=12  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=13  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=14  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=15  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=16  engagement=1  title=None
+2026-03-03 17:00:06,227 [INFO]    test id=17  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=18  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=19  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=20  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=21  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=22  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=23  engagement=1  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=34  engagement=5  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=35  engagement=5  title=None
+2026-03-03 17:00:06,228 [INFO]    test id=36  engagement=5  title=Semgrep SAST - main
+2026-03-03 17:00:06,228 [INFO]    test id=37  engagement=5  title=Snyk SCA - main
+2026-03-03 17:00:06,228 [INFO]    test id=38  engagement=5  title=ZAP Full Scan - main
+2026-03-03 17:00:06,229 [INFO] Table de lookup construite : 25 test_id mappés
+2026-03-03 17:00:06,229 [INFO] Récupération globale des findings (passe unique sans filtre)…
+2026-03-03 17:00:16,144 [INFO] [findings_all] Total : 1311 éléments (14 page(s))
+2026-03-03 17:00:16,148 [INFO] ════════════════════════════════════════════════════
+2026-03-03 17:00:16,148 [INFO]   Distribution réelle des findings par produit
+2026-03-03 17:00:16,148 [INFO] ════════════════════════════════════════════════════
+2026-03-03 17:00:16,148 [INFO]   InvisiThreat                          853  ████████████████████████████████████████
+2026-03-03 17:00:16,148 [INFO]   automation-hub                        458  ████████████████████████████████████████
+2026-03-03 17:00:16,148 [INFO] ════════════════════════════════════════════════════
+2026-03-03 17:00:16,225 [INFO] 💾 Sauvegardé : data\raw\findings_raw.csv (1311 lignes, 93 colonnes)
+2026-03-03 17:00:16,241 [INFO] Sauvegarde individuelle par produit :
+2026-03-03 17:00:16,317 [INFO] 💾 Sauvegardé : data\raw\findings_InvisiThreat.csv (853 lignes, 93 colonnes)
+2026-03-03 17:00:16,363 [INFO] 💾 Sauvegardé : data\raw\findings_automation_hub.csv (458 lignes, 93 colonnes)
+2026-03-03 17:00:16,367 [INFO] 📋 Rapport de collecte : data\raw\collection_report.json
+2026-03-03 17:00:16,367 [INFO] 
+============================================================
+2026-03-03 17:00:16,367 [INFO]  Collecte terminée
+2026-03-03 17:00:16,367 [INFO]    5  produits
+2026-03-03 17:00:16,368 [INFO]    5  engagements
+2026-03-03 17:00:16,368 [INFO]    25  tests
+2026-03-03 17:00:16,368 [INFO]    1311 findings
+2026-03-03 17:00:16,368 [INFO] ============================================================

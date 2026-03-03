@@ -1,17 +1,12 @@
 {
-  "timestamp": "2026-03-03T17:02:15.935050",
+  "timestamp": "2026-03-01T00:58:59.027033",
   "n_rows": 1311,
-  "n_cols": 37,
+  "n_cols": 32,
   "columns": [
     "id",
     "title",
     "product_id",
     "engagement_id",
-    "product_name",
-    "engagement_name",
-    "file_path",
-    "line",
-    "description",
     "severity_num",
     "cvss_score",
     "age_days",
@@ -46,11 +41,6 @@
     "title": 0.0,
     "product_id": 0.0,
     "engagement_id": 0.0,
-    "product_name": 0.0,
-    "engagement_name": 0.0,
-    "file_path": 0.0442,
-    "line": 0.286,
-    "description": 0.0,
     "severity_num": 0.0,
     "cvss_score": 0.0,
     "age_days": 0.0,
@@ -100,10 +90,6 @@
     "2": 759,
     "3": 355,
     "4": 15
-  },
-  "product_dist": {
-    "InvisiThreat": 853,
-    "automation-hub": 458
   },
   "tag_stats": {
     "tag_urgent": 0,

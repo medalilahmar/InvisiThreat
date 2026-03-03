@@ -57,21 +57,18 @@ jobs:
         path: |
           juice-shop/node_modules
           juice-shop/frontend/node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('juice-shop/package-lock.json', 'juice-shop/frontend/package-lock.json') }}
+        key: ${{ runner.os }}-invisithreat-${{ hashFiles('juice-shop/package.json', 'juice-shop/frontend/package.json') }}
         restore-keys: |
-          ${{ runner.os }}-node-
+          ${{ runner.os }}-invisithreat-
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 10
+
 
     - name: Installer les dépendances Node
       working-directory: ${{ env.APP_DIR }}
       run: |
-        if [ ! -d "node_modules" ] || [ ! -d "frontend/node_modules" ]; then
-          if [ -f "package-lock.json" ]; then
-            npm ci --no-audit --no-fund
-          else
-            npm install --no-audit --no-fund
-          fi
-        else
-          echo "Dépendances en cache — skip installation"
+        if [ ! -d "node_modules" ] || [ ! -d "frontend/node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ] || [ -z "$(ls -A frontend/node_modules 2>/dev/null)" ]; then
+          npm install --no-audit --no-fund
         fi
 
     

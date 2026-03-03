@@ -105,3 +105,644 @@ Top 5 features :
 2026-02-21 17:20:17,903 [INFO] Metadonnees         -> models\pipeline_latest_meta.json
 2026-02-21 17:20:17,903 [INFO] 
 Entrainement termine avec succes.
+2026-03-01 00:06:50,182 [INFO] ============================================================
+2026-03-01 00:06:50,183 [INFO] Entrainement du modele — AI Risk Engine
+2026-03-01 00:06:50,183 [INFO] ============================================================
+2026-03-01 00:06:50,186 [INFO] Donnees chargees : 321 lignes, 32 colonnes
+2026-03-01 00:06:50,187 [INFO] days_to_fix — total: 321, valides: 321, NaN: 0
+2026-03-01 00:06:50,187 [INFO]   min=0  max=0  median=0  mean=0.0
+2026-03-01 00:06:50,188 [INFO]   <= 30j : 321 (100.0%)
+2026-03-01 00:06:50,188 [INFO]    > 30j : 0 (0.0%)
+2026-03-01 00:06:50,188 [INFO]   negatifs (date fix < date decouverte) : 0
+2026-03-01 00:06:50,189 [WARNING] Seuil 30j ne produit qu'une classe (tous les findings ont days_to_fix <= 30j).
+   Tentative seuil adaptatif : mediane = 0j
+2026-03-01 00:06:50,189 [WARNING] Fallback strategie 2 : composite_risk > percentile 70
+   (top 30%% = haut risque). Remplacez par des dates reelles.
+2026-03-01 00:06:50,190 [INFO] [composite_risk > p70] positifs: 22 (6.9%) | negatifs: 299 (93.1%)
+2026-03-01 00:06:50,191 [INFO] Echantillons valides : 321
+2026-03-01 00:06:50,195 [INFO] Train : 256 | Test : 65
+2026-03-01 00:06:50,195 [INFO] Recherche hyperparametres : StratifiedKFold k=5, n_iter=20
+2026-03-01 00:06:55,991 [INFO] Meilleurs params : {'model__n_estimators': 50, 'model__min_samples_leaf': 2, 'model__max_features': 'sqrt', 'model__max_depth': None, 'model__class_weight': None}
+2026-03-01 00:06:55,991 [INFO] Meilleur F1 (CV) : 1.0000
+2026-03-01 00:06:55,992 [INFO] 
+Evaluation du modele
+2026-03-01 00:06:56,406 [INFO] F1 cross-val : 1.0000 +/- 0.0000
+2026-03-01 00:06:56,429 [INFO] 
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00        61
+           1       1.00      1.00      1.00         4
+
+    accuracy                           1.00        65
+   macro avg       1.00      1.00      1.00        65
+weighted avg       1.00      1.00      1.00        65
+
+2026-03-01 00:06:56,429 [INFO] F1-score test : 1.0000
+2026-03-01 00:06:56,452 [INFO] ROC-AUC test  : 1.0000
+2026-03-01 00:06:56,606 [INFO] Matrice de confusion -> reports\confusion_matrix.png
+2026-03-01 00:06:56,725 [INFO] Importance features -> reports\feature_importance.png
+2026-03-01 00:06:56,726 [INFO] 
+Top 5 features :
+2026-03-01 00:06:56,726 [INFO]    1. tags_count                0.4838
+2026-03-01 00:06:56,726 [INFO]    2. cvss_score                0.4665
+2026-03-01 00:06:56,726 [INFO]    3. age_days                  0.0254
+2026-03-01 00:06:56,726 [INFO]    4. severity_num              0.0164
+2026-03-01 00:06:56,726 [INFO]    5. is_active                 0.0079
+2026-03-01 00:06:56,747 [INFO] Pipeline sauvegarde -> models\pipeline_20260301_000656.pkl
+2026-03-01 00:06:56,747 [INFO] Lien latest         -> models\pipeline_latest.pkl
+2026-03-01 00:06:56,748 [INFO] Metadonnees         -> models\pipeline_latest_meta.json
+2026-03-01 00:06:56,749 [INFO] 
+Entrainement termine avec succes.
+2026-03-01 00:18:56,053 [INFO] ============================================================
+2026-03-01 00:18:56,053 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-01 00:18:56,053 [INFO] ============================================================
+2026-03-01 00:18:56,056 [INFO] Données chargées : 321 lignes × 32 colonnes
+2026-03-01 00:18:56,057 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-01 00:18:56,058 [INFO] Distribution des classes :
+2026-03-01 00:18:56,058 [INFO]    Info       (0) :   18 samples    5.6%  █
+2026-03-01 00:18:56,058 [INFO]    Low        (1) :    4 samples    1.2%  
+2026-03-01 00:18:56,058 [INFO]    Medium     (2) :  151 samples   47.0%  █████████
+2026-03-01 00:18:56,058 [INFO]    High       (3) :  134 samples   41.7%  ████████
+2026-03-01 00:18:56,058 [INFO]    Critical   (4) :   14 samples    4.4%  
+2026-03-01 00:18:56,058 [WARNING] ⚠️  Déséquilibre important : 1.2% vs 47.0% — class_weight='balanced' sera appliqué.
+2026-03-01 00:18:56,060 [INFO] Samples valides : 321 | Features : 24
+2026-03-01 00:18:56,060 [INFO] Shape final : X=(321, 24), y=(321,)
+2026-03-01 00:18:56,061 [INFO] Train : 256 samples | Test : 65 samples
+2026-03-01 00:18:56,062 [INFO] StratifiedKFold : k=3 (classe minoritaire = 3 samples)
+2026-03-01 00:18:56,062 [INFO] Optimisation hyperparamètres : k=3 folds, n_iter=30
+2026-03-01 00:19:04,728 [INFO] Meilleurs params     : {'model__n_estimators': 500, 'model__min_samples_split': 2, 'model__min_samples_leaf': 1, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__criterion': 'gini', 'model__class_weight': None}
+2026-03-01 00:19:04,729 [INFO] Meilleur F1-weighted : 1.0000
+2026-03-01 00:19:04,729 [INFO] 
+==================================================
+2026-03-01 00:19:04,729 [INFO] ÉVALUATION DU MODÈLE
+2026-03-01 00:19:04,729 [INFO] ==================================================
+2026-03-01 00:19:04,729 [INFO] StratifiedKFold : k=3 (classe minoritaire = 3 samples)
+2026-03-01 00:19:07,671 [INFO] CV F1-weighted : 1.0000 ± 0.0000
+2026-03-01 00:19:07,672 [INFO] CV F1-macro    : 1.0000 ± 0.0000
+2026-03-01 00:19:07,777 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-01 00:19:07,777 [INFO] F1-macro    (test) : 1.0000
+2026-03-01 00:19:07,777 [INFO] 
+Rapport de classification :
+2026-03-01 00:19:07,781 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00         4
+         Low       1.00      1.00      1.00         1
+      Medium       1.00      1.00      1.00        30
+        High       1.00      1.00      1.00        27
+    Critical       1.00      1.00      1.00         3
+
+    accuracy                           1.00        65
+   macro avg       1.00      1.00      1.00        65
+weighted avg       1.00      1.00      1.00        65
+
+2026-03-01 00:19:07,796 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-01 00:19:07,796 [INFO] 
+F1 par classe :
+2026-03-01 00:19:07,797 [INFO]    Info       : 1.0000
+2026-03-01 00:19:07,797 [INFO]    Low        : 1.0000
+2026-03-01 00:19:07,797 [INFO]    Medium     : 1.0000
+2026-03-01 00:19:07,797 [INFO]    High       : 1.0000
+2026-03-01 00:19:07,797 [INFO]    Critical   : 1.0000
+2026-03-01 00:19:08,384 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-01 00:19:08,660 [INFO] Importance features → reports\feature_importance.png
+2026-03-01 00:19:08,934 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-01 00:19:08,934 [INFO] 
+Top 10 features :
+2026-03-01 00:19:08,934 [INFO]     1. cvss_severity_gap              0.2153  █████████████████████
+2026-03-01 00:19:08,934 [INFO]     2. severity_num                   0.2137  █████████████████████
+2026-03-01 00:19:08,935 [INFO]     3. cvss_severity_gap_norm         0.2027  ████████████████████
+2026-03-01 00:19:08,935 [INFO]     4. severity_norm                  0.1925  ███████████████████
+2026-03-01 00:19:08,935 [INFO]     5. cvss_score                     0.0284  ██
+2026-03-01 00:19:08,935 [INFO]     6. cvss_score_norm                0.0274  ██
+2026-03-01 00:19:08,935 [INFO]     7. cvss_x_severity                0.0244  ██
+2026-03-01 00:19:08,936 [INFO]     8. severity_x_active              0.0237  ██
+2026-03-01 00:19:08,936 [INFO]     9. age_x_cvss                     0.0220  ██
+2026-03-01 00:19:08,936 [INFO]    10. tags_count_norm                0.0202  ██
+2026-03-01 00:19:09,116 [INFO] Pipeline sauvegardé → models\pipeline_20260301_001908.pkl
+2026-03-01 00:19:09,117 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-01 00:19:09,118 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-01 00:19:09,118 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-01 00:19:09,118 [INFO]    F1-weighted : 1.0000
+2026-03-01 00:19:09,118 [INFO]    F1-macro    : 1.0000
+2026-03-01 00:19:09,119 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 02:38:50,866 [INFO] ============================================================
+2026-03-03 02:38:50,867 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-03 02:38:50,867 [INFO] ============================================================
+2026-03-03 02:38:50,883 [INFO] Données chargées : 1311 lignes × 36 colonnes
+2026-03-03 02:38:50,883 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 02:38:50,884 [INFO] Distribution des classes :
+2026-03-03 02:38:50,884 [INFO]    Info       (0) :  173 samples   13.2%  ██
+2026-03-03 02:38:50,884 [INFO]    Low        (1) :  603 samples   46.0%  █████████
+2026-03-03 02:38:50,885 [INFO]    Medium     (2) :  360 samples   27.5%  █████
+2026-03-03 02:38:50,885 [INFO]    High       (3) :  147 samples   11.2%  ██
+2026-03-03 02:38:50,885 [INFO]    Critical   (4) :   28 samples    2.1%  
+2026-03-03 02:38:50,885 [WARNING] ⚠️  Déséquilibre important : 2.1% vs 46.0% — class_weight='balanced' sera appliqué.
+2026-03-03 02:38:50,887 [INFO] Samples valides : 1311 | Features : 24
+2026-03-03 02:38:50,887 [INFO] Shape final : X=(1311, 24), y=(1311,)
+2026-03-03 02:38:50,893 [INFO] Train : 1048 samples | Test : 263 samples
+2026-03-03 02:38:50,894 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 02:38:50,894 [INFO] Optimisation hyperparamètres : k=5 folds, n_iter=30
+2026-03-03 02:39:06,889 [INFO] Meilleurs params     : {'model__n_estimators': 500, 'model__min_samples_split': 2, 'model__min_samples_leaf': 1, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__criterion': 'gini', 'model__class_weight': None}
+2026-03-03 02:39:06,889 [INFO] Meilleur F1-weighted : 0.9971
+2026-03-03 02:39:06,889 [INFO] 
+==================================================
+2026-03-03 02:39:06,889 [INFO] ÉVALUATION DU MODÈLE
+2026-03-03 02:39:06,889 [INFO] ==================================================
+2026-03-03 02:39:06,890 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 02:39:12,585 [INFO] CV F1-weighted : 0.9971 ± 0.0024
+2026-03-03 02:39:12,586 [INFO] CV F1-macro    : 0.9829 ± 0.0142
+2026-03-03 02:39:12,729 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-03 02:39:12,729 [INFO] F1-macro    (test) : 1.0000
+2026-03-03 02:39:12,729 [INFO] 
+Rapport de classification :
+2026-03-03 02:39:12,733 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00        35
+         Low       1.00      1.00      1.00       121
+      Medium       1.00      1.00      1.00        72
+        High       1.00      1.00      1.00        29
+    Critical       1.00      1.00      1.00         6
+
+    accuracy                           1.00       263
+   macro avg       1.00      1.00      1.00       263
+weighted avg       1.00      1.00      1.00       263
+
+2026-03-03 02:39:12,742 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 02:39:12,742 [INFO] 
+F1 par classe :
+2026-03-03 02:39:12,742 [INFO]    Info       : 1.0000
+2026-03-03 02:39:12,742 [INFO]    Low        : 1.0000
+2026-03-03 02:39:12,742 [INFO]    Medium     : 1.0000
+2026-03-03 02:39:12,742 [INFO]    High       : 1.0000
+2026-03-03 02:39:12,742 [INFO]    Critical   : 1.0000
+2026-03-03 02:39:13,079 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-03 02:39:13,362 [INFO] Importance features → reports\feature_importance.png
+2026-03-03 02:39:13,574 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-03 02:39:13,574 [INFO] 
+Top 10 features :
+2026-03-03 02:39:13,574 [INFO]     1. cvss_severity_gap              0.1597  ███████████████
+2026-03-03 02:39:13,575 [INFO]     2. severity_norm                  0.1569  ███████████████
+2026-03-03 02:39:13,575 [INFO]     3. cvss_severity_gap_norm         0.1563  ███████████████
+2026-03-03 02:39:13,575 [INFO]     4. severity_num                   0.1550  ███████████████
+2026-03-03 02:39:13,575 [INFO]     5. cvss_x_severity                0.0777  ███████
+2026-03-03 02:39:13,575 [INFO]     6. cvss_score                     0.0746  ███████
+2026-03-03 02:39:13,575 [INFO]     7. cvss_score_norm                0.0686  ██████
+2026-03-03 02:39:13,576 [INFO]     8. age_x_cvss                     0.0430  ████
+2026-03-03 02:39:13,576 [INFO]     9. tags_count                     0.0351  ███
+2026-03-03 02:39:13,576 [INFO]    10. tags_count_norm                0.0324  ███
+2026-03-03 02:39:13,756 [INFO] Pipeline sauvegardé → models\pipeline_20260303_023913.pkl
+2026-03-03 02:39:13,756 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-03 02:39:13,757 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-03 02:39:13,758 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-03 02:39:13,758 [INFO]    F1-weighted : 1.0000
+2026-03-03 02:39:13,758 [INFO]    F1-macro    : 1.0000
+2026-03-03 02:39:13,758 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 03:03:33,130 [INFO] ============================================================
+2026-03-03 03:03:33,131 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-03 03:03:33,131 [INFO] ============================================================
+2026-03-03 03:03:33,147 [INFO] Données chargées : 1311 lignes × 36 colonnes
+2026-03-03 03:03:33,148 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 03:03:33,149 [INFO] Distribution des classes :
+2026-03-03 03:03:33,149 [INFO]    Info       (0) :  173 samples   13.2%  ██
+2026-03-03 03:03:33,149 [INFO]    Low        (1) :  603 samples   46.0%  █████████
+2026-03-03 03:03:33,150 [INFO]    Medium     (2) :  360 samples   27.5%  █████
+2026-03-03 03:03:33,150 [INFO]    High       (3) :  147 samples   11.2%  ██
+2026-03-03 03:03:33,150 [INFO]    Critical   (4) :   28 samples    2.1%  
+2026-03-03 03:03:33,150 [WARNING] ⚠️  Déséquilibre important : 2.1% vs 46.0% — class_weight='balanced' sera appliqué.
+2026-03-03 03:03:33,151 [INFO] Samples valides : 1311 | Features : 24
+2026-03-03 03:03:33,151 [INFO] Shape final : X=(1311, 24), y=(1311,)
+2026-03-03 03:03:33,155 [INFO] Train : 1048 samples | Test : 263 samples
+2026-03-03 03:03:33,155 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 03:03:33,155 [INFO] Optimisation hyperparamètres : k=5 folds, n_iter=30
+2026-03-03 03:03:47,615 [INFO] Meilleurs params     : {'model__n_estimators': 500, 'model__min_samples_split': 2, 'model__min_samples_leaf': 1, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__criterion': 'gini', 'model__class_weight': None}
+2026-03-03 03:03:47,615 [INFO] Meilleur F1-weighted : 0.9971
+2026-03-03 03:03:47,615 [INFO] 
+==================================================
+2026-03-03 03:03:47,615 [INFO] ÉVALUATION DU MODÈLE
+2026-03-03 03:03:47,616 [INFO] ==================================================
+2026-03-03 03:03:47,616 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 03:03:53,187 [INFO] CV F1-weighted : 0.9971 ± 0.0024
+2026-03-03 03:03:53,187 [INFO] CV F1-macro    : 0.9829 ± 0.0142
+2026-03-03 03:03:53,333 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-03 03:03:53,333 [INFO] F1-macro    (test) : 1.0000
+2026-03-03 03:03:53,333 [INFO] 
+Rapport de classification :
+2026-03-03 03:03:53,337 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00        35
+         Low       1.00      1.00      1.00       121
+      Medium       1.00      1.00      1.00        72
+        High       1.00      1.00      1.00        29
+    Critical       1.00      1.00      1.00         6
+
+    accuracy                           1.00       263
+   macro avg       1.00      1.00      1.00       263
+weighted avg       1.00      1.00      1.00       263
+
+2026-03-03 03:03:53,342 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 03:03:53,342 [INFO] 
+F1 par classe :
+2026-03-03 03:03:53,342 [INFO]    Info       : 1.0000
+2026-03-03 03:03:53,342 [INFO]    Low        : 1.0000
+2026-03-03 03:03:53,342 [INFO]    Medium     : 1.0000
+2026-03-03 03:03:53,343 [INFO]    High       : 1.0000
+2026-03-03 03:03:53,343 [INFO]    Critical   : 1.0000
+2026-03-03 03:03:53,622 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-03 03:03:53,887 [INFO] Importance features → reports\feature_importance.png
+2026-03-03 03:03:54,098 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-03 03:03:54,098 [INFO] 
+Top 10 features :
+2026-03-03 03:03:54,098 [INFO]     1. cvss_severity_gap              0.1597  ███████████████
+2026-03-03 03:03:54,098 [INFO]     2. severity_norm                  0.1569  ███████████████
+2026-03-03 03:03:54,098 [INFO]     3. cvss_severity_gap_norm         0.1563  ███████████████
+2026-03-03 03:03:54,099 [INFO]     4. severity_num                   0.1550  ███████████████
+2026-03-03 03:03:54,099 [INFO]     5. cvss_x_severity                0.0777  ███████
+2026-03-03 03:03:54,099 [INFO]     6. cvss_score                     0.0746  ███████
+2026-03-03 03:03:54,099 [INFO]     7. cvss_score_norm                0.0686  ██████
+2026-03-03 03:03:54,099 [INFO]     8. age_x_cvss                     0.0430  ████
+2026-03-03 03:03:54,099 [INFO]     9. tags_count                     0.0351  ███
+2026-03-03 03:03:54,099 [INFO]    10. tags_count_norm                0.0324  ███
+2026-03-03 03:03:54,273 [INFO] Pipeline sauvegardé → models\pipeline_20260303_030354.pkl
+2026-03-03 03:03:54,273 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-03 03:03:54,274 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-03 03:03:54,274 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-03 03:03:54,274 [INFO]    F1-weighted : 1.0000
+2026-03-03 03:03:54,274 [INFO]    F1-macro    : 1.0000
+2026-03-03 03:03:54,275 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 03:08:13,735 [INFO] ============================================================
+2026-03-03 03:08:13,735 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-03 03:08:13,735 [INFO] ============================================================
+2026-03-03 03:08:13,751 [INFO] Données chargées : 1311 lignes × 36 colonnes
+2026-03-03 03:08:13,751 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 03:08:13,752 [INFO] Distribution des classes :
+2026-03-03 03:08:13,752 [INFO]    Info       (0) :  173 samples   13.2%  ██
+2026-03-03 03:08:13,753 [INFO]    Low        (1) :  603 samples   46.0%  █████████
+2026-03-03 03:08:13,753 [INFO]    Medium     (2) :  360 samples   27.5%  █████
+2026-03-03 03:08:13,753 [INFO]    High       (3) :  147 samples   11.2%  ██
+2026-03-03 03:08:13,753 [INFO]    Critical   (4) :   28 samples    2.1%  
+2026-03-03 03:08:13,753 [WARNING] ⚠️  Déséquilibre important : 2.1% vs 46.0% — class_weight='balanced' sera appliqué.
+2026-03-03 03:08:13,755 [INFO] Samples valides : 1311 | Features : 24
+2026-03-03 03:08:13,756 [INFO] Shape final : X=(1311, 24), y=(1311,)
+2026-03-03 03:08:13,758 [INFO] Train : 1048 samples | Test : 263 samples
+2026-03-03 03:08:13,758 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 03:08:13,758 [INFO] Optimisation hyperparamètres : k=5 folds, n_iter=30
+2026-03-03 03:08:28,922 [INFO] Meilleurs params     : {'model__n_estimators': 500, 'model__min_samples_split': 2, 'model__min_samples_leaf': 1, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__criterion': 'gini', 'model__class_weight': None}
+2026-03-03 03:08:28,922 [INFO] Meilleur F1-weighted : 0.9971
+2026-03-03 03:08:28,922 [INFO] 
+==================================================
+2026-03-03 03:08:28,922 [INFO] ÉVALUATION DU MODÈLE
+2026-03-03 03:08:28,922 [INFO] ==================================================
+2026-03-03 03:08:28,923 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 03:08:34,422 [INFO] CV F1-weighted : 0.9971 ± 0.0024
+2026-03-03 03:08:34,422 [INFO] CV F1-macro    : 0.9829 ± 0.0142
+2026-03-03 03:08:34,556 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-03 03:08:34,557 [INFO] F1-macro    (test) : 1.0000
+2026-03-03 03:08:34,557 [INFO] 
+Rapport de classification :
+2026-03-03 03:08:34,561 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00        35
+         Low       1.00      1.00      1.00       121
+      Medium       1.00      1.00      1.00        72
+        High       1.00      1.00      1.00        29
+    Critical       1.00      1.00      1.00         6
+
+    accuracy                           1.00       263
+   macro avg       1.00      1.00      1.00       263
+weighted avg       1.00      1.00      1.00       263
+
+2026-03-03 03:08:34,564 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 03:08:34,564 [INFO] 
+F1 par classe :
+2026-03-03 03:08:34,564 [INFO]    Info       : 1.0000
+2026-03-03 03:08:34,564 [INFO]    Low        : 1.0000
+2026-03-03 03:08:34,564 [INFO]    Medium     : 1.0000
+2026-03-03 03:08:34,564 [INFO]    High       : 1.0000
+2026-03-03 03:08:34,564 [INFO]    Critical   : 1.0000
+2026-03-03 03:08:34,786 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-03 03:08:35,047 [INFO] Importance features → reports\feature_importance.png
+2026-03-03 03:08:35,241 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-03 03:08:35,241 [INFO] 
+Top 10 features :
+2026-03-03 03:08:35,241 [INFO]     1. cvss_severity_gap              0.1597  ███████████████
+2026-03-03 03:08:35,242 [INFO]     2. severity_norm                  0.1569  ███████████████
+2026-03-03 03:08:35,242 [INFO]     3. cvss_severity_gap_norm         0.1563  ███████████████
+2026-03-03 03:08:35,242 [INFO]     4. severity_num                   0.1550  ███████████████
+2026-03-03 03:08:35,242 [INFO]     5. cvss_x_severity                0.0777  ███████
+2026-03-03 03:08:35,242 [INFO]     6. cvss_score                     0.0746  ███████
+2026-03-03 03:08:35,243 [INFO]     7. cvss_score_norm                0.0686  ██████
+2026-03-03 03:08:35,243 [INFO]     8. age_x_cvss                     0.0430  ████
+2026-03-03 03:08:35,243 [INFO]     9. tags_count                     0.0351  ███
+2026-03-03 03:08:35,243 [INFO]    10. tags_count_norm                0.0324  ███
+2026-03-03 03:08:35,420 [INFO] Pipeline sauvegardé → models\pipeline_20260303_030835.pkl
+2026-03-03 03:08:35,420 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-03 03:08:35,421 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-03 03:08:35,422 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-03 03:08:35,422 [INFO]    F1-weighted : 1.0000
+2026-03-03 03:08:35,422 [INFO]    F1-macro    : 1.0000
+2026-03-03 03:08:35,422 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 15:35:21,359 [INFO] ============================================================
+2026-03-03 15:35:21,359 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-03 15:35:21,359 [INFO] ============================================================
+2026-03-03 15:35:21,385 [INFO] Données chargées : 1311 lignes × 37 colonnes
+2026-03-03 15:35:21,386 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 15:35:21,388 [INFO] Distribution des classes :
+2026-03-03 15:35:21,388 [INFO]    Info       (0) :  173 samples   13.2%  ██
+2026-03-03 15:35:21,388 [INFO]    Low        (1) :  603 samples   46.0%  █████████
+2026-03-03 15:35:21,388 [INFO]    Medium     (2) :  360 samples   27.5%  █████
+2026-03-03 15:35:21,388 [INFO]    High       (3) :  147 samples   11.2%  ██
+2026-03-03 15:35:21,388 [INFO]    Critical   (4) :   28 samples    2.1%  
+2026-03-03 15:35:21,388 [WARNING] ⚠️  Déséquilibre important : 2.1% vs 46.0% — class_weight='balanced' sera appliqué.
+2026-03-03 15:35:21,392 [INFO] Samples valides : 1311 | Features : 24
+2026-03-03 15:35:21,392 [INFO] Shape final : X=(1311, 24), y=(1311,)
+2026-03-03 15:35:21,395 [INFO] Train : 1048 samples | Test : 263 samples
+2026-03-03 15:35:21,396 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 15:35:21,396 [INFO] Optimisation hyperparamètres : k=5 folds, n_iter=30
+2026-03-03 15:35:36,821 [INFO] Meilleurs params     : {'model__n_estimators': 500, 'model__min_samples_split': 2, 'model__min_samples_leaf': 1, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__criterion': 'gini', 'model__class_weight': None}
+2026-03-03 15:35:36,822 [INFO] Meilleur F1-weighted : 0.9971
+2026-03-03 15:35:36,822 [INFO] 
+==================================================
+2026-03-03 15:35:36,822 [INFO] ÉVALUATION DU MODÈLE
+2026-03-03 15:35:36,822 [INFO] ==================================================
+2026-03-03 15:35:36,822 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 15:35:42,485 [INFO] CV F1-weighted : 0.9971 ± 0.0024
+2026-03-03 15:35:42,485 [INFO] CV F1-macro    : 0.9829 ± 0.0142
+2026-03-03 15:35:42,609 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-03 15:35:42,609 [INFO] F1-macro    (test) : 1.0000
+2026-03-03 15:35:42,610 [INFO] 
+Rapport de classification :
+2026-03-03 15:35:42,614 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00        35
+         Low       1.00      1.00      1.00       121
+      Medium       1.00      1.00      1.00        72
+        High       1.00      1.00      1.00        29
+    Critical       1.00      1.00      1.00         6
+
+    accuracy                           1.00       263
+   macro avg       1.00      1.00      1.00       263
+weighted avg       1.00      1.00      1.00       263
+
+2026-03-03 15:35:42,619 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 15:35:42,620 [INFO] 
+F1 par classe :
+2026-03-03 15:35:42,620 [INFO]    Info       : 1.0000
+2026-03-03 15:35:42,620 [INFO]    Low        : 1.0000
+2026-03-03 15:35:42,620 [INFO]    Medium     : 1.0000
+2026-03-03 15:35:42,620 [INFO]    High       : 1.0000
+2026-03-03 15:35:42,620 [INFO]    Critical   : 1.0000
+2026-03-03 15:35:42,957 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-03 15:35:43,239 [INFO] Importance features → reports\feature_importance.png
+2026-03-03 15:35:43,451 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-03 15:35:43,452 [INFO] 
+Top 10 features :
+2026-03-03 15:35:43,452 [INFO]     1. cvss_severity_gap              0.1597  ███████████████
+2026-03-03 15:35:43,452 [INFO]     2. severity_norm                  0.1569  ███████████████
+2026-03-03 15:35:43,452 [INFO]     3. cvss_severity_gap_norm         0.1563  ███████████████
+2026-03-03 15:35:43,452 [INFO]     4. severity_num                   0.1550  ███████████████
+2026-03-03 15:35:43,452 [INFO]     5. cvss_x_severity                0.0777  ███████
+2026-03-03 15:35:43,453 [INFO]     6. cvss_score                     0.0746  ███████
+2026-03-03 15:35:43,453 [INFO]     7. cvss_score_norm                0.0686  ██████
+2026-03-03 15:35:43,453 [INFO]     8. age_x_cvss                     0.0430  ████
+2026-03-03 15:35:43,453 [INFO]     9. tags_count                     0.0351  ███
+2026-03-03 15:35:43,453 [INFO]    10. tags_count_norm                0.0324  ███
+2026-03-03 15:35:43,633 [INFO] Pipeline sauvegardé → models\pipeline_20260303_153543.pkl
+2026-03-03 15:35:43,633 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-03 15:35:43,635 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-03 15:35:43,635 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-03 15:35:43,635 [INFO]    F1-weighted : 1.0000
+2026-03-03 15:35:43,635 [INFO]    F1-macro    : 1.0000
+2026-03-03 15:35:43,635 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 16:14:51,038 [INFO] ============================================================
+2026-03-03 16:14:51,039 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-03 16:14:51,039 [INFO] ============================================================
+2026-03-03 16:14:51,067 [INFO] Données chargées : 1311 lignes × 37 colonnes
+2026-03-03 16:14:51,068 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 16:14:51,069 [INFO] Distribution des classes :
+2026-03-03 16:14:51,069 [INFO]    Info       (0) :  173 samples   13.2%  ██
+2026-03-03 16:14:51,069 [INFO]    Low        (1) :  603 samples   46.0%  █████████
+2026-03-03 16:14:51,069 [INFO]    Medium     (2) :  360 samples   27.5%  █████
+2026-03-03 16:14:51,070 [INFO]    High       (3) :  147 samples   11.2%  ██
+2026-03-03 16:14:51,070 [INFO]    Critical   (4) :   28 samples    2.1%  
+2026-03-03 16:14:51,070 [WARNING] ⚠️  Déséquilibre important : 2.1% vs 46.0% — class_weight='balanced' sera appliqué.
+2026-03-03 16:14:51,072 [INFO] Samples valides : 1311 | Features : 24
+2026-03-03 16:14:51,072 [INFO] Shape final : X=(1311, 24), y=(1311,)
+2026-03-03 16:14:51,078 [INFO] Train : 1048 samples | Test : 263 samples
+2026-03-03 16:14:51,079 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 16:14:51,079 [INFO] Optimisation hyperparamètres : k=5 folds, n_iter=30
+2026-03-03 16:15:07,071 [INFO] Meilleurs params     : {'model__n_estimators': 500, 'model__min_samples_split': 2, 'model__min_samples_leaf': 1, 'model__max_features': 'sqrt', 'model__max_depth': 16, 'model__criterion': 'gini', 'model__class_weight': None}
+2026-03-03 16:15:07,071 [INFO] Meilleur F1-weighted : 0.9971
+2026-03-03 16:15:07,071 [INFO] 
+==================================================
+2026-03-03 16:15:07,071 [INFO] ÉVALUATION DU MODÈLE
+2026-03-03 16:15:07,071 [INFO] ==================================================
+2026-03-03 16:15:07,072 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 16:15:12,837 [INFO] CV F1-weighted : 0.9971 ± 0.0024
+2026-03-03 16:15:12,837 [INFO] CV F1-macro    : 0.9829 ± 0.0142
+2026-03-03 16:15:12,972 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-03 16:15:12,972 [INFO] F1-macro    (test) : 1.0000
+2026-03-03 16:15:12,972 [INFO] 
+Rapport de classification :
+2026-03-03 16:15:12,977 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00        35
+         Low       1.00      1.00      1.00       121
+      Medium       1.00      1.00      1.00        72
+        High       1.00      1.00      1.00        29
+    Critical       1.00      1.00      1.00         6
+
+    accuracy                           1.00       263
+   macro avg       1.00      1.00      1.00       263
+weighted avg       1.00      1.00      1.00       263
+
+2026-03-03 16:15:12,984 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 16:15:12,984 [INFO] 
+F1 par classe :
+2026-03-03 16:15:12,984 [INFO]    Info       : 1.0000
+2026-03-03 16:15:12,984 [INFO]    Low        : 1.0000
+2026-03-03 16:15:12,984 [INFO]    Medium     : 1.0000
+2026-03-03 16:15:12,984 [INFO]    High       : 1.0000
+2026-03-03 16:15:12,985 [INFO]    Critical   : 1.0000
+2026-03-03 16:15:13,264 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-03 16:15:13,551 [INFO] Importance features → reports\feature_importance.png
+2026-03-03 16:15:13,766 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-03 16:15:13,766 [INFO] 
+Top 10 features :
+2026-03-03 16:15:13,766 [INFO]     1. cvss_severity_gap              0.1597  ███████████████
+2026-03-03 16:15:13,766 [INFO]     2. severity_norm                  0.1569  ███████████████
+2026-03-03 16:15:13,767 [INFO]     3. cvss_severity_gap_norm         0.1563  ███████████████
+2026-03-03 16:15:13,767 [INFO]     4. severity_num                   0.1550  ███████████████
+2026-03-03 16:15:13,767 [INFO]     5. cvss_x_severity                0.0777  ███████
+2026-03-03 16:15:13,767 [INFO]     6. cvss_score                     0.0746  ███████
+2026-03-03 16:15:13,768 [INFO]     7. cvss_score_norm                0.0686  ██████
+2026-03-03 16:15:13,768 [INFO]     8. age_x_cvss                     0.0430  ████
+2026-03-03 16:15:13,768 [INFO]     9. tags_count                     0.0351  ███
+2026-03-03 16:15:13,768 [INFO]    10. tags_count_norm                0.0324  ███
+2026-03-03 16:15:13,983 [INFO] Pipeline sauvegardé → models\pipeline_20260303_161513.pkl
+2026-03-03 16:15:13,983 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-03 16:15:13,985 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-03 16:15:13,986 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-03 16:15:13,986 [INFO]    F1-weighted : 1.0000
+2026-03-03 16:15:13,986 [INFO]    F1-macro    : 1.0000
+2026-03-03 16:15:13,986 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 16:29:46,544 [INFO] ============================================================
+2026-03-03 16:29:46,545 [INFO] 🤖 Entraînement — AI Risk Engine v2.0
+2026-03-03 16:29:46,545 [INFO] ============================================================
+2026-03-03 16:29:46,618 [INFO] Données chargées : 6555 lignes × 37 colonnes
+2026-03-03 16:29:46,619 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 16:29:46,620 [INFO] Distribution des classes :
+2026-03-03 16:29:46,620 [INFO]    Info       (0) :  865 samples   13.2%  ██
+2026-03-03 16:29:46,620 [INFO]    Low        (1) : 3015 samples   46.0%  █████████
+2026-03-03 16:29:46,620 [INFO]    Medium     (2) : 1800 samples   27.5%  █████
+2026-03-03 16:29:46,621 [INFO]    High       (3) :  735 samples   11.2%  ██
+2026-03-03 16:29:46,621 [INFO]    Critical   (4) :  140 samples    2.1%  
+2026-03-03 16:29:46,621 [WARNING] ⚠️  Déséquilibre important : 2.1% vs 46.0% — class_weight='balanced' sera appliqué.
+2026-03-03 16:29:46,623 [INFO] Samples valides : 6555 | Features : 24
+2026-03-03 16:29:46,623 [INFO] Shape final : X=(6555, 24), y=(6555,)
+2026-03-03 16:29:46,627 [INFO] Train : 5244 samples | Test : 1311 samples
+2026-03-03 16:29:46,627 [INFO] StratifiedKFold : k=5 (classe minoritaire = 112 samples)
+2026-03-03 16:29:46,627 [INFO] Optimisation hyperparamètres : k=5 folds, n_iter=30
+2026-03-03 16:30:05,001 [INFO] Meilleurs params     : {'model__n_estimators': 300, 'model__min_samples_split': 8, 'model__min_samples_leaf': 4, 'model__max_features': 'sqrt', 'model__max_depth': 20, 'model__criterion': 'gini', 'model__class_weight': 'balanced'}
+2026-03-03 16:30:05,001 [INFO] Meilleur F1-weighted : 1.0000
+2026-03-03 16:30:05,001 [INFO] 
+==================================================
+2026-03-03 16:30:05,001 [INFO] ÉVALUATION DU MODÈLE
+2026-03-03 16:30:05,002 [INFO] ==================================================
+2026-03-03 16:30:05,002 [INFO] StratifiedKFold : k=5 (classe minoritaire = 112 samples)
+2026-03-03 16:30:08,739 [INFO] CV F1-weighted : 1.0000 ± 0.0000
+2026-03-03 16:30:08,740 [INFO] CV F1-macro    : 1.0000 ± 0.0000
+2026-03-03 16:30:08,841 [INFO] 
+F1-weighted (test) : 1.0000
+2026-03-03 16:30:08,842 [INFO] F1-macro    (test) : 1.0000
+2026-03-03 16:30:08,842 [INFO] 
+Rapport de classification :
+2026-03-03 16:30:08,846 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00       173
+         Low       1.00      1.00      1.00       603
+      Medium       1.00      1.00      1.00       360
+        High       1.00      1.00      1.00       147
+    Critical       1.00      1.00      1.00        28
+
+    accuracy                           1.00      1311
+   macro avg       1.00      1.00      1.00      1311
+weighted avg       1.00      1.00      1.00      1311
+
+2026-03-03 16:30:08,849 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 16:30:08,849 [INFO] 
+F1 par classe :
+2026-03-03 16:30:08,849 [INFO]    Info       : 1.0000
+2026-03-03 16:30:08,849 [INFO]    Low        : 1.0000
+2026-03-03 16:30:08,849 [INFO]    Medium     : 1.0000
+2026-03-03 16:30:08,849 [INFO]    High       : 1.0000
+2026-03-03 16:30:08,849 [INFO]    Critical   : 1.0000
+2026-03-03 16:30:09,094 [INFO] Matrice de confusion → reports\confusion_matrix.png
+2026-03-03 16:30:09,341 [INFO] Importance features → reports\feature_importance.png
+2026-03-03 16:30:09,539 [INFO] Analyse prédictions → reports\prediction_analysis.png
+2026-03-03 16:30:09,539 [INFO] 
+Top 10 features :
+2026-03-03 16:30:09,539 [INFO]     1. severity_num                   0.1313  █████████████
+2026-03-03 16:30:09,539 [INFO]     2. cvss_x_severity                0.1264  ████████████
+2026-03-03 16:30:09,540 [INFO]     3. severity_norm                  0.1211  ████████████
+2026-03-03 16:30:09,540 [INFO]     4. cvss_severity_gap              0.1211  ████████████
+2026-03-03 16:30:09,540 [INFO]     5. cvss_score_norm                0.1120  ███████████
+2026-03-03 16:30:09,540 [INFO]     6. cvss_score                     0.1107  ███████████
+2026-03-03 16:30:09,540 [INFO]     7. cvss_severity_gap_norm         0.1056  ██████████
+2026-03-03 16:30:09,541 [INFO]     8. age_x_cvss                     0.0516  █████
+2026-03-03 16:30:09,541 [INFO]     9. tags_count                     0.0400  ████
+2026-03-03 16:30:09,541 [INFO]    10. tags_count_norm                0.0379  ███
+2026-03-03 16:30:09,651 [INFO] Pipeline sauvegardé → models\pipeline_20260303_163009.pkl
+2026-03-03 16:30:09,651 [INFO] Lien latest         → models\pipeline_latest.pkl
+2026-03-03 16:30:09,652 [INFO] Métadonnées         → models\pipeline_latest_meta.json
+2026-03-03 16:30:09,652 [INFO] 
+✅ Entraînement v2.0 terminé avec succès.
+2026-03-03 16:30:09,652 [INFO]    F1-weighted : 1.0000
+2026-03-03 16:30:09,652 [INFO]    F1-macro    : 1.0000
+2026-03-03 16:30:09,653 [INFO]    ROC-AUC OvR : 1.0
+2026-03-03 17:12:35,127 [INFO] ============================================================
+2026-03-03 17:12:35,127 [INFO] Entrainement — AI Risk Engine v2.1
+2026-03-03 17:12:35,127 [INFO] ============================================================
+2026-03-03 17:12:35,148 [INFO] Données chargées : 1311 lignes x 37 colonnes
+2026-03-03 17:12:35,151 [INFO] Cible : risk_class (5 classes distinctes)
+2026-03-03 17:12:35,154 [INFO] Distribution des classes :
+2026-03-03 17:12:35,154 [INFO]    Info       (0) :  173 samples   13.2%  XX
+2026-03-03 17:12:35,154 [INFO]    Low        (1) :  603 samples   46.0%  XXXXXXXXX
+2026-03-03 17:12:35,154 [INFO]    Medium     (2) :  360 samples   27.5%  XXXXX
+2026-03-03 17:12:35,154 [INFO]    High       (3) :  147 samples   11.2%  XX
+2026-03-03 17:12:35,155 [INFO]    Critical   (4) :   28 samples    2.1%  
+2026-03-03 17:12:35,155 [WARNING] Desequilibre : 2.1% vs 46.0% — class_weight='balanced' sera applique.
+2026-03-03 17:12:35,162 [INFO] Train : 1048 samples | Test : 263 samples
+2026-03-03 17:12:35,169 [INFO] product_fp_rate recalculee sur train uniquement (FIX A — data leakage supprime)
+2026-03-03 17:12:35,169 [INFO] Samples valides : 1311 | Features : 24
+2026-03-03 17:12:35,170 [INFO] Shape : X_train=(1048, 24), X_test=(263, 24)
+2026-03-03 17:12:35,170 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 17:12:35,171 [INFO] Optimisation : k=5 folds, n_iter=30
+2026-03-03 17:12:54,058 [INFO] Meilleurs params     : {'model__n_estimators': 200, 'model__min_samples_split': 4, 'model__min_samples_leaf': 1, 'model__max_features': 0.3, 'model__max_depth': 12, 'model__criterion': 'gini', 'model__class_weight': 'balanced_subsample'}
+2026-03-03 17:12:54,058 [INFO] Meilleur F1-weighted : 0.9961
+2026-03-03 17:12:54,059 [INFO] 
+==================================================
+2026-03-03 17:12:54,059 [INFO] EVALUATION DU MODELE
+2026-03-03 17:12:54,059 [INFO] ==================================================
+2026-03-03 17:12:54,059 [INFO] StratifiedKFold : k=5 (classe minoritaire = 22 samples)
+2026-03-03 17:12:56,452 [INFO] CV F1-weighted (non-fitte) : 0.9941 +/- 0.0036
+2026-03-03 17:12:56,452 [INFO] CV F1-macro    (non-fitte) : 0.9799 +/- 0.0133
+2026-03-03 17:12:56,524 [INFO] 
+F1-weighted (test) : 0.9963
+2026-03-03 17:12:56,524 [INFO] F1-macro    (test) : 0.9811
+2026-03-03 17:12:56,524 [INFO] 
+Rapport de classification :
+2026-03-03 17:12:56,530 [INFO]               precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00        35
+         Low       1.00      1.00      1.00       121
+      Medium       1.00      1.00      1.00        72
+        High       1.00      0.97      0.98        29
+    Critical       0.86      1.00      0.92         6
+
+    accuracy                           1.00       263
+   macro avg       0.97      0.99      0.98       263
+weighted avg       1.00      1.00      1.00       263
+
+2026-03-03 17:12:56,539 [INFO] ROC-AUC OvR (weighted) : 1.0000
+2026-03-03 17:12:56,539 [INFO] 
+F1 par classe :
+2026-03-03 17:12:56,540 [INFO]    Info       : 1.0000
+2026-03-03 17:12:56,540 [INFO]    Low        : 1.0000
+2026-03-03 17:12:56,540 [INFO]    Medium     : 1.0000
+2026-03-03 17:12:56,540 [INFO]    High       : 0.9825
+2026-03-03 17:12:56,541 [INFO]    Critical   : 0.9231
+2026-03-03 17:12:56,792 [INFO] Matrice de confusion -> reports\confusion_matrix.png
+2026-03-03 17:12:57,049 [INFO] Importance features -> reports\feature_importance.png
+2026-03-03 17:12:57,257 [INFO] Analyse predictions -> reports\prediction_analysis.png
+2026-03-03 17:12:57,257 [INFO] 
+Top 10 features :
+2026-03-03 17:12:57,257 [INFO]     1. cvss_x_severity                0.1666  XXXXXXXXXXXXXXXX
+2026-03-03 17:12:57,257 [INFO]     2. severity_norm                  0.1418  XXXXXXXXXXXXXX
+2026-03-03 17:12:57,258 [INFO]     3. severity_num                   0.1396  XXXXXXXXXXXXX
+2026-03-03 17:12:57,258 [INFO]     4. cvss_score_norm                0.1206  XXXXXXXXXXXX
+2026-03-03 17:12:57,258 [INFO]     5. cvss_score                     0.1094  XXXXXXXXXX
+2026-03-03 17:12:57,258 [INFO]     6. cvss_severity_gap              0.0910  XXXXXXXXX
+2026-03-03 17:12:57,258 [INFO]     7. cvss_severity_gap_norm         0.0785  XXXXXXX
+2026-03-03 17:12:57,258 [INFO]     8. age_x_cvss                     0.0480  XXXX
+2026-03-03 17:12:57,258 [INFO]     9. tags_count_norm                0.0371  XXX
+2026-03-03 17:12:57,258 [INFO]    10. tags_count                     0.0363  XXX
+2026-03-03 17:12:57,340 [INFO] Pipeline -> models\pipeline_20260303_171257.pkl
+2026-03-03 17:12:57,340 [INFO] Latest   -> models\pipeline_latest.pkl
+2026-03-03 17:12:57,341 [INFO] Metadonnees -> models\pipeline_latest_meta.json
+2026-03-03 17:12:57,341 [INFO] 
+Entrainement v2.1 termine avec succes.
+2026-03-03 17:12:57,341 [INFO]    F1-weighted : 0.9963
+2026-03-03 17:12:57,342 [INFO]    F1-macro    : 0.9811
+2026-03-03 17:12:57,342 [INFO]    ROC-AUC OvR : 1.0
