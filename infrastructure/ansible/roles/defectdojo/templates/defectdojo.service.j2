@@ -1,0 +1,25 @@
+[Unit]
+Description=DefectDojo Docker Compose — InvisiThreat
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/Desktop
+
+# Plugin Docker Compose v2 (pas docker-compose v1)
+ExecStart=/usr/bin/docker compose up --detach --remove-orphans
+ExecStop=/usr/bin/docker compose down --timeout 30
+
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=defectdojo
+
+[Install]
+WantedBy=multi-user.target

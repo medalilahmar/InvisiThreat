@@ -1,0 +1,72 @@
+---
+- name: Mise à jour du cache apt
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Installer les dépendances pour le dépôt Docker
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+
+- name: Créer le répertoire pour la clé GPG Docker
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Ajouter la clé GPG officielle Docker
+  ansible.builtin.shell: |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Ajouter le dépôt officiel Docker
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg]
+      https://download.docker.com/linux/ubuntu
+      {{ ansible_distribution_release }} stable
+    state: present
+    filename: docker
+
+- name: Installer Docker CE et le plugin Compose (v2)
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin   
+    state: present
+    update_cache: true
+
+- name: Démarrage et activation de Docker au boot
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Vérifier que /Desktop existe sur la VM
+  ansible.builtin.stat:
+    path: /Desktop              
+  register: desktop_dir
+  failed_when: not desktop_dir.stat.exists
+
+- name: Créer le service systemd DefectDojo
+  ansible.builtin.template:
+    src: defectdojo.service.j2
+    dest: /etc/systemd/system/defectdojo.service
+    mode: '0644'
+  notify: reload systemd
+
+- name: Activer et démarrer le service DefectDojo
+  ansible.builtin.systemd:
+    name: defectdojo.service
+    enabled: yes
+    state: started
+    daemon_reload: yes

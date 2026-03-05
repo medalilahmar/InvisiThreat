@@ -536,7 +536,6 @@ def predict_batch(batch: BatchInput, request: Request):
             errors.append({"index": i, "finding_id": finding.finding_id, "error": str(e)})
             logger.warning(f"[{request_id}] Batch erreur index={i} : {e}")
 
-    # Trier par risk_score décroissant
     results.sort(key=lambda r: r["risk_score"], reverse=True)
 
     logger.info(
@@ -572,9 +571,6 @@ def reload_model():
         )
 
 
-# ══════════════════════════════════════════════
-# Point d'entrée
-# ══════════════════════════════════════════════
 
 if __name__ == "__main__":
     import uvicorn
