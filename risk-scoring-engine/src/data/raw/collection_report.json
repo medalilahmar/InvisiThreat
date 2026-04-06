@@ -1,8 +1,13 @@
 {
-  "timestamp": "2026-03-01T00:58:57.848843",
+  "timestamp": "2026-04-02T18:03:40.624774",
   "base_url": "http://192.168.11.170:8080",
   "products": 5,
   "engagements": 5,
+  "tests": 25,
   "findings": 1311,
-  "errors": []
+  "errors": [],
+  "distribution_by_product": {
+    "automation-hub": 458,
+    "InvisiThreat": 853
+  }
 }

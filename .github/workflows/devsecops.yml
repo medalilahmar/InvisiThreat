@@ -1,11 +1,11 @@
 name: DevSecOps Pipeline - InvisiThreat
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main, develop ]
+   workflow_dispatch:
 
 env:
   APP_NAME: InvisiThreat
@@ -23,14 +23,17 @@ jobs:
 
     steps:
 
-    
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
 
-    
+    - name: Ensure DefectDojo is ready with Ansible
+      working-directory: infrastructure/ansible
+      run: |
+        ansible-playbook -i localhost, ensure-defectdojo.yml --connection=local
+
     - name: Installer jq
       run: |
         if command -v jq &>/dev/null; then
@@ -49,7 +52,6 @@ jobs:
           echo "OK — jq $(jq --version)"
         fi
 
-    
     - name: Cache des dépendances Node
       uses: actions/cache@v4
       id: node-cache
@@ -63,28 +65,28 @@ jobs:
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 10
 
-
     - name: Installer les dépendances Node
       working-directory: ${{ env.APP_DIR }}
       run: |
-        if [ ! -d "node_modules" ] || [ ! -d "frontend/node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ] || [ -z "$(ls -A frontend/node_modules 2>/dev/null)" ]; then
+        if [ ! -d "node_modules" ] || [ ! -d "frontend/node_modules" ] || \
+           [ -z "$(ls -A node_modules 2>/dev/null)" ] || \
+           [ -z "$(ls -A frontend/node_modules 2>/dev/null)" ]; then
           npm install --no-audit --no-fund
         fi
 
-    
+   
     - name: DefectDojo — Setup
       id: dd_setup
       uses: ./.github/actions/dd-setup
       with:
-        dd_url: ${{ env.DD_URL }}
+        dd_url:    ${{ env.DD_URL }}
         dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        app_name: ${{ env.APP_NAME }}
-        branch: ${{ github.ref_name }}
-        run_id: ${{ github.run_id }}
-        sha: ${{ github.sha }}
-        repo_url: ${{ github.server_url }}/${{ github.repository }}
-
-    
+        app_name:  ${{ env.APP_NAME }}
+        branch:    ${{ github.ref_name }}
+        run_id:    ${{ github.run_id }}
+        sha:       ${{ github.sha }}
+        repo_url:  ${{ github.server_url }}/${{ github.repository }}
+      
     - name: DefectDojo — Snapshot AVANT import
       id: dd_snapshot
       env:
@@ -172,16 +174,14 @@ jobs:
         echo "ERREUR : application non disponible"
         exit 1
 
-    
     - name: DAST — ZAP Scans
       id: zap
       uses: ./.github/actions/zap-scan
       with:
-        target_url: ${{ env.TARGET_URL }}
-        app_dir: ${{ env.APP_DIR }}
+        target_url:        ${{ env.TARGET_URL }}
+        app_dir:           ${{ env.APP_DIR }}
         full_scan_timeout: "30"
-
-    
+      
     - name: DAST — Arrêter Juice Shop
       if: always()
       working-directory: ${{ env.APP_DIR }}
@@ -194,7 +194,7 @@ jobs:
         fi
         pkill -f "node.*juice-shop" 2>/dev/null || true
 
-    
+   
     - name: Upload des rapports
       if: always()
       uses: actions/upload-artifact@v4
@@ -213,65 +213,88 @@ jobs:
       if: always()
       uses: ./.github/actions/dd-import
       with:
-        dd_url: ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id: ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name: ${{ env.APP_NAME }}
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ env.APP_NAME }}
         engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        scan_type: Semgrep JSON Report
-        file: ${{ env.APP_DIR }}/semgrep-results.json
-        test_title: Semgrep SAST - ${{ github.ref_name }}
-        branch: ${{ github.ref_name }}
-        sha: ${{ github.sha }}
-        run_id: ${{ github.run_id }}
+        scan_type:       Semgrep JSON Report
+        file:            ${{ env.APP_DIR }}/semgrep-results.json
+        test_title:      Semgrep SAST - ${{ github.ref_name }}
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "sast,semgrep,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
 
     - name: DefectDojo — Import Snyk
       if: always()
       uses: ./.github/actions/dd-import
       with:
-        dd_url: ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id: ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name: ${{ env.APP_NAME }}
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ env.APP_NAME }}
         engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        scan_type: Snyk Scan
-        file: ${{ env.APP_DIR }}/snyk-results.json
-        test_title: Snyk SCA - ${{ github.ref_name }}
-        branch: ${{ github.ref_name }}
-        sha: ${{ github.sha }}
-        run_id: ${{ github.run_id }}
+        scan_type:       Snyk Scan
+        file:            ${{ env.APP_DIR }}/snyk-results.json
+        test_title:      Snyk SCA - ${{ github.ref_name }}
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "sca,snyk,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
 
     - name: DefectDojo — Import ZAP OpenAPI
       if: always()
       uses: ./.github/actions/dd-import-zap
       with:
-        dd_url: ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id: ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name: ${{ env.APP_NAME }}
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ env.APP_NAME }}
         engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        file: ${{ env.APP_DIR }}/zap-openapi.xml
-        test_title: ZAP OpenAPI - ${{ github.ref_name }}
-        branch: ${{ github.ref_name }}
-        sha: ${{ github.sha }}
-        run_id: ${{ github.run_id }}
+        file:            ${{ env.APP_DIR }}/zap-openapi.xml
+        test_title:      ZAP OpenAPI - ${{ github.ref_name }}
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "${{ steps.zap.outputs.detected_tags }},openapi,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
 
     - name: DefectDojo — Import ZAP Full Scan
       if: always()
       uses: ./.github/actions/dd-import-zap
       with:
-        dd_url: ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id: ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name: ${{ env.APP_NAME }}
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ env.APP_NAME }}
         engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        file: ${{ env.APP_DIR }}/zap-fullscan.xml
-        test_title: ZAP Full Scan - ${{ github.ref_name }}
-        branch: ${{ github.ref_name }}
-        sha: ${{ github.sha }}
-        run_id: ${{ github.run_id }}
+        file:            ${{ env.APP_DIR }}/zap-fullscan.xml
+        test_title:      ZAP Full Scan - ${{ github.ref_name }}
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "${{ steps.zap.outputs.detected_tags }},fullscan,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
 
-    
+ 
+    - name: DefectDojo — Tagging intelligent des findings
+      if: always()
+      continue-on-error: true   
+      env:
+        DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        echo "=== TAGGING INTELLIGENT DES FINDINGS ==="
+
+        python3 -m pip install requests --quiet --break-system-packages 2>/dev/null || \
+        python3 -m pip install requests --quiet 2>/dev/null || true
+
+        cd risk-scoring-engine/src
+        python3 tag_findings.py \
+          --dd-url        "${{ env.DD_URL }}" \
+          --engagement-id "${{ steps.dd_setup.outputs.engagement_id }}"
+
+        echo "Tagging terminé"
+
+
     - name: Rapport final et Security Gate
       if: always()
       env:
@@ -335,7 +358,7 @@ jobs:
         [ "$FAILED" = "true" ] && exit 1
         echo "Security Gate : OK"
 
-    
+
     - name: Résumé pipeline
       if: always()
       run: |
@@ -346,6 +369,8 @@ jobs:
         echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=${{ steps.dd_setup.outputs.engagement_id }})"
         echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
         echo "  Branche    : ${{ github.ref_name }}"
+        echo "  Env        : ${{ steps.dd_setup.outputs.env_tag }}"
+        echo "  Tags ZAP   : ${{ steps.zap.outputs.detected_tags }}"
         echo "  Commit     : ${{ github.sha }}"
         echo "  Run ID     : ${{ github.run_id }}"
         echo "  Lien       : ${{ env.DD_URL }}/engagements/${{ steps.dd_setup.outputs.engagement_id }}/finding/"

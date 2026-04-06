@@ -34,6 +34,15 @@ inputs:
   run_id:
     description: GitHub run ID
     required: true
+  tags:
+    description: >
+      Tags à appliquer au Test (séparés par virgules).
+      Ex: "dast,zap,external,internet-facing,main"
+      Ces tags sont hérités par les findings importés et alimentent
+      tag_external / tag_in_production / tag_sensitive dans preprocess.py.
+    required: false
+    default: "dast,zap,external,internet-facing"
+ 
 
 outputs:
   test_id:
@@ -59,12 +68,13 @@ runs:
         TEST_TITLE="${{ inputs.test_title }}"
         EID="${{ inputs.engagement_id }}"
         DD_BASE="${{ inputs.dd_url }}"
+        TAGS="${{ inputs.tags }}"
 
         echo "--- Import ZAP : $TEST_TITLE ---"
         echo "  Fichier : $FILE"
+        echo "  Tags    : ${TAGS:-<aucun>}"
 
         if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
-          # Fichier vide ou absent = scan sans alerte = OK
           echo "  INFO — Rapport absent ou vide (aucune alerte trouvée)"
           echo "test_id=skipped"  >> "$GITHUB_OUTPUT"
           echo "new_findings=0"   >> "$GITHUB_OUTPUT"
@@ -80,6 +90,15 @@ runs:
         fi
 
         echo "  Taille  : $(du -h "$FILE" | cut -f1)"
+
+        TAG_ARGS=""
+        if [ -n "$TAGS" ]; then
+          IFS=',' read -ra TAG_LIST <<< "$TAGS"
+          for tag in "${TAG_LIST[@]}"; do
+            tag=$(echo "$tag" | xargs)   # trim espaces
+            [ -n "$tag" ] && TAG_ARGS="$TAG_ARGS -F tags=$tag"
+          done
+        fi
 
         RESP=$(curl -s -X POST "$DD_BASE/api/v2/reimport-scan/" \
           -H "Authorization: Token $DD_API_KEY" \
@@ -97,7 +116,8 @@ runs:
           -F "environment=Development" \
           -F "branch_tag=${{ inputs.branch }}" \
           -F "commit_hash=${{ inputs.sha }}" \
-          -F "build_id=${{ inputs.run_id }}")
+          -F "build_id=${{ inputs.run_id }}" \
+          $TAG_ARGS)
 
         if echo "$RESP" | jq -e '.test' >/dev/null 2>&1; then
           TEST_ID=$(echo "$RESP"   | jq -r '.test // "?"')

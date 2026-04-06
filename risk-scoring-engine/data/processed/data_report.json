@@ -1,7 +1,9 @@
 {
-  "timestamp": "2026-03-03T17:02:15.935050",
-  "n_rows": 1311,
-  "n_cols": 37,
+  "timestamp": "2026-03-19T12:06:37.582227",
+  "n_rows_total": 1311,
+  "n_rows_training": 399,
+  "n_rows_excluded": 912,
+  "n_cols": 42,
   "columns": [
     "id",
     "title",
@@ -36,6 +38,11 @@
     "age_days_norm",
     "tags_count_norm",
     "cvss_severity_gap_norm",
+    "epss_score",
+    "epss_percentile",
+    "has_high_epss",
+    "epss_x_cvss",
+    "epss_score_norm",
     "composite_risk",
     "risk_score",
     "risk_class",
@@ -75,24 +82,29 @@
     "age_days_norm": 0.0,
     "tags_count_norm": 0.0,
     "cvss_severity_gap_norm": 0.0,
+    "epss_score": 0.0,
+    "epss_percentile": 0.0,
+    "has_high_epss": 0.0,
+    "epss_x_cvss": 0.0,
+    "epss_score_norm": 0.0,
     "composite_risk": 0.0,
-    "risk_score": 0.0,
-    "risk_class": 0.0,
+    "risk_score": 0.6957,
+    "risk_class": 0.6957,
     "days_to_fix": 0.0
   },
   "risk_score_stats": {
     "min": 0.0,
     "max": 10.0,
-    "mean": 4.144,
-    "std": 1.877,
-    "median": 3.32
+    "mean": 5.689,
+    "std": 1.996,
+    "median": 5.0
   },
   "risk_class_dist": {
-    "0": 173,
-    "1": 603,
-    "2": 360,
-    "3": 147,
-    "4": 28
+    "0.0": 17,
+    "1.0": 21,
+    "2.0": 211,
+    "3.0": 135,
+    "4.0": 15
   },
   "severity_dist": {
     "0": 29,
@@ -110,5 +122,10 @@
     "tag_in_production": 0,
     "tag_sensitive": 0,
     "tag_external": 0
+  },
+  "epss_stats": {
+    "mean_score": 0.0051,
+    "high_epss_count": 3,
+    "with_epss_score": 257
   }
 }

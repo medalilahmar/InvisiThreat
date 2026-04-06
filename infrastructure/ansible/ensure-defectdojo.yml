@@ -1,0 +1,22 @@
+- name: Ensure DefectDojo is running and ready
+  hosts: all
+  connection: local         
+  gather_facts: no
+  tasks:
+    - name: Activer et démarrer le service systemd defectdojo
+      ansible.builtin.systemd:
+        name: defectdojo.service
+        state: started
+        enabled: yes
+      register: service_result
+
+    - name: Attendre que l'API DefectDojo soit disponible
+      ansible.builtin.uri:
+        url: http://localhost:8080/api/v2/
+        method: GET
+        status_code: 200
+        timeout: 5
+      register: api_result
+      until: api_result.status == 200
+      retries: 30            
+      delay: 2

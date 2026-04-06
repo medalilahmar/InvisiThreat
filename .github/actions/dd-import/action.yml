@@ -38,6 +38,14 @@ inputs:
   run_id:
     description: GitHub run ID
     required: true
+  tags:
+    description: >
+      Tags à appliquer au Test (séparés par virgules).
+      Ex: "sast,semgrep,main"
+      Ces tags sont hérités par les findings importés et alimentent
+      tag_in_production / tag_external / tag_sensitive dans preprocess.py.
+    required: false
+    default: ""
 
 outputs:
   test_id:
@@ -64,10 +72,12 @@ runs:
         TEST_TITLE="${{ inputs.test_title }}"
         EID="${{ inputs.engagement_id }}"
         DD_BASE="${{ inputs.dd_url }}"
+        TAGS="${{ inputs.tags }}"
 
         echo "--- Import : $TEST_TITLE ---"
         echo "  Fichier    : $FILE"
         echo "  Scan type  : $SCAN_TYPE"
+        echo "  Tags       : ${TAGS:-<aucun>}"
 
         # Vérification du fichier
         if [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; then
@@ -79,10 +89,24 @@ runs:
 
         echo "  Taille     : $(du -h "$FILE" | cut -f1)"
 
+        # ── Construction des args curl ─────────────────────────────────────
+        # Les tags sont passés en champs -F séparés car l'API DefectDojo
+        # attend des valeurs multiples pour le champ "tags" (multipart).
+        TAG_ARGS=""
+        if [ -n "$TAGS" ]; then
+          # Convertir "sast,semgrep,main" → -F "tags=sast" -F "tags=semgrep" ...
+          IFS=',' read -ra TAG_LIST <<< "$TAGS"
+          for tag in "${TAG_LIST[@]}"; do
+            tag=$(echo "$tag" | xargs)   # trim espaces
+            [ -n "$tag" ] && TAG_ARGS="$TAG_ARGS -F tags=$tag"
+          done
+        fi
+
         # reimport-scan :
         #   - auto_create_context=true → crée le Test si inexistant
         #   - product_name + engagement_name requis par auto_create_context
         #   - close_old_findings → ferme les findings résolus
+        #   - $TAG_ARGS → tags phase 1 (scan type, branche, env)
         RESP=$(curl -s -X POST "$DD_BASE/api/v2/reimport-scan/" \
           -H "Authorization: Token $DD_API_KEY" \
           -F "engagement=$EID" \
@@ -99,7 +123,8 @@ runs:
           -F "environment=Development" \
           -F "branch_tag=${{ inputs.branch }}" \
           -F "commit_hash=${{ inputs.sha }}" \
-          -F "build_id=${{ inputs.run_id }}")
+          -F "build_id=${{ inputs.run_id }}" \
+          $TAG_ARGS)
 
         if echo "$RESP" | jq -e '.test' >/dev/null 2>&1; then
           TEST_ID=$(echo "$RESP"   | jq -r '.test // "?"')
@@ -112,7 +137,7 @@ runs:
           echo "    Fermés     : $CLOSED_F"
           echo "    Réactivés  : $REACT_F"
           echo "    Inchangés  : $UNCH_F"
-          echo "test_id=$TEST_ID"   >> "$GITHUB_OUTPUT"
+          echo "test_id=$TEST_ID"    >> "$GITHUB_OUTPUT"
           echo "new_findings=$NEW_F" >> "$GITHUB_OUTPUT"
         else
           echo "  ERREUR — Réponse DefectDojo :"

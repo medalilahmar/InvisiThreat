@@ -133,6 +133,16 @@ runs:
         BRANCH="${{ inputs.branch }}"
         DD_BASE="${{ inputs.dd_url }}"
 
+        # ── FIX 1 : branche main/master → tag "production" ────────────────
+        # Permet à tag_findings.py de détecter l'environnement de production
+        # et d'activer tag_in_production dans preprocess.py
+        ENV_TAG="dev"
+        if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+          ENV_TAG="prod"
+        elif [ "$BRANCH" = "staging" ] || [ "$BRANCH" = "preprod" ]; then
+          ENV_TAG="staging"
+        fi
+
         # Calcul du trimestre
         YEAR=$(date +%Y)
         MONTH=$(date +%-m)
@@ -144,7 +154,8 @@ runs:
 
         NAME="${BRANCH} - ${YEAR}-${PERIOD}"
         echo "=== ENGAGEMENT : $NAME ==="
-        echo "Période : $START → $END"
+        echo "Période    : $START → $END"
+        echo "Env tag    : $ENV_TAG"
 
         ENCODED=$(url_encode "$NAME")
         SEARCH=$(curl -sf \
@@ -192,9 +203,12 @@ runs:
         [ -z "$EID" ] || [ "$EID" = "null" ] && \
           { echo "ERREUR : ENGAGEMENT_ID invalide"; exit 1; }
 
+        # ── FIX 2 : exporter env_tag pour que le pipeline puisse l'injecter
+        # dans les tags des imports (ex: tags: "sast,semgrep,$ENV_TAG,$BRANCH")
         echo "engagement_id=$EID"     >> "$GITHUB_OUTPUT"
         echo "engagement_name=$NAME"  >> "$GITHUB_OUTPUT"
         echo "start_date=$START"      >> "$GITHUB_OUTPUT"
         echo "end_date=$END"          >> "$GITHUB_OUTPUT"
         echo "period=$PERIOD"         >> "$GITHUB_OUTPUT"
+        echo "env_tag=$ENV_TAG"       >> "$GITHUB_OUTPUT"   # ← AJOUT
         echo "OK — $NAME (ID=$EID)"
