@@ -1,14 +1,40 @@
 - name: Ensure DefectDojo is running and ready
   hosts: all
-  connection: local         
-  gather_facts: no
+  connection: local
+  gather_facts: yes
   tasks:
+    - name: Vérifier si Docker est installé
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Vérifier si DefectDojo est cloné
+      stat:
+        path: "/home/{{ ansible_user }}/Desktop/django-DefectDojo/docker-compose.yml"
+      register: dojo_compose
+
+    - name: Installer DefectDojo si absent
+      when: not dojo_compose.stat.exists or docker_check is failed
+      block:
+        - name: Inclure le role defectdojo
+          include_role:
+            name: defectdojo
+
     - name: Activer et démarrer le service systemd defectdojo
       ansible.builtin.systemd:
         name: defectdojo.service
         state: started
         enabled: yes
       register: service_result
+      ignore_errors: yes
+
+    - name: Démarrer DefectDojo avec Docker Compose si service absent
+      when: service_result is failed
+      shell: |
+        cd /home/{{ ansible_user }}/Desktop/django-DefectDojo
+        docker compose up -d
+      register: compose_start
 
     - name: Attendre que l'API DefectDojo soit disponible
       ansible.builtin.uri:
@@ -18,5 +44,9 @@
         timeout: 5
       register: api_result
       until: api_result.status == 200
-      retries: 30            
-      delay: 2
+      retries: 60
+      delay: 5
+
+    - name: Afficher le statut
+      debug:
+        msg: "DefectDojo est prêt sur http://192.168.11.170:8080"

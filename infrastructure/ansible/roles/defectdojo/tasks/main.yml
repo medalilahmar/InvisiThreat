@@ -10,6 +10,7 @@
       - ca-certificates
       - curl
       - gnupg
+      - git
     state: present
 
 - name: Créer le répertoire pour la clé GPG Docker
@@ -28,10 +29,7 @@
 
 - name: Ajouter le dépôt officiel Docker
   ansible.builtin.apt_repository:
-    repo: >-
-      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg]
-      https://download.docker.com/linux/ubuntu
-      {{ ansible_distribution_release }} stable
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
     filename: docker
 
@@ -41,7 +39,7 @@
       - docker-ce
       - docker-ce-cli
       - containerd.io
-      - docker-compose-plugin   
+      - docker-compose-plugin
     state: present
     update_cache: true
 
@@ -51,11 +49,30 @@
     state: started
     enabled: yes
 
-- name: Vérifier que /Desktop existe sur la VM
+- name: Ajouter l'utilisateur au groupe docker
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+
+- name: Créer le répertoire Desktop si nécessaire
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/Desktop"
+    state: directory
+    mode: "0755"
+
+- name: Vérifier si DefectDojo est déjà cloné
   ansible.builtin.stat:
-    path: /Desktop              
-  register: desktop_dir
-  failed_when: not desktop_dir.stat.exists
+    path: "/home/{{ ansible_user }}/Desktop/django-DefectDojo/docker-compose.yml"
+  register: defectdojo_exists
+
+- name: Cloner le dépôt DefectDojo
+  ansible.builtin.git:
+    repo: https://github.com/DefectDojo/django-DefectDojo.git
+    dest: "/home/{{ ansible_user }}/Desktop/django-DefectDojo"
+    version: master
+    force: yes
+  when: not defectdojo_exists.stat.exists
 
 - name: Créer le service systemd DefectDojo
   ansible.builtin.template:
@@ -70,3 +87,18 @@
     enabled: yes
     state: started
     daemon_reload: yes
+
+- name: Attendre que l'API DefectDojo soit disponible
+  ansible.builtin.uri:
+    url: http://localhost:8080/api/v2/
+    method: GET
+    status_code: 200
+    timeout: 5
+  register: api_result
+  until: api_result.status == 200
+  retries: 60
+  delay: 5
+
+- name: Afficher le statut final
+  ansible.builtin.debug:
+    msg: "DefectDojo est prêt sur http://{{ ansible_host | default('localhost') }}:8080"
