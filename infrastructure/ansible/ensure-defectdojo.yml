@@ -1,8 +1,9 @@
-- name: Ensure DefectDojo is running and ready on VM
-  hosts: invisithreat-vm
+- name: Ensure DefectDojo is running and ready
+  hosts: localhost
+  connection: local
   gather_facts: yes
   vars:
-    dojo_path: "/home/{{ ansible_user }}/Desktop/django-DefectDojo"
+    dojo_path: "/home/medalilahmar/Desktop/django-DefectDojo"
 
   tasks:
     - name: Vérifier si DefectDojo est accessible
@@ -14,81 +15,15 @@
       register: api_result
       ignore_errors: yes
 
-    - name: DefectDojo est déjà en cours d'exécution
+    - name: DefectDojo est déjà actif
       debug:
-        msg: "✅ DefectDojo est déjà actif sur http://192.168.11.170:8080"
+        msg: " DefectDojo est déjà actif"
       when: api_result.status == 200
 
     - name: Démarrer DefectDojo si non accessible
       when: api_result.status != 200
       block:
-        - name: Vérifier si Docker est installé
-          command: docker --version
-          register: docker_check
-          ignore_errors: yes
-
-        - name: Installer Docker si absent
-          when: docker_check is failed
-          block:
-            - name: Mettre à jour apt
-              apt:
-                update_cache: yes
-
-            - name: Installer les dépendances
-              apt:
-                name:
-                  - ca-certificates
-                  - curl
-                  - gnupg
-                state: present
-
-            - name: Ajouter la clé GPG Docker
-              shell: |
-                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-                sudo chmod a+r /etc/apt/keyrings/docker.gpg
-              args:
-                creates: /etc/apt/keyrings/docker.gpg
-
-            - name: Ajouter le dépôt Docker
-              apt_repository:
-                repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-                state: present
-
-            - name: Installer Docker
-              apt:
-                name:
-                  - docker-ce
-                  - docker-ce-cli
-                  - containerd.io
-                  - docker-compose-plugin
-                state: present
-
-            - name: Démarrer Docker
-              systemd:
-                name: docker
-                state: started
-                enabled: yes
-
-        - name: Ajouter l'utilisateur au groupe docker
-          user:
-            name: "{{ ansible_user }}"
-            groups: docker
-            append: yes
-
-        - name: Vérifier si le dossier DefectDojo existe
-          stat:
-            path: "{{ dojo_path }}"
-          register: dojo_dir
-
-        - name: Cloner DefectDojo si absent
-          git:
-            repo: https://github.com/DefectDojo/django-DefectDojo.git
-            dest: "{{ dojo_path }}"
-            version: master
-            force: yes
-          when: not dojo_dir.stat.exists
-
-        - name: Démarrer DefectDojo avec Docker Compose
+        - name: Aller dans le dossier et démarrer les conteneurs
           shell: |
             cd {{ dojo_path }}
             docker compose up -d
@@ -105,14 +40,6 @@
           retries: 60
           delay: 5
 
-        - name: Afficher le statut de démarrage
+        - name: Afficher le statut
           debug:
-            msg: "✅ DefectDojo a été démarré avec succès"
-
-    - name: Résumé final
-      debug:
-        msg: |
-          ========================================
-          DefectDojo est prêt
-          URL: http://{{ ansible_host }}:8080
-          ========================================
+            msg: " DefectDojo démarré avec succès"
