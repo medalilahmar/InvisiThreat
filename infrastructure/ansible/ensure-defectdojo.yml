@@ -5,15 +5,16 @@
   vars:
     dojo_path: "/home/medalilahmar/Desktop/django-DefectDojo"
     api_url: "http://localhost:8080/api/v2/"
-    max_retries: 60
+    max_retries: 30
     retry_delay: 5
+    success_codes: [200, 301, 302, 303, 307, 308, 401, 403]
 
   tasks:
-    - name: Vérifier si DefectDojo est accessible
+    - name: Vérifier si DefectDojo répond
       uri:
         url: "{{ api_url }}"
         method: GET
-        status_code: [200, 301, 302, 303, 307, 308]
+        status_code: "{{ success_codes }}"
         timeout: 10
       register: api_result
       ignore_errors: yes
@@ -21,10 +22,10 @@
     - name: DefectDojo est déjà actif
       debug:
         msg: "✅ DefectDojo est déjà actif (HTTP {{ api_result.status }})"
-      when: api_result.status is defined and api_result.status in [200, 301, 302, 303, 307, 308]
+      when: api_result.status is defined and api_result.status in success_codes
 
     - name: Démarrer DefectDojo si non accessible
-      when: api_result.status is not defined or api_result.status not in [200, 301, 302, 303, 307, 308]
+      when: api_result.status is not defined or api_result.status not in success_codes
       block:
         - name: Vérifier si le dossier DefectDojo existe
           stat:
@@ -49,10 +50,10 @@
           uri:
             url: "{{ api_url }}"
             method: GET
-            status_code: [200, 301, 302, 303, 307, 308]
+            status_code: "{{ success_codes }}"
             timeout: 10
           register: api_wait
-          until: api_wait.status is defined and api_wait.status in [200, 301, 302, 303, 307, 308]
+          until: api_wait.status is defined and api_wait.status in success_codes
           retries: "{{ max_retries }}"
           delay: "{{ retry_delay }}"
 
@@ -60,10 +61,11 @@
           debug:
             msg: "✅ DefectDojo démarré avec succès (HTTP {{ api_wait.status }})"
 
-    - name: Vérification finale de l'API
+    - name: Vérification finale
       uri:
         url: "{{ api_url }}"
         method: GET
+        status_code: "{{ success_codes }}"
         timeout: 10
       register: final_check
 
@@ -71,8 +73,7 @@
       debug:
         msg: |
           ========================================
-           DefectDojo est prêt
-           URL: http://localhost:8080
-           Status: HTTP {{ final_check.status }}
-           Conteneurs: {{ dojo_path }}
+          ✅ DefectDojo est prêt
+          📡 URL: http://localhost:8080
+          📊 Status: HTTP {{ final_check.status }}
           ========================================
