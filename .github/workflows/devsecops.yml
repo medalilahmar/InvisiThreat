@@ -32,7 +32,7 @@ jobs:
     - name: Ensure DefectDojo is ready with Ansible
       working-directory: infrastructure/ansible
       run: |
-        ansible-playbook -i localhost, ensure-defectdojo.yml --connection=local
+        ansible-playbook -i inventory.yml ensure-defectdojo.yml
 
     - name: Installer jq
       run: |

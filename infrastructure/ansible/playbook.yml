@@ -1,5 +1,5 @@
 - name: Configuration de base de la VM InvisiThreat
   hosts: invisithreat-vm
-  become: true   
+  become: true
   roles:
     - defectdojo
