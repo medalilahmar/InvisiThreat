@@ -4,26 +4,42 @@
   gather_facts: yes
   vars:
     dojo_path: "/home/medalilahmar/Desktop/django-DefectDojo"
+    api_url: "http://localhost:8080/api/v2/"
+    max_retries: 60
+    retry_delay: 5
 
   tasks:
     - name: Vérifier si DefectDojo est accessible
       uri:
-        url: http://localhost:8080/api/v2/
+        url: "{{ api_url }}"
         method: GET
-        status_code: 200
-        timeout: 5
+        status_code: [200, 301, 302, 303, 307, 308]
+        timeout: 10
       register: api_result
       ignore_errors: yes
 
     - name: DefectDojo est déjà actif
       debug:
-        msg: " DefectDojo est déjà actif"
-      when: api_result.status == 200
+        msg: "✅ DefectDojo est déjà actif (HTTP {{ api_result.status }})"
+      when: api_result.status is defined and api_result.status in [200, 301, 302, 303, 307, 308]
 
     - name: Démarrer DefectDojo si non accessible
-      when: api_result.status != 200
+      when: api_result.status is not defined or api_result.status not in [200, 301, 302, 303, 307, 308]
       block:
-        - name: Aller dans le dossier et démarrer les conteneurs
+        - name: Vérifier si le dossier DefectDojo existe
+          stat:
+            path: "{{ dojo_path }}/docker-compose.yml"
+          register: dojo_compose
+
+        - name: Cloner DefectDojo si absent
+          git:
+            repo: https://github.com/DefectDojo/django-DefectDojo.git
+            dest: "{{ dojo_path }}"
+            version: master
+            force: yes
+          when: not dojo_compose.stat.exists
+
+        - name: Démarrer les conteneurs DefectDojo
           shell: |
             cd {{ dojo_path }}
             docker compose up -d
@@ -31,15 +47,32 @@
 
         - name: Attendre que l'API DefectDojo soit disponible
           uri:
-            url: http://localhost:8080/api/v2/
+            url: "{{ api_url }}"
             method: GET
-            status_code: 200
-            timeout: 5
+            status_code: [200, 301, 302, 303, 307, 308]
+            timeout: 10
           register: api_wait
-          until: api_wait.status == 200
-          retries: 60
-          delay: 5
+          until: api_wait.status is defined and api_wait.status in [200, 301, 302, 303, 307, 308]
+          retries: "{{ max_retries }}"
+          delay: "{{ retry_delay }}"
 
-        - name: Afficher le statut
+        - name: Afficher le statut de démarrage
           debug:
-            msg: " DefectDojo démarré avec succès"
+            msg: "✅ DefectDojo démarré avec succès (HTTP {{ api_wait.status }})"
+
+    - name: Vérification finale de l'API
+      uri:
+        url: "{{ api_url }}"
+        method: GET
+        timeout: 10
+      register: final_check
+
+    - name: Résumé final
+      debug:
+        msg: |
+          ========================================
+           DefectDojo est prêt
+           URL: http://localhost:8080
+           Status: HTTP {{ final_check.status }}
+           Conteneurs: {{ dojo_path }}
+          ========================================
