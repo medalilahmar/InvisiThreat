@@ -1,0 +1,17 @@
+/* Reset minimal - InvisiThreat Dashboard */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: #06090e;
+}
+
+#root {
+  min-height: 100vh;
+}
