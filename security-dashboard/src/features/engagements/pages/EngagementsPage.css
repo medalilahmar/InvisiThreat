@@ -1,0 +1,54 @@
+.engagements-page {
+  padding: 2rem;
+  animation: fadeIn 0.6s ease;
+}
+
+.engagements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.8rem;
+  margin-top: 2rem;
+}
+
+.engagement-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 1.8rem;
+  text-decoration: none;
+  transition: all 0.35s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.engagement-card:hover {
+  transform: translateY(-6px);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--border2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.engagement-card-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.engagement-card-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--text);
+  margin-bottom: 0.8rem;
+}
+
+.engagement-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--dimmed);
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+  margin-top: 0.5rem;
+}

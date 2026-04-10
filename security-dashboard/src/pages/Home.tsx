@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import './Home.css'
+import Logo from '../assets/invilogo.png';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type NodeType = 'critical' | 'high' | 'normal'
@@ -215,8 +216,12 @@ export default function Home() {
       {/* ── NAVBAR ── */}
       <nav className="navbar">
         <a className="navbar-logo" href="#">
-          <div className="navbar-logo-icon">🛡️</div>
-          <span className="navbar-logo-text">Invisi<span>Threat</span></span>
+            <img 
+                src={Logo} 
+                alt="InvisiThreat Logo" 
+                className="navbar-logo-icon"
+            />
+            <span className="navbar-logo-text">Invisi<span>Threat</span></span>
         </a>
         <ul className="navbar-links">
           {([['Features','features'],['Architecture','architecture'],['Model','model'],['Pipeline','pipeline']] as [string,string][]).map(([lbl, id]) => (
@@ -435,17 +440,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="footer">
-        <div className="footer-brand">
-          <span style={{ fontSize: 20 }}>🛡️</span>
-          <span className="footer-brand-name">Invisi<span>Threat</span></span>
-          <span className="footer-version">v1.0.0</span>
-        </div>
-        <div className="footer-center">AI-POWERED DEVSECOPS · LIGHTGBM · F1=0.8937 · BUILT FOR SECURITY ENGINEERS</div>
-        <div className="footer-right">Engagement #5 · 1311 findings · {new Date().getFullYear()}</div>
-      </footer>
-
+     
     </div>
   )
 }

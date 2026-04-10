@@ -753,7 +753,7 @@ body {
   align-items: center;
 }
 
-.model-text-side { }
+
 
 .model-text-side .section-label {
   justify-content: flex-start;
@@ -780,7 +780,7 @@ body {
 
 .model-bars { display: flex; flex-direction: column; gap: 18px; }
 
-.model-bar-item { }
+
 
 .model-bar-header {
   display: flex;
