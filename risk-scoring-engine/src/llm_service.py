@@ -6,12 +6,15 @@ import threading
 from pathlib import Path
 from typing import Optional
 
+
 import requests
 
 logger = logging.getLogger(__name__)
 
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyDAAbO0TkfE1_1Hz3j0pNd-49-bv1Wnp6U")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logger.warning("⚠️ GEMINI_API_KEY non définie — le service LLM utilisera le fallback uniquement")
 GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
 GEMINI_URL     = (
     f"https://generativelanguage.googleapis.com/v1beta/models/"
