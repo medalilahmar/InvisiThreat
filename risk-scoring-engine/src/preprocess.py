@@ -47,17 +47,17 @@ FEATURE_COLS = [
     "product_fp_rate",
     "cvss_x_has_cve", "age_x_cvss",
     "epss_score", "epss_percentile", "has_high_epss", "epss_x_cvss", "epss_score_norm",
-    "exploit_risk",    
-    "context_score",   
-    "days_open_high",  
+    "exploit_risk",
+    "context_score",
+    "days_open_high",
 ]
 
 EXCLUDE_FROM_ML = [
-    "days_to_fix",        
-    "risk_class",         
-    "risk_score",         
-    "severity_num",       
-    "is_false_positive", 
+    "days_to_fix",
+    "risk_class",
+    "risk_score",
+    "severity_num",
+    "is_false_positive",
     "is_mitigated",
     "out_of_scope",
     "label_source",
@@ -65,6 +65,7 @@ EXCLUDE_FROM_ML = [
     "score_composite_adj",
 ]
 
+# ✅ CORRECTION #1 : Ajouter "cve" à KEEP_COLS pour le conserver dans findings_clean.csv
 KEEP_COLS = FEATURE_COLS + [
     "id", "title", "product_id", "engagement_id",
     "product_name", "engagement_name", "file_path", "line", "description",
@@ -72,7 +73,8 @@ KEEP_COLS = FEATURE_COLS + [
     "severity", "severity_num",
     "cvss_severity_gap", "severity_x_active", "cvss_x_severity", "severity_x_urgent",
     "score_composite_raw", "score_composite_adj",
-    "risk_score", "risk_class", "label_source", "days_to_fix",
+    "risk_score", "risk_class", "label_source", "days_to_fix", "created",
+    "cve",  # ← NOUVEAU
 ]
 
 
@@ -90,7 +92,7 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     products    = pd.read_csv(files["products"])
     engagements = pd.read_csv(files["engagements"])
 
-    logger.info(f"Chargé : {len(findings)} findings | {len(products)} produits | {len(engagements)} engagements")
+    logger.info(f"Charge : {len(findings)} findings | {len(products)} produits | {len(engagements)} engagements")
     return findings, products, engagements
 
 
@@ -124,7 +126,6 @@ def build_date_features(data: pd.DataFrame) -> pd.DataFrame:
     now      = pd.Timestamp(datetime.utcnow())
     date_col = next((c for c in ["date", "created"] if c in data.columns), None)
 
-
     if date_col:
         discovery        = _normalize_tz(pd.to_datetime(data[date_col], errors="coerce"))
         raw_age          = (now - discovery).dt.days.fillna(0).clip(lower=0)
@@ -132,7 +133,7 @@ def build_date_features(data: pd.DataFrame) -> pd.DataFrame:
     else:
         data["age_days"] = 0.0
         discovery        = None
-        logger.warning("Aucune colonne date trouvée — age_days = 0")
+        logger.warning("Aucune colonne date trouvee — age_days = 0")
 
     fix_col = next((c for c in ["mitigated_date", "last_reviewed"] if c in data.columns), None)
     if fix_col and discovery is not None:
@@ -144,38 +145,48 @@ def build_date_features(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+# ✅ CORRECTION #2 : Corriger la priorité CVSS pour inclure cvssv4_score
 def build_severity_features(data: pd.DataFrame) -> pd.DataFrame:
     data["severity_num"] = (
         data["severity"].map(SEVERITY_MAP).fillna(0).astype(int)
         if "severity" in data.columns else 0
     )
-    cvss_col = next((c for c in ["cvssv3_score", "cvss_score"] if c in data.columns), None)
+    # Priorité : cvssv3_score > cvssv4_score > cvss_score
+    cvss_col = next((c for c in ["cvssv3_score", "cvssv4_score", "cvss_score"] if c in data.columns), None)
     data["cvss_score"] = (
         clamp_percentile(
             pd.to_numeric(data[cvss_col], errors="coerce").fillna(0).clip(0, 10), 99
         )
         if cvss_col else 0.0
     )
-    cvss_norm               = data["cvss_score"] / 10 * 4
+    cvss_norm                 = data["cvss_score"] / 10 * 4
     data["cvss_severity_gap"] = clamp_percentile(
         (cvss_norm - data["severity_num"]).abs().round(3), 99
     )
     return data
 
 
+# FIX #1: Robust tag parsing.
 def _parse_tags(tag_field) -> list:
     if pd.isna(tag_field):
         return []
     if isinstance(tag_field, list):
         return [str(t).lower().strip() for t in tag_field]
     if isinstance(tag_field, str):
+        s = tag_field.strip()
         try:
-            parsed = ast.literal_eval(tag_field)
+            parsed = ast.literal_eval(s)
             if isinstance(parsed, list):
                 return [str(t).lower().strip() for t in parsed]
+            if isinstance(parsed, str):
+                return [parsed.lower().strip()] if parsed.strip() else []
         except (ValueError, SyntaxError):
             pass
-        return [t.lower().strip() for t in tag_field.split(",") if t.strip()]
+        if s.startswith("[") and s.endswith("]"):
+            inner = s[1:-1]
+            parts = [p.strip().strip("'\"") for p in inner.split(",")]
+            return [p.lower() for p in parts if p]
+        return [t.lower().strip() for t in s.split(",") if t.strip()]
     return []
 
 
@@ -183,8 +194,38 @@ def _has_tag_match(tags: list, keyword_set: set) -> int:
     return int(any(t in keyword_set for t in tags))
 
 
+# ✅ CORRECTION #3 : Ajouter fonction d'extraction des CVE depuis vulnerability_ids
+def _extract_cve_from_vuln_ids(vuln_ids_str) -> str:
+    """
+    Extrait le premier CVE d'une colonne vulnerability_ids au format JSON/dict string.
+    Exemple: "[{'vulnerability_id': 'CVE-2020-28500'}]" → "CVE-2020-28500"
+    """
+    if pd.isna(vuln_ids_str):
+        return None
+    try:
+        parsed = ast.literal_eval(str(vuln_ids_str))
+        if isinstance(parsed, list):
+            for item in parsed:
+                if isinstance(item, dict):
+                    for key in ['vulnerability_id', 'id', 'cve']:
+                        if key in item:
+                            cve_val = str(item[key]).strip()
+                            if cve_val.startswith("CVE-"):
+                                return cve_val
+    except (ValueError, SyntaxError):
+        pass
+    return None
+
+
 def build_binary_features(data: pd.DataFrame) -> pd.DataFrame:
-    data["has_cve"]           = data["cve"].notna().astype(int) if "cve" in data.columns else 0
+    # ✅ CORRECTION #4 : Extraire les CVE depuis vulnerability_ids
+    if "vulnerability_ids" in data.columns:
+        data["cve"] = data["vulnerability_ids"].apply(_extract_cve_from_vuln_ids)
+    else:
+        data["cve"] = None
+    
+    # has_cve = 1 si CVE existe
+    data["has_cve"]           = data["cve"].notna().astype(int)
     data["has_cwe"]           = data["cwe"].notna().astype(int) if "cwe" in data.columns else 0
     data["is_false_positive"] = safe_col(data, "false_p", False).fillna(False).astype(int)
     data["is_active"]         = safe_col(data, "active", True).fillna(True).astype(int)
@@ -202,6 +243,20 @@ def build_binary_features(data: pd.DataFrame) -> pd.DataFrame:
     data["tag_in_production"] = parsed_tags.apply(lambda t: _has_tag_match(t, PRODUCTION_TAGS))
     data["tag_sensitive"]     = parsed_tags.apply(lambda t: _has_tag_match(t, SENSITIVE_TAGS))
     data["tag_external"]      = parsed_tags.apply(lambda t: _has_tag_match(t, EXTERNAL_TAGS))
+
+    # Diagnostic log
+    logger.info(
+        f"Tag parsing complete — "
+        f"tag_in_production: {int(data['tag_in_production'].sum())} hits | "
+        f"tag_urgent: {int(data['tag_urgent'].sum())} hits | "
+        f"tag_sensitive: {int(data['tag_sensitive'].sum())} hits | "
+        f"tag_external: {int(data['tag_external'].sum())} hits"
+    )
+    
+    # ✅ CORRECTION #5 : Log sur l'extraction des CVE
+    cve_count = data["has_cve"].sum()
+    logger.info(f"CVE extraction : {int(cve_count)} findings avec CVE détecté")
+    
     return data
 
 
@@ -263,7 +318,6 @@ def build_normalized_features(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_new_features(data: pd.DataFrame) -> pd.DataFrame:
-   
     data["exploit_risk"] = (data["epss_score"] * data["cvss_score"]).round(4)
     data["exploit_risk"] = clamp_percentile(data["exploit_risk"], 99)
 
@@ -287,9 +341,7 @@ def build_new_features(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-
 def build_advanced_ml_target(data: pd.DataFrame) -> pd.DataFrame:
-
     is_fp = data.get(
         "is_false_positive", pd.Series(0, index=data.index)
     ).fillna(0).astype(bool)
@@ -308,10 +360,8 @@ def build_advanced_ml_target(data: pd.DataFrame) -> pd.DataFrame:
         errors="coerce"
     )
 
-    
     score = severity_num / 4.0
 
-   
     fix_factor   = pd.Series(1.0, index=data.index)
     label_source = pd.Series("severity_only", index=data.index)
 
@@ -338,7 +388,6 @@ def build_advanced_ml_target(data: pd.DataFrame) -> pd.DataFrame:
     score_adj[is_invalid]    = np.nan
     label_source[is_invalid] = "excluded"
 
-    
     risk_score = (score_adj * 10).round(3)
 
     bins = [-0.001, 1.5, 3.8, 6.2, 8.7, 10.001]
@@ -378,14 +427,13 @@ def build_advanced_ml_target(data: pd.DataFrame) -> pd.DataFrame:
         if has_fix_count < 100:
             logger.warning(
                 f"Seulement {has_fix_count} findings ont days_to_fix. "
-                f"Le label = severity brute pour la majorité. "
-                f"Plus de vulnérabilités corrigées = meilleur modèle."
+                f"Le label = severity brute pour la majorite. "
+                f"Plus de vulnerabilites corrigees = meilleur modele."
             )
     else:
         logger.error("Aucun sample valide pour le training !")
 
     return data
-
 
 
 def _fill_product_name(data, products, mask):
@@ -424,7 +472,6 @@ def _fill_engagement_name(data, engagements):
     )
 
 
-
 def preprocess_findings(findings, products, engagements) -> pd.DataFrame:
     data                  = findings.copy()
     data["product_id"]    = _safe_int_col(data, "product_id")
@@ -447,8 +494,8 @@ def preprocess_findings(findings, products, engagements) -> pd.DataFrame:
     data = build_contextual_features(data)
     data = build_interaction_features(data)
     data = build_normalized_features(data)
-    data = build_new_features(data)          
-    data = build_advanced_ml_target(data)   
+    data = build_new_features(data)
+    data = build_advanced_ml_target(data)
 
     final_cols = [c for c in KEEP_COLS if c in data.columns]
     result     = data[final_cols].copy()
@@ -457,9 +504,8 @@ def preprocess_findings(findings, products, engagements) -> pd.DataFrame:
         if id_col in result.columns:
             result[id_col] = result[id_col].astype("Int64")
 
-    logger.info(f"Preprocessing complet : {len(result)} lignes × {len(result.columns)} colonnes")
+    logger.info(f"Preprocessing complet : {len(result)} lignes x {len(result.columns)} colonnes")
     return result
-
 
 
 def validate_output(df: pd.DataFrame) -> bool:
@@ -475,28 +521,27 @@ def validate_output(df: pd.DataFrame) -> bool:
         ok = False
 
     if len(df) == 0:
-        logger.error("DataFrame vide après preprocessing")
+        logger.error("DataFrame vide apres preprocessing")
         ok = False
 
     valid = df["risk_class"].notna() if "risk_class" in df.columns else pd.Series(dtype=bool)
     if valid.sum() == 0:
-        logger.error("Aucun risk_class valide — vérifier les données brutes")
+        logger.error("Aucun risk_class valide — verifier les donnees brutes")
         ok = False
 
     if "risk_score" in df.columns and valid.sum() > 0:
         std = df.loc[valid, "risk_score"].std()
         if std < 0.01:
-            logger.warning(f"risk_score quasi-constant (std={std:.4f}) — le modèle ne pourra pas apprendre")
+            logger.warning(f"risk_score quasi-constant (std={std:.4f}) — le modele ne pourra pas apprendre")
 
     leakage = [c for c in EXCLUDE_FROM_ML if c in FEATURE_COLS]
     if leakage:
-        logger.error(f"DATA LEAKAGE DETECTÉ dans FEATURE_COLS : {leakage}")
+        logger.error(f"DATA LEAKAGE DETECTE dans FEATURE_COLS : {leakage}")
         ok = False
     else:
-        logger.info("Vérification leakage : OK — aucune colonne interdite dans FEATURE_COLS")
+        logger.info("Verification leakage : OK — aucune colonne interdite dans FEATURE_COLS")
 
     return ok
-
 
 
 def save_atomic(df: pd.DataFrame, path: Path) -> None:
@@ -505,7 +550,7 @@ def save_atomic(df: pd.DataFrame, path: Path) -> None:
         df.to_csv(tmp.name, index=False)
         tmp_path = tmp.name
     shutil.move(tmp_path, path)
-    logger.info(f"Sauvegardé : {path} ({len(df)} lignes)")
+    logger.info(f"Sauvegarde : {path} ({len(df)} lignes)")
 
 
 def save_data_report(df: pd.DataFrame) -> None:
@@ -549,8 +594,8 @@ def save_data_report(df: pd.DataFrame) -> None:
     logger.info(f"Rapport data : {path}")
 
 
-
 def main() -> None:
+    
     logger.info("=" * 70)
     logger.info("InvisiThreat AI Risk Engine — Preprocessing v5.0")
     logger.info("=" * 70)
@@ -560,14 +605,14 @@ def main() -> None:
         df_clean = preprocess_findings(findings, products, engagements)
 
         if not validate_output(df_clean):
-            logger.error("Validation échouée — vérifier les données brutes")
+            logger.error("Validation echouee — verifier les donnees brutes")
             raise SystemExit(1)
 
         save_atomic(df_clean, PROCESSED_DIR / "findings_clean.csv")
         save_data_report(df_clean)
 
         logger.info("=" * 70)
-        logger.info("Preprocessing terminé avec succès — v5.0")
+        logger.info("Preprocessing termine avec succes — v5.0")
         logger.info("=" * 70)
 
     except SystemExit:

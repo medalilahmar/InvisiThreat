@@ -1,176 +1,272 @@
-import pandas as pd
-import numpy as np
+"""
+DIAGNOSTIC COMPLET: Hiérarchie Product → Engagement → Test → Finding
+Détecte pourquoi seulement 42 findings s'affichent au lieu de 500
+"""
+
+import os
+import sys
 from pathlib import Path
+from collections import defaultdict
 
-RAW_DIR = Path("data/raw")
-PROCESSED_DIR = Path("data/processed")
+# Import depuis api.py
+sys.path.insert(0, str(Path(__file__).parent / "risk-scoring-engine" / "src"))
 
-def check_raw_data():
-    print("\n" + "="*70)
-    print("DIAGNOSTIC 1: DONNÉES BRUTES")
-    print("="*70)
-    
-    findings = pd.read_csv(RAW_DIR / "findings_raw.csv")
-    
-    if "severity" in findings.columns:
-        print("\n✓ Colonne 'severity' trouvée")
-        print(findings["severity"].value_counts())
-        print(f"\nUnique values: {findings['severity'].unique()}")
-    else:
-        print("Colonne 'severity' NOT FOUND")
-    
-    if "severity" in findings.columns:
-        high_critical = findings[findings["severity"].isin(["High", "Critical"])]
-        print(f"\nFindings High/Critical: {len(high_critical)} / {len(findings)}")
-        print(f"Percentage: {len(high_critical)/len(findings)*100:.1f}%")
-    
-    return findings
+from dotenv import load_dotenv
+load_dotenv()
 
-def check_processed_data():
-    print("\n" + "="*70)
-    print("DIAGNOSTIC 2: DONNÉES PRÉPROCESSÉES")
-    print("="*70)
-    
-    df = pd.read_csv(PROCESSED_DIR / "findings_clean.csv")
-    
-    print(f"\nTotal rows: {len(df)}")
-    print(f"Total cols: {len(df.columns)}")
-    
-    if "risk_class" in df.columns:
-        print("\n✓ risk_class distribution:")
-        print(df["risk_class"].value_counts().sort_index())
-        valid = df["risk_class"].notna().sum()
-        print(f"\nValid samples: {valid} / {len(df)}")
-        print(f"Excluded samples: {len(df) - valid}")
-    
-    if "severity_num" in df.columns:
-        print("\n✓ severity_num distribution:")
-        print(df["severity_num"].value_counts().sort_index())
-    
-    print(f"\n✓ Features présentes: {len([c for c in df.columns if not c.startswith('_')])}")
-    
-    if "severity" in df.columns:
-        high_critical = df[df["severity"].isin(["High", "Critical"])]
-        print(f"\n  High/Critical findings: {len(high_critical)}")
-        if len(high_critical) > 0:
-            print("  Risk class distribution for High/Critical:")
-            print(high_critical["risk_class"].value_counts())
-    
-    return df
+try:
+    from api import DefectDojoClient, HierarchyManager
+except ImportError:
+    print("❌ Impossible d'importer api.py. Assurez-vous que DEFECTDOJO_API_KEY est défini.")
+    sys.exit(1)
 
-def check_feature_separation():
-    print("\n" + "="*70)
-    print("DIAGNOSTIC 3: SÉPARATION DES FEATURES")
-    print("="*70)
-    
-    df = pd.read_csv(PROCESSED_DIR / "findings_clean.csv")
-    
-    key_features = ["cvss_score", "epss_score", "age_days", "exploit_risk"]
-    
-    for feature in key_features:
-        if feature in df.columns:
-            print(f"\n✓ {feature}:")
-            valid = df[df["risk_class"].notna()]
-            for cls in sorted(valid["risk_class"].unique()):
-                subset = valid[valid["risk_class"] == cls][feature]
-                print(f"  Class {int(cls)}: mean={subset.mean():.4f}, std={subset.std():.4f}, min={subset.min():.4f}, max={subset.max():.4f}")
 
-def check_label_quality():
-    print("\n" + "="*70)
-    print("DIAGNOSTIC 4: QUALITÉ DU LABEL")
-    print("="*70)
+def diagnose_hierarchy():
+    """Diagnostic complet de la hiérarchie DefectDojo"""
     
-    df = pd.read_csv(PROCESSED_DIR / "findings_clean.csv")
+    print("\n" + "="*80)
+    print("🔍 DIAGNOSTIC: HIÉRARCHIE PRODUCT → ENGAGEMENT → TEST → FINDING")
+    print("="*80)
     
-    if "days_to_fix" in df.columns:
-        print(f"\ndays_to_fix coverage: {df['days_to_fix'].notna().sum()} / {len(df)}")
-        print(f"Percentage: {df['days_to_fix'].notna().mean()*100:.1f}%")
+    # Initialiser le client
+    client = DefectDojoClient(
+        os.getenv("DEFECTDOJO_URL", "http://192.168.11.170:8080"),
+        os.getenv("DEFECTDOJO_API_KEY", "a8506b7874b044ed31f8d6b847ca4d6b15bdb868"),
+    )
+    
+    # Récupérer les données
+    print("\n📥 Récupération des données depuis DefectDojo...")
+    products = client.get_products()
+    engagements = client.get_engagements()
+    tests = client.get_tests()
+    findings = client.get_findings(limit=2000 , include_inactive=True)  
+    
+    print(f"   ✓ {len(products)} produits")
+    print(f"   ✓ {len(engagements)} engagements")
+    print(f"   ✓ {len(tests)} tests")
+    print(f"   ✓ {len(findings)} findings")
+    
+    # ── SECTION 1: PRODUITS ─────────────────────────────────────────────────────
+    print("\n" + "="*80)
+    print("1️⃣  PRODUITS")
+    print("="*80)
+    
+    for p in products:
+        print(f"\n   ID={p['id']:2d} | {p.get('name', 'N/A'):30s}")
+    
+    # ── SECTION 2: ENGAGEMENTS ──────────────────────────────────────────────────
+    print("\n" + "="*80)
+    print("2️⃣  ENGAGEMENTS")
+    print("="*80)
+    
+    print("\n   ID | Nom                            | Produit")
+    print("   " + "-"*70)
+    for e in engagements:
+        prod_name = next((p.get('name', 'N/A') for p in products if p['id'] == e.get('product')), "?")
+        print(f"   {e['id']:2d} | {e.get('name', 'N/A'):30s} | {e.get('product'):2d} ({prod_name})")
+    
+    # ── SECTION 3: TESTS ────────────────────────────────────────────────────────
+    print("\n" + "="*80)
+    print("3️⃣  TESTS → ENGAGEMENTS")
+    print("="*80)
+    
+    tests_by_engagement = defaultdict(list)
+    tests_orphaned = 0
+    
+    for t in tests:
+        eng_id = t.get('engagement')
+        if eng_id is None:
+            tests_orphaned += 1
+        else:
+            tests_by_engagement[eng_id].append(t['id'])
+    
+    print(f"\n   Total: {len(tests)} tests")
+    print(f"   Orphelins (sans engagement): {tests_orphaned}")
+    
+    print("\n   Engagement | Nom           | Produit | # Tests")
+    print("   " + "-"*70)
+    for eng_id in sorted(tests_by_engagement.keys()):
+        eng = next((e for e in engagements if e['id'] == eng_id), {})
+        prod_id = eng.get('product', '?')
+        prod_name = next((p.get('name', '?') for p in products if p['id'] == prod_id), "?")
+        num_tests = len(tests_by_engagement[eng_id])
+        print(f"   {eng_id:10d} | {eng.get('name', 'N/A'):13s} | {prod_id:7} | {num_tests:8d}")
+    
+    # ── SECTION 4: FINDINGS RAW ─────────────────────────────────────────────────
+    print("\n" + "="*80)
+    print("4️⃣  FINDINGS BRUTS")
+    print("="*80)
+    
+    findings_with_test = sum(1 for f in findings if f.get('test') is not None)
+    findings_without_test = len(findings) - findings_with_test
+    
+    findings_by_engagement = defaultdict(list)
+    findings_by_product = defaultdict(list)
+    findings_by_test = defaultdict(list)
+    
+    for f in findings:
+        eng_id = f.get('engagement')
+        prod_id = f.get('product')
+        test_id = f.get('test')
         
-        if "label_source" in df.columns:
-            print("\nLabel sources distribution:")
-            print(df["label_source"].value_counts())
+        if eng_id:
+            findings_by_engagement[eng_id].append(f['id'])
+        if prod_id:
+            findings_by_product[prod_id].append(f['id'])
+        if test_id:
+            findings_by_test[test_id].append(f['id'])
     
-    if "score_composite_raw" in df.columns and "risk_class" in df.columns:
-        print("\nComposite score vs risk_class:")
-        valid = df[df["risk_class"].notna()]
-        for cls in sorted(valid["risk_class"].unique()):
-            subset = valid[valid["risk_class"] == cls]["score_composite_raw"]
-            print(f"  Class {int(cls)}: mean={subset.mean():.4f}, std={subset.std():.4f}")
-
-def check_data_leakage():
-    print("\n" + "="*70)
-    print("DIAGNOSTIC 5: DATA LEAKAGE CHECK")
-    print("="*70)
+    print(f"\n   Total: {len(findings)} findings")
+    print(f"   Avec test_id valide: {findings_with_test}")
+    print(f"   SANS test_id (orphelins): {findings_without_test} ⚠️")
     
-    df = pd.read_csv(PROCESSED_DIR / "findings_clean.csv")
+    print("\n   Par PRODUCT:")
+    print("   Produit | Nom                    | # Findings")
+    print("   " + "-"*70)
+    for prod_id in sorted(findings_by_product.keys()):
+        prod = next((p for p in products if p['id'] == prod_id), {})
+        num_findings = len(findings_by_product[prod_id])
+        print(f"   {prod_id:7} | {prod.get('name', 'N/A'):22s} | {num_findings:11d}")
     
-    FEATURE_COLS = [
-        "cvss_score", "cvss_score_norm", "age_days", "age_days_norm",
-        "has_cve", "has_cwe", "tags_count", "tags_count_norm",
-        "tag_urgent", "tag_in_production", "tag_sensitive", "tag_external",
-        "product_fp_rate", "cvss_x_has_cve", "age_x_cvss",
-        "epss_score", "epss_percentile", "has_high_epss", "epss_x_cvss", "epss_score_norm",
-        "exploit_risk", "context_score", "days_open_high",
-    ]
+    print("\n   Par ENGAGEMENT:")
+    print("   Engagement | Nom           | Product | # Findings")
+    print("   " + "-"*70)
+    for eng_id in sorted(findings_by_engagement.keys()):
+        eng = next((e for e in engagements if e['id'] == eng_id), {})
+        prod_id = eng.get('product', '?')
+        num_findings = len(findings_by_engagement[eng_id])
+        print(f"   {eng_id:10} | {eng.get('name', 'N/A'):13s} | {prod_id:7} | {num_findings:11d}")
     
-    EXCLUDE_COLS = [
-        "days_to_fix", "risk_class", "risk_score",
-        "is_mitigated", "out_of_scope", "is_false_positive",
-        "label_source", "score_composite_raw", "score_composite_adj"
-    ]
+    # ── SECTION 5: ENRICHISSEMENT ───────────────────────────────────────────────
+    print("\n" + "="*80)
+    print("5️⃣  ENRICHISSEMENT VIA HIERARCHYMANAGER")
+    print("="*80)
     
-    leakage = [c for c in EXCLUDE_COLS if c in FEATURE_COLS]
-    if leakage:
-        print(f" LEAKAGE DETECTED: {leakage}")
+    hierarchy = HierarchyManager(client)
+    enriched = hierarchy.enrich_findings(findings)
+    
+    resolved = sum(1 for f in enriched if f.get('product_id') is not None)
+    unresolved = len(enriched) - resolved
+    
+    print(f"\n   Findings enrichis: {resolved}/{len(enriched)}")
+    print(f"   Findings résolus: {resolved} ✓")
+    print(f"   Findings NON résolus (orphelins): {unresolved} ⚠️")
+    
+    if unresolved > 0:
+        print(f"\n   ⚠️ EXEMPLES D'ORPHELINS:")
+        orphans = [f for f in enriched if f.get('product_id') is None][:5]
+        for o in orphans:
+            print(f"      Finding {o['id']:4d} | test={str(o.get('test')):6s} | engagement={str(o.get('engagement')):6s} | product={o.get('product')}")
+    
+    # ── SECTION 6: DISTRIBUTION PAR PRODUIT APRÈS ENRICHISSEMENT ────────────────
+    print("\n" + "="*80)
+    print("6️⃣  DISTRIBUTION APRÈS ENRICHISSEMENT")
+    print("="*80)
+    
+    enriched_by_product = defaultdict(list)
+    for f in enriched:
+        prod_id = f.get('product_id')
+        if prod_id is not None:
+            enriched_by_product[prod_id].append(f['id'])
+    
+    print("\n   Produit | Nom                    | # Findings (enrichis)")
+    print("   " + "-"*70)
+    for prod_id in sorted(enriched_by_product.keys()):
+        prod = next((p for p in products if p['id'] == prod_id), {})
+        num_findings = len(enriched_by_product[prod_id])
+        print(f"   {prod_id:7} | {prod.get('name', 'N/A'):22s} | {num_findings:19d}")
+    
+    # ── SECTION 7: FOCUS PRODUCT 5 ──────────────────────────────────────────────
+    print("\n" + "="*80)
+    print("7️⃣  FOCUS: PRODUCT 5 (InvisiThreat)")
+    print("="*80)
+    
+    product_5 = next((p for p in products if p['id'] == 5), None)
+    if not product_5:
+        print("   ❌ Product 5 non trouvé!")
     else:
-        print(" NO LEAKAGE DETECTED")
+        print(f"\n   Produit: {product_5['name']}")
+        
+        # Engagements du product 5
+        engs_prod_5 = [e for e in engagements if e.get('product') == 5]
+        print(f"\n   Engagements: {len(engs_prod_5)}")
+        for e in engs_prod_5:
+            print(f"      - ID={e['id']:2d}: {e['name']}")
+        
+        # Tests du product 5
+        tests_prod_5 = []
+        for t in tests:
+            eng_id = t.get('engagement')
+            if eng_id and any(e['id'] == eng_id for e in engs_prod_5):
+                tests_prod_5.append(t['id'])
+        
+        print(f"\n   Tests: {len(tests_prod_5)} (via engagements du produit)")
+        
+        # Findings bruts du product 5
+        findings_prod_5_raw = [f for f in findings if f.get('product') == 5]
+        print(f"\n   Findings BRUTS du product: {len(findings_prod_5_raw)}")
+        
+        # Findings enrichis du product 5
+        findings_prod_5_enriched = hierarchy.filter_by_product(enriched, 5)
+        print(f"   Findings ENRICHIS du product: {len(findings_prod_5_enriched)}")
+        
+        print(f"\n   Détail par ENGAGEMENT du product 5:")
+        for e in engs_prod_5:
+            findings_eng = hierarchy.filter_by_engagement(findings_prod_5_enriched, e['id'])
+            print(f"      - Engagement {e['id']} ({e['name']}): {len(findings_eng)} findings")
+            
+            # Afficher les premiers findings
+            if findings_eng:
+                print(f"         Exemples:")
+                for f in findings_eng[:3]:
+                    print(f"            • Finding {f['id']:4d} | {f.get('title', 'N/A')[:40]:40s} | test={f.get('test')}")
     
-    print(f"\nFeature columns: {len(FEATURE_COLS)}")
-    print(f"Excluded columns: {len(EXCLUDE_COLS)}")
-    print(f"Features present in CSV: {len([c for c in FEATURE_COLS if c in df.columns])}")
+    # ── SECTION 8: RÉSUMÉ & RECOMMANDATIONS ─────────────────────────────────────
+    print("\n" + "="*80)
+    print("8️⃣  RÉSUMÉ & RECOMMANDATIONS")
+    print("="*80)
+    
+    # Calcul du ratio
+    product_5_ratio = len(findings_prod_5_enriched) / len(findings) * 100 if findings else 0
+    
+    print(f"\n   HIÉRARCHIE COMPLÈTE:")
+    print(f"   • {len(products)} produits")
+    print(f"   • {len(engagements)} engagements")
+    print(f"   • {len(tests)} tests")
+    print(f"   • {len(findings)} findings ({findings_with_test} avec test, {findings_without_test} orphelins)")
+    
+    print(f"\n   PRODUCT 5 SPÉCIFIQUEMENT:")
+    print(f"   • {len(engs_prod_5)} engagements")
+    print(f"   • {len(tests_prod_5)} tests")
+    print(f"   • {len(findings_prod_5_enriched)} findings enrichis ({product_5_ratio:.1f}% du total)")
+    
+    print(f"\n   ⚠️ SI SEULEMENT 42 FINDINGS S'AFFICHENT:")
+    if len(findings_prod_5_enriched) == 42:
+        print(f"      ✓ C'EST CORRECT! Tous les {len(findings_prod_5_enriched)} findings du product 5 s'affichent.")
+        print(f"      → Il n'y a PAS 458 findings pour product 5, seulement 42!")
+    elif len(findings_prod_5_enriched) > 42:
+        print(f"      ❌ PROBLÈME: {len(findings_prod_5_enriched)} findings devraient s'afficher, mais seulement 42 le font!")
+        print(f"      → C'est un problème du FRONTEND ou du CACHE")
+    else:
+        print(f"      ✓ Les 42 findings affichés sont corrects")
+        print(f"      → Il n'y a que {len(findings_prod_5_enriched)} findings total pour product 5")
+    
+    print("\n   ÉTAPES DE DÉBOGAGE:")
+    print("   1. Vérifier que FindingInput.to_features() inclut toutes les 29 features")
+    print("   2. Tester /defectdojo/products/5/findings?limit=500")
+    print("   3. Compter les findings retournés par l'API")
+    print("   4. Comparer avec /defectdojo/engagements/5/findings")
+    print("   5. Vérifier le cache frontend (F12 → Network → Réponse)")
+    
+    print("\n" + "="*80)
+    print("✅ DIAGNOSTIC TERMINÉ")
+    print("="*80 + "\n")
 
-def suggest_improvements():
-    print("\n" + "="*70)
-    print("SUGGESTIONS D'AMÉLIORATION")
-    print("="*70)
-    
-    df = pd.read_csv(PROCESSED_DIR / "findings_clean.csv")
-    findings = pd.read_csv(RAW_DIR / "findings_raw.csv")
-    
-    print("\n1️  AUGMENTER LA COMPLEXITÉ")
-    print("   • Ajouter plus de données High/Critical")
-    print("   • Utiliser k-fold stratifié (actuellement 25% test)")
-    print("   • Réduire test size à 15-20%")
-    
-    print("\n2️  VALIDER LA GÉNÉRALISATION")
-    print("   • Créer un ensemble de validation indépendant")
-    print("   • Tester sur données futures")
-    print("   • Faire cross-validation complète")
-    
-    print("\n3️  VÉRIFIER LES DONNÉES BRUTES")
-    high_critical_raw = findings[findings["severity"].isin(["High", "Critical"])]
-    print(f"   • High/Critical dans raw: {len(high_critical_raw)}")
-    print(f"   • Ratio High/Critical: {len(high_critical_raw)/len(findings)*100:.1f}%")
-    
-    print("\n4️  AMÉLIORATIONS POSSIBLES")
-    print("   • Ajouter class_weight imbalancé")
-    print("   • Utiliser SMOTE pour sur-échantillonner les classes minoritaires")
-    print("   • Augmenter la profondeur de tuning")
 
 if __name__ == "__main__":
     try:
-        findings = check_raw_data()
-        df = check_processed_data()
-        check_feature_separation()
-        check_label_quality()
-        check_data_leakage()
-        suggest_improvements()
-        
-        print("\n" + "="*70)
-        print(" DIAGNOSTIC COMPLET TERMINÉ")
-        print("="*70 + "\n")
-        
+        diagnose_hierarchy()
     except Exception as e:
-        print(f" Erreur: {e}")
+        print(f"\n❌ Erreur: {e}")
         import traceback
         traceback.print_exc()

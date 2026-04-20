@@ -392,3 +392,21 @@
 2026-03-19 11:09:23,101 [INFO] Saved: data\raw\findings_automation_hub.csv (458 rows, 93 cols)
 2026-03-19 11:09:23,102 [INFO] Collection report saved: data\raw\collection_report.json
 2026-03-19 11:09:23,103 [INFO] Collection complete — 5 products, 5 engagements, 25 tests, 1311 findings
+2026-04-20 16:22:01,293 [INFO] Starting DefectDojo data collection — AI Risk Engine
+2026-04-20 16:22:01,294 [INFO] Target: http://192.168.11.170:8080
+2026-04-20 16:22:01,484 [INFO] [products] 5 items fetched (1 page(s))
+2026-04-20 16:22:01,497 [INFO] Saved: data\raw\products.csv (5 rows, 29 cols)
+2026-04-20 16:22:01,559 [INFO] [engagements] 6 items fetched (1 page(s))
+2026-04-20 16:22:01,565 [INFO] Saved: data\raw\engagements.csv (6 rows, 39 cols)
+2026-04-20 16:22:01,677 [INFO] [tests] 26 items fetched (1 page(s))
+2026-04-20 16:22:01,682 [INFO] Saved: data\raw\tests.csv (26 rows, 23 cols)
+2026-04-20 16:22:01,682 [INFO] Lookup table built: 26 test_id(s) mapped
+2026-04-20 16:22:11,295 [INFO] [findings_all] 1311 items fetched (14 page(s))
+2026-04-20 16:22:11,298 [INFO] [EPSS] Fetching scores for 58 unique CVE(s)
+2026-04-20 16:22:12,758 [INFO] [EPSS] 57/58 CVE(s) scored
+2026-04-20 16:22:12,764 [INFO] [EPSS] 257/1311 finding(s) enriched with EPSS score
+2026-04-20 16:22:12,886 [INFO] Saved: data\raw\findings_raw.csv (1311 rows, 93 cols)
+2026-04-20 16:22:13,010 [INFO] Saved: data\raw\findings_InvisiThreat.csv (853 rows, 93 cols)
+2026-04-20 16:22:13,062 [INFO] Saved: data\raw\findings_automation_hub.csv (458 rows, 93 cols)
+2026-04-20 16:22:13,070 [INFO] Collection report saved: data\raw\collection_report.json
+2026-04-20 16:22:13,070 [INFO] Collection complete — 5 products, 6 engagements, 26 tests, 1311 findings

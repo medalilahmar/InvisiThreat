@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import './Home.css'
 import Logo from '../assets/invilogo.png';
+import { Link } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type NodeType = 'critical' | 'high' | 'normal'
 interface Particle { x: number; y: number; vx: number; vy: number; r: number; pulse: number; type: NodeType }
+
 
 // ─── Particle Canvas ──────────────────────────────────────────────────────────
 function ParticleCanvas() {
@@ -228,7 +230,7 @@ export default function Home() {
             <li key={id}><a href="#" onClick={e => { e.preventDefault(); scrollTo(id) }}>{lbl}</a></li>
           ))}
         </ul>
-        <button className="navbar-cta" onClick={() => scrollTo('launch')}>Open Dashboard →</button>
+        <Link to="/login" className="navbar-cta">Open Dashboard →</Link>
       </nav>
 
       {/* ── HERO ── */}

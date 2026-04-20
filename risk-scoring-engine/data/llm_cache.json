@@ -1,0 +1,76 @@
+{
+  "8471e85c4c8c726fa7c9576d93609ade": {
+    "summary": "No file validation in upload process.",
+    "impact": "An attacker can upload malicious files that could lead to data loss or system crash.",
+    "root_cause": "The server does not validate uploaded files before processing them.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate — this vulnerability allows an attacker to upload harmful files.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "f62cf6552ba58a250c0186e7291b8d16": {
+    "title": "XSS Vulnerability Fix",
+    "recommendations": [
+      "Escape all variables using escapeHtml() function.",
+      "Ensure that any user input is properly validated and sanitized before outputting it on the page."
+    ],
+    "references": [
+      "https://owasp.org/www-community/attacks/xss/"
+    ],
+    "verification": "Test all application features to confirm XSS vulnerability has been remediated.",
+    "prevention": "Always use a library or framework that automatically escapes variables, or manually escape user input before outputting it on the page.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "b9ebad09aeabae752b11ff19265bf448": {
+    "summary": "Reflected XSS in comments section allows reflected HTML.",
+    "impact": "An attacker can inject malicious scripts which are reflected back to users' browsers leading to potential data theft or manipulation of web pages.",
+    "root_cause": "The application does not properly sanitize user input before displaying it on the page.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate — this vulnerability can be exploited by an attacker.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "585bdcec698f6ecf022f3e9e259d28b2": {
+    "summary": "Directory traversal in tar package allows unauthorized access to sensitive files.",
+    "impact": "An attacker can exploit this vulnerability to read or write any file on the system without proper authorization.",
+    "root_cause": "The tar package does not properly sanitize user input when creating archive files, leading to directory traversal.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate — this vulnerability can be exploited by an attacker with low-level permissions.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "e577d37e2bb63f83179be7471f871222": {
+    "summary": "Forgeable Public/Private Tokens in jws package of juice-shop@19.1.1.",
+    "impact": "An attacker can generate valid tokens that they control without knowing the private key used to sign them, potentially leading to unauthorized access or data manipulation.",
+    "root_cause": "The jws package does not properly validate token signatures before accepting them for use.",
+    "exploitation_difficulty": "Hard",
+    "priority_note": "Immediate — this vulnerability can lead to significant security issues.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "fbb48c6c3e5d5b0ca87e14894a1b4640": {
+    "summary": "Path traversal in file system allows reading arbitrary files.",
+    "impact": "An attacker can read any file from the server's filesystem without proper authorization.",
+    "root_cause": "File paths are not properly sanitized before being used to access a file.",
+    "exploitation_difficulty": "Medium",
+    "priority_note": "Immediate — this vulnerability can lead to unauthorized data disclosure.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "a7f1a3910b985bbb5ab4a0eb8878a559": {
+    "title": "JSON Web Signature (JWS) Vulnerability Fix",
+    "recommendations": [
+      "Upgrade to a version of jws that is not vulnerable.",
+      "Review the codebase for usage of jws and ensure it's being used correctly.",
+      "Ensure all tokens are properly signed and validated."
+    ],
+    "references": [
+      "https://www.npmjs.com/package/jws"
+    ],
+    "verification": "Run tests to ensure that the jws version has been correctly upgraded.",
+    "prevention": "Always use a secure and updated version of jws.",
+    "from_cache": false,
+    "_fallback": false
+  }
+}

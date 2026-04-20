@@ -50,6 +50,7 @@ SEVERITY_MAP: Dict[str, int] = {
     "informational": 0,
 }
 
+# Poids pour le context_score (identique à train.py)
 CONTEXT_TAG_WEIGHTS: Dict[str, int] = {
     "production": 2,
     "prod": 2,
@@ -74,8 +75,17 @@ CONTEXT_TAG_WEIGHTS: Dict[str, int] = {
     "sca": 0,
     "api": 0,
 }
-
 CONTEXT_SCORE_MAX = 10
+
+# Liste exacte des features utilisées pendant l'entraînement (23 colonnes)
+EXPECTED_FEATURES = [
+    "cvss_score", "cvss_score_norm", "age_days", "age_days_norm",
+    "has_cve", "has_cwe", "tags_count", "tags_count_norm",
+    "tag_urgent", "tag_in_production", "tag_sensitive", "tag_external",
+    "product_fp_rate", "cvss_x_has_cve", "age_x_cvss",
+    "epss_score", "epss_percentile", "has_high_epss", "epss_x_cvss", "epss_score_norm",
+    "exploit_risk", "context_score", "days_open_high",
+]
 
 
 @dataclass
@@ -218,6 +228,10 @@ class DefectDojoClient:
 
 
 class FeatureExtractor:
+    """Extracteur de features identique à celui utilisé dans train.py.
+    Produit les 23 colonnes exactes attendues par le modèle.
+    """
+
     @staticmethod
     def parse_tags(raw_tags: Any) -> List[str]:
         if not raw_tags:
@@ -229,63 +243,83 @@ class FeatureExtractor:
         return []
 
     @staticmethod
-    def context_score(tags: List[str]) -> int:
-        score = sum(CONTEXT_TAG_WEIGHTS.get(tag, 0) for tag in tags)
-        return min(score, CONTEXT_SCORE_MAX)
-
-    @staticmethod
     def severity_numeric(severity: str) -> int:
         return SEVERITY_MAP.get(severity.lower().strip(), 0)
-
-    @staticmethod
-    def exploit_risk(finding: Dict) -> float:
-        cvss = float(finding.get("cvss_score") or 0)
-        sev_num = SEVERITY_MAP.get(
-            str(finding.get("severity", "")).lower().strip(), 0
-        )
-        description = str(finding.get("description", "")).lower()
-
-        has_exploit = any(
-            kw in description
-            for kw in ("exploit", "metasploit", "public exploit", "proof of concept", "poc")
-        )
-        has_cve = "cve-" in description
-
-        base = cvss * 0.7 + sev_num * 0.3
-        if has_exploit:
-            base *= 1.5
-        elif has_cve:
-            base *= 1.2
-
-        return round(min(base, 10.0), 4)
-
-    @staticmethod
-    def age_factor(days_open: int) -> float:
-        return round(max(0.1, 1.0 - (days_open / 180.0)), 4)
 
     @classmethod
     def extract(cls, finding: Dict) -> Dict[str, Any]:
         tags = cls.parse_tags(finding.get("tags"))
-        days_open = int(finding.get("days_open") or 0)
         severity = str(finding.get("severity", "")).lower().strip()
+        severity_num = cls.severity_numeric(severity)
+        cvss = float(finding.get("cvss_score") or 0)
+        days_open = int(finding.get("days_open") or 0)          # correspond à age_days
+        epss = float(finding.get("epss_score") or 0)
+        epss_percentile = float(finding.get("epss_percentile") or 0)
+        has_cve = int(finding.get("has_cve") or 0)
+        has_cwe = int(finding.get("has_cwe") or 0)
 
-        features: Dict[str, Any] = {
-            "cvss_score": float(finding.get("cvss_score") or 0),
-            "severity_numeric": cls.severity_numeric(severity),
-            "days_open": days_open,
-            "duplicate_count": int(finding.get("duplicate_count") or 0),
-            "context_score": cls.context_score(tags),
-            "exploit_risk": cls.exploit_risk(finding),
-            "age_factor": cls.age_factor(days_open),
-            "tags_count": len(tags),
-            "tag_production": int(any(t in tags for t in ("production", "prod", "prd", "live"))),
-            "tag_external": int(any(t in tags for t in ("external", "internet-facing", "public", "exposed"))),
-            "tag_sensitive": int(any(t in tags for t in ("sensitive", "pii", "gdpr", "confidential"))),
-            "tag_urgent": int(any(t in tags for t in ("urgent", "blocker", "p0", "p1"))),
-            "tag_sca": int("sca" in tags),
-            "tag_api": int("api" in tags),
+        # Tags binaires (basés sur les tags)
+        tag_urgent = 1 if any(t in tags for t in ("urgent", "blocker", "p0", "p1")) else 0
+        tag_in_production = 1 if any(t in tags for t in ("production", "prod", "prd", "live")) else 0
+        tag_sensitive = 1 if any(t in tags for t in ("sensitive", "pii", "gdpr", "confidential")) else 0
+        tag_external = 1 if any(t in tags for t in ("external", "internet-facing", "public", "exposed")) else 0
+
+        tags_count = len(tags)
+        tags_count_norm = min(tags_count / 20, 1.0)
+
+        # Features dérivées
+        cvss_score_norm = cvss / 10.0
+        age_days = days_open
+        age_days_norm = min(age_days / 365, 1.0)
+        age_x_cvss = age_days * cvss
+        cvss_x_has_cve = cvss * has_cve
+        epss_score_norm = epss
+        epss_x_cvss = epss * cvss
+        has_high_epss = 1 if epss > 0.5 else 0
+
+        # exploit_risk (identique à train.py)
+        description = str(finding.get("description", "")).lower()
+        has_exploit = any(kw in description for kw in ("exploit", "metasploit", "poc", "public exploit"))
+        base_risk = cvss * 0.7 + severity_num * 0.3
+        exploit_risk = base_risk * (1.5 if has_exploit else 1.0)
+        exploit_risk = min(exploit_risk, 10.0)
+
+        # context_score
+        context_score = (
+            tag_in_production * 2 + tag_external * 2 + tag_sensitive * 1 + tag_urgent * 3
+        )
+        context_score = min(context_score, 10)
+
+        days_open_high = 1 if days_open > 30 else 0
+
+        # product_fp_rate (non disponible ici, on met 0)
+        product_fp_rate = 0.0
+
+        features = {
+            "cvss_score": cvss,
+            "cvss_score_norm": cvss_score_norm,
+            "age_days": age_days,
+            "age_days_norm": age_days_norm,
+            "has_cve": has_cve,
+            "has_cwe": has_cwe,
+            "tags_count": tags_count,
+            "tags_count_norm": tags_count_norm,
+            "tag_urgent": tag_urgent,
+            "tag_in_production": tag_in_production,
+            "tag_sensitive": tag_sensitive,
+            "tag_external": tag_external,
+            "product_fp_rate": product_fp_rate,
+            "cvss_x_has_cve": cvss_x_has_cve,
+            "age_x_cvss": age_x_cvss,
+            "epss_score": epss,
+            "epss_percentile": epss_percentile,
+            "has_high_epss": has_high_epss,
+            "epss_x_cvss": epss_x_cvss,
+            "epss_score_norm": epss_score_norm,
+            "exploit_risk": round(exploit_risk, 4),
+            "context_score": context_score,
+            "days_open_high": days_open_high,
         }
-
         return features
 
     @classmethod
@@ -333,9 +367,14 @@ class RiskPredictor:
             )
         else:
             logger.warning("Metadata file missing: %s", meta_path)
+            # Fallback : essayer d'extraire les feature_names du modèle lui-même
+            if hasattr(self.model, "feature_names_in_"):
+                feature_cols = list(self.model.feature_names_in_)
+            else:
+                feature_cols = EXPECTED_FEATURES
             self.metadata = ModelMetadata(
                 version=self.model_path.stem,
-                feature_columns=[],
+                feature_columns=feature_cols,
                 metrics={},
                 trained_at="unknown",
                 model_type="unknown",
@@ -359,16 +398,19 @@ class RiskPredictor:
             return df
 
         expected = self.metadata.feature_columns
+    
+        # Créer un nouveau DataFrame avec les colonnes attendues
+        aligned_data = {}
         for col in expected:
-            if col not in df.columns:
+            if col in df.columns:
+                aligned_data[col] = df[col]
+            else:
                 logger.debug("Missing feature, filled with 0: %s", col)
-                df[col] = 0
-
-        extra = [c for c in df.columns if c not in expected]
-        if extra:
-            logger.debug("Extra features ignored: %s", extra)
-
-        return df[expected]
+                aligned_data[col] = 0
+    
+        result_df = pd.DataFrame(aligned_data)
+    
+        return result_df[expected]
 
     def _compute_shap(
         self, X: pd.DataFrame, top_n: int = 3
@@ -446,8 +488,8 @@ class RiskPredictor:
                     ai_risk_score=risk_class,
                     ai_risk_level=RISK_LEVELS.get(risk_class, "unknown"),
                     ai_confidence=round(confidence, 4),
-                    context_score=FeatureExtractor.context_score(tags),
-                    exploit_risk=FeatureExtractor.exploit_risk(finding),
+                    context_score=FeatureExtractor.extract(finding)["context_score"],
+                    exploit_risk=FeatureExtractor.extract(finding)["exploit_risk"],
                     shap_top_features=shap_results[idx],
                     ai_prediction_timestamp=now,
                     model_version=model_version,
@@ -510,6 +552,11 @@ class ResultPublisher:
             failures,
             len(results),
         )
+        
+        # ✅ CORRECTION : Indentation correcte (8 espaces)
+        if not dry_run:
+            self._save_scores_to_cache(results)
+        
         return success, failures
 
     @staticmethod
@@ -556,6 +603,55 @@ class ResultPublisher:
             "avg_confidence": round(float(np.mean(confidences)), 4) if confidences else 0,
             "min_confidence": round(float(np.min(confidences)), 4) if confidences else 0,
         }
+    
+    @staticmethod
+    def _save_scores_to_cache(results: List[PredictionResult]) -> None:
+        """
+        ✅ Sauvegarde les scores IA dans un fichier cache JSON pour l'API
+        
+        Structure du cache :
+        {
+            "finding_id": {
+                "ai_risk_score": 3,
+                "ai_risk_level": "high",
+                "ai_confidence": 0.92,
+                "context_score": 5,
+                "updated_at": "2026-04-10T15:30:00Z"
+            }
+        }
+        """
+        cache_file = Path("data/ai_scores_cache.json")
+        
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        cache = {}
+        if cache_file.exists():
+            try:
+                with open(cache_file, "r") as f:
+                    cache = json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load cache: {e}, starting fresh")
+                cache = {}
+        
+        for r in results:
+            cache[str(r.finding_id)] = {
+                "ai_risk_score": r.ai_risk_score,
+                "ai_risk_level": r.ai_risk_level,
+                "ai_confidence": r.ai_confidence,
+                "context_score": r.context_score,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        
+        # Sauvegarder le cache
+        try:
+            with open(cache_file, "w") as f:
+                json.dump(cache, f, indent=2)
+            logger.info(f"✅ AI scores cache saved: {len(results)} findings → {cache_file}")
+        except Exception as e:
+            logger.error(f"Failed to save cache: {e}")
+
+
+    
 
 
 class SecurityGate:

@@ -4,9 +4,24 @@ export interface Finding {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
   cvss_score: number;
   tags: string[];
-  engagement_id: number;
-  product_id?: number;
+  engagement_id: number | null;
+  engagement_name?: string | null;
+  product_id?: number | null;
+  product_name?: string | null;
   created?: string;
-  risk_class?: number;
-  risk_level?: string;
+  age_days?: number | null;
+  file_path?: string | null;
+  line?: number | null;
+  has_cve?: number | null;
+  description?: string | null;
+  cve?: string | null;
+  cwe?: string | null;
+
+  risk_class?: number | null;
+  risk_level?: string | null;
+  ai_confidence?: number | null;
+  context_score?: number | null;
+
+  ai_risk_class?: number | null;
+  ai_risk_level?: string | null;
 }

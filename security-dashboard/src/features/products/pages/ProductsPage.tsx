@@ -2,8 +2,11 @@ import { useProducts } from '../hooks/useProducts';
 import { Link } from 'react-router-dom';
 import './ProductsPage.css';
 
+
+
 export default function ProductsPage() {
   const { data: products, isLoading, error } = useProducts();
+  
 
   // 🔥 Dynamic Risk Assessment System
   const getRiskLevel = (findings: number) => {

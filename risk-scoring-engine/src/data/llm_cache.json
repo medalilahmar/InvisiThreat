@@ -1,0 +1,233 @@
+{
+  "c911ea18cb53955762bfd0f097d98402": {
+    "summary": "JWT Secret hardcodé dans le code source",
+    "impact": "Un secret JWT hardcodé pourrait exposer les données sensibles et la sécurité de l'application.",
+    "root_cause": "Le développeur a hardcodé le secret JWT directement dans le code source sans utiliser process.env.JWT_SECRET",
+    "affected_components": "Controllers/authController.js",
+    "exploitation_difficulty": "Difficile",
+    "priority_note": "Immédiat, car le secret JWT hardcodé pourrait exposer les données sensibles et la sécurité de l'application.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "5aaaac15a8fb362afe8de545a5781abc": {
+    "summary": "A high severity vulnerability in the moment package of webpack version 1.0.0 allows directory traversal.",
+    "impact": "The impact is High as it could lead to unauthorized access and data manipulation, potentially leading to system compromise or loss of sensitive information.",
+    "root_cause": "A flaw was found in the moment package version 2.29.1 which allows directory traversal when parsing certain user-supplied input.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "bc7e803588cbe5a82f5686d82af4136a": {
+    "title": "Path Traversal Vulnerability Fix",
+    "recommendations": [
+      "Ensure that the path traversal vulnerabilities are identified and fixed.",
+      "Use 'path.basename()' to prevent path traversals in file paths."
+    ],
+    "references": [
+      "https://owasp.org/www-community/attacks/Path_Traversal"
+    ],
+    "verification": "Run a security scanner and look for any indicators of path traversal vulnerabilities.",
+    "prevention": "Implement input validation to prevent the usage of '..' in file paths.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "2730842c470e086d9600ba60ffffb8ae": {
+    "title": "Path Traversal Vulnerability Fix",
+    "recommendations": [
+      "Ensure that all file paths are sanitized and validated before being used.",
+      "Use the path.basename() function to prevent traversing outside of intended directory structure."
+    ],
+    "references": [
+      "https://owasp.org/www-community/attacks/Path_Traversal"
+    ],
+    "verification": "Test by attempting to access files or directories that are not supposed to be accessible.",
+    "prevention": "Implement input validation and sanitization techniques, such as using path.basename() function.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "710c9c839629b4c5178b45a4686a5b01": {
+    "title": "No Console Log",
+    "severity": "Medium",
+    "cvss_score": 0.0,
+    "cve": "N/A",
+    "cwe": "N/A",
+    "file": "src/app.js",
+    "description": "Evitez console.log en production. Utilisez logger.info()",
+    "recommendations": [
+      "Supprimez tous les appels à console.log dans le code.",
+      "Utilisez un logger approprié pour la journalisation des informations.",
+      "Testez régulièrement votre application pour s'assurer que la journalisation fonctionne correctement."
+    ],
+    "references": [
+      "https://www.owasp.org/index.php/Logging_Cheat_Sheet#Leveraging_Application-Level_Logs"
+    ],
+    "verification": "Examinez le code source de l'application pour voir si des appels à console.log sont encore présents.",
+    "prevention": "Utilisez un logger approprié et configurez-le correctement pour éviter la journalisation non désirée.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "bbd13ad5ee3be7ae2e4da420c1028a4d": {
+    "title": "No Console Log",
+    "recommendations": [
+      "Replace all console.log statements with logger.info() calls.",
+      "Ensure that the logger is configured correctly and logs are being sent to a logging service."
+    ],
+    "references": [
+      "https://www.owasp.org/index.php/Logging_Cheat_Sheet#Console.log"
+    ],
+    "verification": "Run tests or code reviews to ensure that console.log statements have been removed.",
+    "prevention": "Use a logging library like winston, bunyan etc., which provides more control and flexibility over log levels.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "d47743c4e6e6fb072ff74a051721eecf": {
+    "summary": "The Juice-Shop application is using an outdated version of the jws package, which may have vulnerabilities in its cryptographic signature verification.",
+    "impact": "This could lead to unauthorized access or manipulation of data due to improper verification of cryptographic signatures. The impact on the system's availability and integrity is high.",
+    "root_cause": "The vulnerable version of jws package used in Juice-Shop application may have vulnerabilities that can be exploited by malicious actors.",
+    "exploitation_difficulty": "Medium",
+    "priority_note": "Immediate",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "29228ecfca490836acfcab7a1321dc0f": {
+    "title": "Fix for Improper Verification of Cryptographic Signature",
+    "recommendations": [
+      "Upgrade the vulnerable package 'jws' to a version that is not affected by this vulnerability.",
+      "Ensure all dependencies are also updated to their latest versions."
+    ],
+    "references": [
+      "https://github.com/auth0/node-jsonwebtoken/pull/136"
+    ],
+    "verification": "Run tests or check the version of 'jws' in use.",
+    "prevention": "Immediately upgrade to a patched version as soon as possible.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "e6ce62a635e2e5bb0272c52654b0ecb5": {
+    "title": "generic.html-templates.security.unquoted-attribute-var",
+    "severity": "Medium",
+    "cvss_score": 0.0,
+    "cve_id": "N/A",
+    "cwe_id": "N/A",
+    "file_path": "/src/frontend/src/app/search-result/search-result.component.html",
+    "description": "Result message: Detected a unquoted template variable as an attribute. If unquoted, a malicious actor could inject custom JavaScript handlers. To fix this, add quotes around the template expression.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "030e5a5ce698e4f019a51974cfe65ded": {
+    "title": "Fix for Unquoted Attribute Variable in HTML Templates",
+    "recommendations": [
+      "Ensure that all unquoted template variables are enclosed within quotes.",
+      "Review the code to ensure there are no missing or extra quotation marks.",
+      "Test thoroughly after making changes to confirm they resolve the issue."
+    ],
+    "references": [
+      "https://angular.io/guide/security#untrusted-innerhtml"
+    ],
+    "verification": "Run a static code analysis tool that identifies unquoted template variables and ensure they are enclosed within quotes.",
+    "prevention": "Use Angular's built-in security features to prevent injection of custom JavaScript handlers.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "649681ce21682f3a7ac89da58c62b29e": {
+    "title": "generic.html-templates.security.unquoted-attribute-var",
+    "severity": "Medium",
+    "cvss_score": 0.0,
+    "cve_id": "N/A",
+    "cwe_id": "N/A",
+    "file_location": "/src/frontend/src/app/search-result/search-result.component.html",
+    "description": "Result message: Detected a unquoted template variable as an attribute. If unquoted, a malicious actor could inject custom JavaScript handlers. To fix this, add quotes around the template expression.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "7f442e4757566ef6b3e71eaed42c2729": {
+    "title": "XSS-Reflected-Basic",
+    "severity": "High",
+    "cvss_score": "0.0",
+    "cve_id": "N/A",
+    "cwe_id": "N/A",
+    "file": "src/routes/comments.js",
+    "description": "**Result message:** XSS REFLECHI  - Escape variables with escapeHtml()",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "af61479065b9c3868cdf6c68302e545b": {
+    "title": "XSS Reflected Basic",
+    "recommendations": [
+      "Escape variables using escapeHtml() function"
+    ],
+    "references": [
+      "https://owasp.org/www-community/attacks/xss/"
+    ],
+    "verification": "Test the application by submitting a payload and checking if it is reflected back as expected.",
+    "prevention": "Use libraries that automatically escape variables, or manually ensure all user input is escaped.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "06d9b2e7f9481e74e9732c956184aba3": {
+    "summary": "Unquoted template variable as an attribute.",
+    "impact": "If unquoted, a malicious actor could inject custom JavaScript handlers which can lead to Cross-Site Scripting (XSS) attacks.",
+    "root_cause": "The vulnerability arises from the way Angular templates handle variables without proper quoting.",
+    "exploitation_difficulty": "Medium",
+    "priority_note": "Immediate — This vulnerability can lead to potential XSS attacks.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "053524d870afb82b282b41b9ae60a8b4": {
+    "title": "Unquoted Template Variable Attribute Fix",
+    "recommendations": [
+      "Ensure all template expressions are quoted.",
+      "Review and update any scripts or event handlers that may be using the unquoted variable."
+    ],
+    "references": [
+      "https://angular.io/guide/security#untrusted-templates"
+    ],
+    "verification": "Run a security scanner to confirm all template expressions are quoted.",
+    "prevention": "Always quote unquoted template variables and attributes.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "24465b34550e22d5aabe7a3cc6f0fcb5": {
+    "summary": "Sandbox Bypass in vm2 package.",
+    "impact": "An attacker can execute untrusted code within the sandbox without restrictions.",
+    "root_cause": "The vulnerable version of vm2 allows execution of arbitrary JavaScript code.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate — this vulnerability is exploitable and can lead to system compromise.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "67ef72088c73a1a25f3e4331d545e557": {
+    "title": "VM2 Sandbox Bypass Fix",
+    "recommendations": [
+      "Upgrade vm2 to a version greater than 3.9.17.",
+      "Review all code that uses vm2 for any untrusted code execution.",
+      "Ensure all user inputs are properly sanitized and validated."
+    ],
+    "references": [
+      "https://github.<｜begin▁of▁sentence｜>com/patriksimek/vm2#readme"
+    ],
+    "verification": "Run tests to confirm vm2 is no longer vulnerable.",
+    "prevention": "Always use a version of vm2 that has been patched.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "aeb1baf4949e613695f9d9b35f608508": {
+    "summary": "SQL injection in login form allows bypassing authentication.",
+    "impact": "An attacker can log in as any user without a password. All user data in the database is exposed.",
+    "root_cause": "User input is concatenated directly into SQL queries without sanitization.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate — this vulnerability is trivially exploitable and exposes all user accounts.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "cdb03ce19831d4b6865e3f4903dbd176": {
+    "summary": "Sequelize statement is vulnerable to SQL injection due to uncontrolled user input.",
+    "impact": "An attacker can execute arbitrary SQL commands leading to data theft or manipulation of sensitive information in the database.",
+    "root_cause": "User input is directly concatenated into SQL queries without sanitization.",
+    "exploitation_difficulty": "Easy",
+    "priority_note": "Immediate — this vulnerability can be exploited to manipulate the database.",
+    "from_cache": false,
+    "_fallback": false
+  }
+}

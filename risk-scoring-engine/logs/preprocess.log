@@ -640,3 +640,50 @@ risk_class
 2026-03-19 12:06:37,579 [INFO] Saved: data\processed\findings_clean.csv (1311 rows)
 2026-03-19 12:06:37,585 [INFO] Data report saved: data\processed\data_report.json
 2026-03-19 12:06:37,585 [INFO] Preprocessing complete
+2026-04-20 16:22:40,270 [INFO] ======================================================================
+2026-04-20 16:22:40,271 [INFO] InvisiThreat AI Risk Engine — Preprocessing v5.0
+2026-04-20 16:22:40,271 [INFO] ======================================================================
+2026-04-20 16:22:40,332 [INFO] Charge : 1311 findings | 5 produits | 6 engagements
+2026-04-20 16:22:40,369 [INFO] Tag parsing complete — tag_in_production: 248 hits | tag_urgent: 370 hits | tag_sensitive: 640 hits | tag_external: 527 hits
+2026-04-20 16:22:40,382 [INFO] Nouvelles features — exploit_risk max=0.43 | context_score max=5 | days_open_high max=63
+2026-04-20 16:22:40,391 [INFO] Findings pour training : 1310 | Exclus (FP/OOS) : 1
+2026-04-20 16:22:40,391 [INFO] Avec days_to_fix       : 1311 (100.0%)
+2026-04-20 16:22:40,393 [INFO] Distribution risk_class :
+2026-04-20 16:22:40,393 [INFO]   Info       (0.0):    29 (  2.2%)
+2026-04-20 16:22:40,393 [INFO]   Low        (1.0):   153 ( 11.7%)
+2026-04-20 16:22:40,393 [INFO]   High       (3.0):   759 ( 57.9%)
+2026-04-20 16:22:40,393 [INFO]   Critical   (4.0):   369 ( 28.2%)
+2026-04-20 16:22:40,394 [INFO] Sources des labels :
+2026-04-20 16:22:40,394 [INFO]   fast_fix_boost_1.40                 :  1310
+2026-04-20 16:22:40,394 [INFO]   excluded                            :     1
+2026-04-20 16:22:40,397 [INFO] Preprocessing complet : 1311 lignes x 49 colonnes
+2026-04-20 16:22:40,398 [INFO] Verification leakage : OK — aucune colonne interdite dans FEATURE_COLS
+2026-04-20 16:22:40,441 [INFO] Sauvegarde : data\processed\findings_clean.csv (1311 lignes)
+2026-04-20 16:22:40,445 [INFO] Rapport data : data\processed\data_report.json
+2026-04-20 16:22:40,445 [INFO] ======================================================================
+2026-04-20 16:22:40,445 [INFO] Preprocessing termine avec succes — v5.0
+2026-04-20 16:22:40,445 [INFO] ======================================================================
+2026-04-20 17:04:42,103 [INFO] ======================================================================
+2026-04-20 17:04:42,104 [INFO] InvisiThreat AI Risk Engine — Preprocessing v5.0
+2026-04-20 17:04:42,104 [INFO] ======================================================================
+2026-04-20 17:04:42,147 [INFO] Charge : 1311 findings | 5 produits | 6 engagements
+2026-04-20 17:04:42,198 [INFO] Tag parsing complete — tag_in_production: 248 hits | tag_urgent: 370 hits | tag_sensitive: 640 hits | tag_external: 527 hits
+2026-04-20 17:04:42,199 [INFO] CVE extraction : 263 findings avec CVE détecté
+2026-04-20 17:04:42,211 [INFO] Nouvelles features — exploit_risk max=0.43 | context_score max=5 | days_open_high max=63
+2026-04-20 17:04:42,221 [INFO] Findings pour training : 1310 | Exclus (FP/OOS) : 1
+2026-04-20 17:04:42,221 [INFO] Avec days_to_fix       : 1311 (100.0%)
+2026-04-20 17:04:42,223 [INFO] Distribution risk_class :
+2026-04-20 17:04:42,223 [INFO]   Info       (0.0):    29 (  2.2%)
+2026-04-20 17:04:42,223 [INFO]   Low        (1.0):   153 ( 11.7%)
+2026-04-20 17:04:42,223 [INFO]   High       (3.0):   759 ( 57.9%)
+2026-04-20 17:04:42,223 [INFO]   Critical   (4.0):   369 ( 28.2%)
+2026-04-20 17:04:42,224 [INFO] Sources des labels :
+2026-04-20 17:04:42,224 [INFO]   fast_fix_boost_1.40                 :  1310
+2026-04-20 17:04:42,224 [INFO]   excluded                            :     1
+2026-04-20 17:04:42,227 [INFO] Preprocessing complet : 1311 lignes x 50 colonnes
+2026-04-20 17:04:42,228 [INFO] Verification leakage : OK — aucune colonne interdite dans FEATURE_COLS
+2026-04-20 17:04:42,275 [INFO] Sauvegarde : data\processed\findings_clean.csv (1311 lignes)
+2026-04-20 17:04:42,280 [INFO] Rapport data : data\processed\data_report.json
+2026-04-20 17:04:42,280 [INFO] ======================================================================
+2026-04-20 17:04:42,280 [INFO] Preprocessing termine avec succes — v5.0
+2026-04-20 17:04:42,280 [INFO] ======================================================================

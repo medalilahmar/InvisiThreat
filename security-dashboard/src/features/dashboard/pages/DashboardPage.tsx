@@ -7,12 +7,10 @@ import {
 } from 'recharts';
 import './DashboardPage.css';
 
-/* ─── Types ─────────────────────────────────────────────────────────────── */
 type RiskLevel = 'Critical' | 'High' | 'Medium' | 'Low' | 'Info';
 
 interface RiskEntry { name: string; value: number; color: string; }
 
-/* ─── Constants ─────────────────────────────────────────────────────────── */
 const RISK_COLORS: Record<RiskLevel, string> = {
   Critical: 'var(--accent2)',
   High:     'var(--orange)',

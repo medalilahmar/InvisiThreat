@@ -40,3 +40,32 @@
 .read-the-docs {
   color: #888;
 }
+
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #ff6b6b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-button:hover {
+  background: rgba(255, 107, 107, 0.15);
+  border-color: #ff6b6b;
+  color: #ff8a8a;
+  transform: translateY(-1px);
+}
+
+.logout-icon {
+  width: 18px;
+  height: 18px;
+}

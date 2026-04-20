@@ -18,7 +18,7 @@ from urllib3.util.retry import Retry
 load_dotenv()
 
 BASE_URL        = os.getenv("DEFECTDOJO_URL", "").rstrip("/")
-API_TOKEN       = os.getenv("DEFECTDOJO_TOKEN", "")
+API_TOKEN       = os.getenv("DEFECTDOJO_API_KEY", "")
 PAGE_LIMIT      = int(os.getenv("DEFECTDOJO_PAGE_LIMIT", "100"))
 TIMEOUT         = int(os.getenv("DEFECTDOJO_TIMEOUT", "30"))
 EPSS_API_URL    = "https://api.first.org/data/v1/epss"

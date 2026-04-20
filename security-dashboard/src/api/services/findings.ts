@@ -9,5 +9,6 @@ export const findingsApi = {
 
 
   getAll: (limit = 2000) => apiClient.get(`/defectdojo/findings?limit=${limit}`),
+  
 
 };
