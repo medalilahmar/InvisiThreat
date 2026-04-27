@@ -13,6 +13,10 @@ venv/
 .env
 *.env
 
+# GLOBAL ENV PROTECTION (mono-repo safe)
+**/.env
+**/.env.*
+
 #  LOGS — tous les dossiers logs du projet
 logs/
 **/logs/
@@ -39,6 +43,48 @@ risk-scoring-engine/reports/*.png
 risk-scoring-engine/reports/*.csv
 risk-scoring-engine/reports/*.json
 !risk-scoring-engine/reports/.gitkeep
+
+
+# Logs
+logs/
+**/logs/
+*.log
+
+# Données brutes générées (recalculables)
+risk-scoring-engine/data/raw/
+!risk-scoring-engine/data/raw/.gitkeep
+
+# Données traitées (recalculables)
+risk-scoring-engine/data/processed/
+!risk-scoring-engine/data/processed/.gitkeep
+
+# Caches (EPSS, LLM, scores IA)
+risk-scoring-engine/data/ai_scores_cache.json
+risk-scoring-engine/data/epss_cache.json
+risk-scoring-engine/data/llm_cache.json
+risk-scoring-engine/data/*.json
+!risk-scoring-engine/data/.gitkeep
+
+# Modèles ML (fichiers binaires lourds)
+risk-scoring-engine/models/*.pkl
+risk-scoring-engine/models/*.joblib
+risk-scoring-engine/models/*.bin
+!risk-scoring-engine/models/pipeline_latest_meta.json
+!risk-scoring-engine/models/.gitkeep
+
+# Rapports générés (recalculables)
+risk-scoring-engine/reports/*.html
+risk-scoring-engine/reports/*.png
+risk-scoring-engine/reports/*.csv
+risk-scoring-engine/reports/*.json
+!risk-scoring-engine/reports/.gitkeep
+risk-scoring-engine/reports/shap/
+
+# Fichiers de test / prédictions temporaires
+test_predictions.json
+*.tmp
+
+
 
 #  CACHE ET TESTS
 

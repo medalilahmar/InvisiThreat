@@ -50,34 +50,6 @@ SEVERITY_MAP: Dict[str, int] = {
     "informational": 0,
 }
 
-# Poids pour le context_score (identique à train.py)
-CONTEXT_TAG_WEIGHTS: Dict[str, int] = {
-    "production": 2,
-    "prod": 2,
-    "prd": 2,
-    "live": 2,
-    "main": 1,
-    "external": 2,
-    "internet-facing": 2,
-    "public": 2,
-    "exposed": 2,
-    "internet": 2,
-    "sensitive": 1,
-    "pii": 1,
-    "gdpr": 1,
-    "confidential": 1,
-    "secret": 1,
-    "token": 1,
-    "urgent": 3,
-    "blocker": 3,
-    "p0": 3,
-    "p1": 2,
-    "sca": 0,
-    "api": 0,
-}
-CONTEXT_SCORE_MAX = 10
-
-# Liste exacte des features utilisées pendant l'entraînement (23 colonnes)
 EXPECTED_FEATURES = [
     "cvss_score", "cvss_score_norm", "age_days", "age_days_norm",
     "has_cve", "has_cwe", "tags_count", "tags_count_norm",
@@ -123,6 +95,20 @@ class ModelMetadata:
     metrics: Dict[str, Any]
     trained_at: str
     model_type: str
+
+
+class CsvFindingsLoader:
+    def __init__(self, csv_path: str) -> None:
+        self.csv_path = Path(csv_path)
+        if not self.csv_path.exists():
+            raise FileNotFoundError(f"CSV findings file not found: {self.csv_path}")
+        self.df = pd.read_csv(self.csv_path)
+        if len(self.df) == 0:
+            raise ValueError(f"CSV file is empty: {self.csv_path}")
+        logger.info(f"Loaded {len(self.df)} findings from CSV: {self.csv_path}")
+
+    def get_findings(self) -> List[Dict]:
+        return self.df.to_dict('records')
 
 
 class DefectDojoClient:
@@ -218,7 +204,7 @@ class DefectDojoClient:
 
     def get_findings(self, engagement_id: int, active_only: bool = True) -> List[Dict]:
         findings = list(self.iter_findings(engagement_id, active_only))
-        logger.info("Fetched %d findings for engagement %d", len(findings), engagement_id)
+        logger.info("Fetched %d findings from DefectDojo (engagement=%d)", len(findings), engagement_id)
         return findings
 
     def update_finding(self, finding_id: int, payload: Dict) -> bool:
@@ -228,10 +214,6 @@ class DefectDojoClient:
 
 
 class FeatureExtractor:
-    """Extracteur de features identique à celui utilisé dans train.py.
-    Produit les 23 colonnes exactes attendues par le modèle.
-    """
-
     @staticmethod
     def parse_tags(raw_tags: Any) -> List[str]:
         if not raw_tags:
@@ -252,13 +234,12 @@ class FeatureExtractor:
         severity = str(finding.get("severity", "")).lower().strip()
         severity_num = cls.severity_numeric(severity)
         cvss = float(finding.get("cvss_score") or 0)
-        days_open = int(finding.get("days_open") or 0)          # correspond à age_days
+        days_open = int(finding.get("days_open") or 0)
         epss = float(finding.get("epss_score") or 0)
         epss_percentile = float(finding.get("epss_percentile") or 0)
         has_cve = int(finding.get("has_cve") or 0)
         has_cwe = int(finding.get("has_cwe") or 0)
 
-        # Tags binaires (basés sur les tags)
         tag_urgent = 1 if any(t in tags for t in ("urgent", "blocker", "p0", "p1")) else 0
         tag_in_production = 1 if any(t in tags for t in ("production", "prod", "prd", "live")) else 0
         tag_sensitive = 1 if any(t in tags for t in ("sensitive", "pii", "gdpr", "confidential")) else 0
@@ -267,7 +248,6 @@ class FeatureExtractor:
         tags_count = len(tags)
         tags_count_norm = min(tags_count / 20, 1.0)
 
-        # Features dérivées
         cvss_score_norm = cvss / 10.0
         age_days = days_open
         age_days_norm = min(age_days / 365, 1.0)
@@ -277,22 +257,17 @@ class FeatureExtractor:
         epss_x_cvss = epss * cvss
         has_high_epss = 1 if epss > 0.5 else 0
 
-        # exploit_risk (identique à train.py)
-        description = str(finding.get("description", "")).lower()
-        has_exploit = any(kw in description for kw in ("exploit", "metasploit", "poc", "public exploit"))
-        base_risk = cvss * 0.7 + severity_num * 0.3
-        exploit_risk = base_risk * (1.5 if has_exploit else 1.0)
-        exploit_risk = min(exploit_risk, 10.0)
+        exploit_risk = min(epss * cvss, 10.0)
 
-        # context_score
         context_score = (
-            tag_in_production * 2 + tag_external * 2 + tag_sensitive * 1 + tag_urgent * 3
+            tag_in_production * 2 +
+            tag_external * 2 +
+            tag_sensitive * 1
         )
         context_score = min(context_score, 10)
 
-        days_open_high = 1 if days_open > 30 else 0
+        days_open_high = float(days_open) if severity_num >= 3 else 0.0
 
-        # product_fp_rate (non disponible ici, on met 0)
         product_fp_rate = 0.0
 
         features = {
@@ -339,12 +314,9 @@ class RiskPredictor:
 
     def _load(self) -> None:
         if not self.model_path.exists():
-            raise FileNotFoundError(
-                f"Model not found: {self.model_path}\n"
-                "Run: python main.py run --engagement-id <N>"
-            )
+            raise FileNotFoundError(f"Model not found: {self.model_path}")
 
-        logger.info("Loading model from %s", self.model_path)
+        logger.info("Loading model from: %s", self.model_path)
         self.model = joblib.load(self.model_path)
 
         meta_path = self.model_path.with_suffix(".json")
@@ -358,16 +330,21 @@ class RiskPredictor:
                 trained_at=raw.get("trained_at", "unknown"),
                 model_type=raw.get("model_type", "unknown"),
             )
+        
+            self.reverse_mapping = raw.get("reverse_mapping", {})
+            if self.reverse_mapping:
+                self.reverse_mapping = {int(k): int(v) for k, v in self.reverse_mapping.items()}
+                logger.info(f"Label reverse mapping loaded: {self.reverse_mapping}")
+        
             f1 = self.metadata.metrics.get("test_f1_weighted", 0)
             logger.info(
-                "Model loaded - version=%s type=%s F1=%.4f",
+                "Model loaded successfully - version=%s type=%s F1=%.4f",
                 self.metadata.version,
                 self.metadata.model_type,
                 f1,
             )
         else:
-            logger.warning("Metadata file missing: %s", meta_path)
-            # Fallback : essayer d'extraire les feature_names du modèle lui-même
+            logger.warning("Metadata file not found: %s", meta_path)
             if hasattr(self.model, "feature_names_in_"):
                 feature_cols = list(self.model.feature_names_in_)
             else:
@@ -379,13 +356,14 @@ class RiskPredictor:
                 trained_at="unknown",
                 model_type="unknown",
             )
+            self.reverse_mapping = {}
 
         try:
             import shap
             self._shap_available = True
-            logger.debug("SHAP available")
+            logger.debug("SHAP library available for feature explanations")
         except ImportError:
-            logger.info("SHAP not installed - explanations disabled")
+            logger.info("SHAP library not installed - feature explanations disabled")
 
     def _extract_base_model(self, model):
         if hasattr(model, "calibrated_classifiers"):
@@ -398,18 +376,16 @@ class RiskPredictor:
             return df
 
         expected = self.metadata.feature_columns
-    
-        # Créer un nouveau DataFrame avec les colonnes attendues
         aligned_data = {}
         for col in expected:
             if col in df.columns:
                 aligned_data[col] = df[col]
             else:
-                logger.debug("Missing feature, filled with 0: %s", col)
+                logger.debug("Feature missing, filling with 0: %s", col)
                 aligned_data[col] = 0
-    
+
         result_df = pd.DataFrame(aligned_data)
-    
+        result_df.columns = expected
         return result_df[expected]
 
     def _compute_shap(
@@ -454,20 +430,28 @@ class RiskPredictor:
             return results
 
         except Exception as exc:
-            logger.warning("SHAP calculation failed (fallback empty): %s", exc)
+            logger.warning("SHAP computation failed: %s", exc)
             return [[] for _ in range(len(X))]
 
     def predict_batch(
         self, findings: List[Dict], compute_shap: bool = True
     ) -> List[PredictionResult]:
         if not findings:
+            logger.warning("No findings provided for prediction")
             return []
 
         X_raw = FeatureExtractor.extract_batch(findings)
         X = self._align_features(X_raw)
 
-        risk_classes = self.model.predict(X).astype(int)
+        risk_classes_encoded = self.model.predict(X).astype(int)
         risk_probas = self.model.predict_proba(X)
+
+        if self.reverse_mapping:
+            risk_classes = np.array([self.reverse_mapping.get(int(c), int(c)) for c in risk_classes_encoded])
+            logger.debug(f"Reverse mapping applied: {risk_classes_encoded[0]} -> {risk_classes[0]}")
+        else:
+            risk_classes = risk_classes_encoded
+            logger.debug("No reverse mapping - using direct predictions")
 
         shap_results = self._compute_shap(X) if compute_shap else [[] for _ in findings]
 
@@ -508,7 +492,7 @@ class ResultPublisher:
         self, results: List[PredictionResult], dry_run: bool = False
     ) -> Tuple[int, int]:
         if not self._client:
-            logger.warning("DefectDojo client missing - publication skipped")
+            logger.warning("DefectDojo client not available - skipping publication")
             return 0, 0
 
         success = 0
@@ -516,7 +500,7 @@ class ResultPublisher:
 
         for result in results:
             if result.finding_id == 0:
-                logger.debug("Finding without ID ignored: %s", result.title)
+                logger.debug("Skipping finding without ID: %s", result.title)
                 continue
 
             new_ai_tag = f"ai-risk-{result.ai_risk_level}"
@@ -531,7 +515,7 @@ class ResultPublisher:
 
             if dry_run:
                 logger.info(
-                    "[DRY-RUN] Would update finding %d -> %s (conf=%.2f)",
+                    "[DRY-RUN] Would update finding %d -> %s (confidence=%.2f)",
                     result.finding_id,
                     result.ai_risk_level,
                     result.ai_confidence,
@@ -542,21 +526,21 @@ class ResultPublisher:
             ok = self._client.update_finding(result.finding_id, payload)
             if ok:
                 success += 1
+                logger.debug("Updated finding %d with ai-risk-%s", result.finding_id, result.ai_risk_level)
             else:
                 failures += 1
-                logger.warning("Failed to update finding %d", result.finding_id)
+                logger.warning("Failed to update finding %d in DefectDojo", result.finding_id)
 
         logger.info(
-            "DefectDojo: %d updated, %d failed (total=%d)",
+            "DefectDojo publication complete: %d updated, %d failed (total=%d)",
             success,
             failures,
             len(results),
         )
-        
-        # ✅ CORRECTION : Indentation correcte (8 espaces)
+
         if not dry_run:
             self._save_scores_to_cache(results)
-        
+
         return success, failures
 
     @staticmethod
@@ -573,21 +557,21 @@ class ResultPublisher:
         with open(output_path, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, ensure_ascii=False, default=str)
 
-        logger.info("Results saved to %s (%d findings)", output_path, len(results))
+        logger.info("Prediction results saved to: %s (%d findings)", output_path, len(results))
 
     @staticmethod
     def _build_note(result: PredictionResult) -> str:
         lines = [
-            f"[InvisiThreat AI] Score: {result.ai_risk_score}/4 ({result.ai_risk_level.upper()})",
-            f"Confidence: {result.ai_confidence:.0%} | Context score: {result.context_score}",
-            f"Model: {result.model_version} | {result.ai_prediction_timestamp}",
+            f"[InvisiThreat AI] Risk Score: {result.ai_risk_score}/4 ({result.ai_risk_level.upper()})",
+            f"Confidence: {result.ai_confidence:.0%} | Context: {result.context_score}",
+            f"Model: {result.model_version} | Timestamp: {result.ai_prediction_timestamp}",
         ]
         if result.shap_top_features:
-            lines.append("Top features:")
+            lines.append("Top contributing features:")
             for feat in result.shap_top_features:
                 lines.append(
                     f"  {feat['direction']} {feat['feature']} = {feat['value']} "
-                    f"(SHAP: {feat['shap_value']:+.3f})"
+                    f"(impact: {feat['shap_value']:+.3f})"
                 )
         return "\n".join(lines)
 
@@ -599,40 +583,25 @@ class ResultPublisher:
 
         confidences = [r.ai_confidence for r in results]
         return {
-            "by_level": counts,
+            "by_risk_level": counts,
             "avg_confidence": round(float(np.mean(confidences)), 4) if confidences else 0,
             "min_confidence": round(float(np.min(confidences)), 4) if confidences else 0,
         }
-    
+
     @staticmethod
     def _save_scores_to_cache(results: List[PredictionResult]) -> None:
-        """
-        ✅ Sauvegarde les scores IA dans un fichier cache JSON pour l'API
-        
-        Structure du cache :
-        {
-            "finding_id": {
-                "ai_risk_score": 3,
-                "ai_risk_level": "high",
-                "ai_confidence": 0.92,
-                "context_score": 5,
-                "updated_at": "2026-04-10T15:30:00Z"
-            }
-        }
-        """
         cache_file = Path("data/ai_scores_cache.json")
-        
         cache_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         cache = {}
         if cache_file.exists():
             try:
-                with open(cache_file, "r") as f:
+                with open(cache_file, "r", encoding="utf-8") as f:
                     cache = json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load cache: {e}, starting fresh")
+            except Exception as exc:
+                logger.warning("Failed to load existing cache, starting fresh: %s", exc)
                 cache = {}
-        
+
         for r in results:
             cache[str(r.finding_id)] = {
                 "ai_risk_score": r.ai_risk_score,
@@ -641,17 +610,11 @@ class ResultPublisher:
                 "context_score": r.context_score,
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
-        
-        # Sauvegarder le cache
-        try:
-            with open(cache_file, "w") as f:
-                json.dump(cache, f, indent=2)
-            logger.info(f"✅ AI scores cache saved: {len(results)} findings → {cache_file}")
-        except Exception as e:
-            logger.error(f"Failed to save cache: {e}")
 
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=2)
 
-    
+        logger.info("AI scores cache saved: %d findings -> %s", len(results), cache_file)
 
 
 class SecurityGate:
@@ -676,24 +639,24 @@ class SecurityGate:
                     "ai_confidence": r.ai_confidence,
                     "top_reason": r.shap_top_features[0]["feature"]
                     if r.shap_top_features
-                    else "n/a",
+                    else "unknown",
                 }
                 for r in critical
             ],
             message=(
                 f"Security Gate: {len(critical)} critical finding(s) detected"
                 if critical
-                else "Security Gate: No critical findings"
+                else "Security Gate: All findings within acceptable risk levels"
             ),
         )
 
         if decision.blocked:
-            logger.warning("=" * 60)
+            logger.warning("=" * 70)
             logger.warning(decision.message)
-            logger.warning("Block threshold: risk_score >= %d", self.threshold)
+            logger.warning("Gate threshold: risk_score >= %d", self.threshold)
             for f in decision.critical_findings[:10]:
                 logger.warning(
-                    "  [%s] %s (score=%d, conf=%.0f%%)",
+                    "  [%s] %s (score=%d, confidence=%.0f%%)",
                     f["ai_risk_level"].upper(),
                     f["title"][:70],
                     f["ai_risk_score"],
@@ -701,12 +664,13 @@ class SecurityGate:
                 )
             if len(decision.critical_findings) > 10:
                 logger.warning(
-                    "  ... and %d more findings", len(decision.critical_findings) - 10
+                    "  ... and %d more critical findings",
+                    len(decision.critical_findings) - 10,
                 )
-            logger.warning("=" * 60)
+            logger.warning("=" * 70)
 
             if ci_mode:
-                logger.error("CI/CD: Deployment blocked by Security Gate")
+                logger.error("CI/CD deployment blocked by Security Gate")
                 sys.exit(1)
         else:
             logger.info(decision.message)
@@ -734,20 +698,15 @@ class LivePredictor:
         dd_url: Optional[str] = None,
         dd_api_key: Optional[str] = None,
         gate_threshold: int = 3,
-        page_size: int = 100,
-    ) -> "LivePredictor":
+    ) -> LivePredictor:
         resolved_url = dd_url or os.environ.get("DEFECTDOJO_URL", "http://localhost:8080")
         resolved_key = dd_api_key or os.environ.get("DEFECTDOJO_API_KEY", "")
 
         dd_client: Optional[DefectDojoClient] = None
         if resolved_key:
-            dd_client = DefectDojoClient(
-                base_url=resolved_url,
-                api_key=resolved_key,
-                page_size=page_size,
-            )
+            dd_client = DefectDojoClient(base_url=resolved_url, api_key=resolved_key)
         else:
-            logger.warning("DEFECTDOJO_API_KEY not set - DefectDojo operations disabled")
+            logger.warning("DEFECTDOJO_API_KEY not configured - DefectDojo updates disabled")
 
         predictor = RiskPredictor(model_path)
         publisher = ResultPublisher(dd_client)
@@ -774,7 +733,7 @@ class LivePredictor:
 
         findings = self._dd_client.get_findings(engagement_id, active_only)
         if not findings:
-            logger.warning("No findings for engagement %d", engagement_id)
+            logger.warning("No findings found for engagement ID: %d", engagement_id)
             return []
 
         all_results: List[PredictionResult] = []
@@ -783,7 +742,7 @@ class LivePredictor:
         for batch_idx in range(total_batches):
             batch = findings[batch_idx * batch_size : (batch_idx + 1) * batch_size]
             logger.info(
-                "Batch %d/%d - %d findings",
+                "Processing batch %d/%d (%d findings)",
                 batch_idx + 1,
                 total_batches,
                 len(batch),
@@ -826,94 +785,136 @@ class LivePredictor:
         for level in order:
             count = counts.get(level, 0)
             if count:
-                bar = "#" * min(count, 40)
+                bar = "█" * min(count, 40)
                 logger.info("  %-10s %4d  %s", level.upper(), count, bar)
-        logger.info("  Avg confidence: %.1f%%  (min: %.1f%%)", avg_conf, min_conf)
+        logger.info("  Average confidence: %.1f%% (minimum: %.1f%%)", avg_conf, min_conf)
 
 
 def _resolve_model_path(raw: str) -> Path:
     p = Path(raw)
     if p.is_absolute():
         return p
-    return Path(__file__).parent / p
+    candidate = Path(__file__).parent / p
+    if candidate.exists():
+        return candidate
+    candidate2 = Path(__file__).parent.parent / p
+    return candidate2
+
+
+def _load_findings_from_source(
+    use_csv: bool,
+    csv_path: Optional[str],
+    engagement_id: Optional[int],
+    dd_client: Optional[DefectDojoClient],
+) -> List[Dict]:
+    if use_csv:
+        logger.info("Loading findings from CSV file")
+        loader = CsvFindingsLoader(csv_path or "data/processed/findings_clean.csv")
+        return loader.get_findings()
+    else:
+        logger.info("Loading findings from DefectDojo API")
+        if not dd_client:
+            raise ValueError("DefectDojo client not configured for API mode")
+        if not engagement_id:
+            raise ValueError("Engagement ID required when loading from DefectDojo")
+        return dd_client.get_findings(engagement_id)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="InvisiThreat - AI Risk Scoring Engine",
+        description="InvisiThreat AI Risk Scoring Engine",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
+
+    mode_group = parser.add_argument_group("Source configuration")
+    mode_group.add_argument(
+        "--use-csv",
+        action="store_true",
+        default=False,
+        help="Load findings from CSV file (for testing)",
+    )
+    mode_group.add_argument(
+        "--csv-path",
+        default="data/processed/findings_clean.csv",
+        help="Path to CSV findings file",
+    )
+    mode_group.add_argument(
         "--engagement-id",
         type=int,
-        required=True,
-        help="DefectDojo engagement ID to score",
+        help="DefectDojo engagement ID (required if not using CSV)",
     )
-    parser.add_argument(
+
+    dojo_group = parser.add_argument_group("DefectDojo configuration")
+    dojo_group.add_argument(
         "--dd-url",
-        default=None,
-        help="DefectDojo URL (default: $DEFECTDOJO_URL)",
+        help="DefectDojo base URL (default: $DEFECTDOJO_URL)",
     )
-    parser.add_argument(
+    dojo_group.add_argument(
         "--dd-api-key",
-        default=None,
         help="DefectDojo API key (default: $DEFECTDOJO_API_KEY)",
     )
-    parser.add_argument(
-        "--model-path",
-        default="models/pipeline_latest.pkl",
-        help="Path to model .pkl file",
-    )
-    parser.add_argument(
+    dojo_group.add_argument(
         "--update-dojo",
         action="store_true",
         default=False,
-        help="Write scores to DefectDojo",
+        help="Update findings in DefectDojo with AI scores",
     )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=False,
-        help="Simulate without writing to DefectDojo",
+
+    model_group = parser.add_argument_group("Model configuration")
+    model_group.add_argument(
+        "--model-path",
+        default="models/pipeline_latest.pkl",
+        help="Path to trained model",
     )
-    parser.add_argument(
-        "--output-file",
-        default=None,
-        help="JSON output file path",
-    )
-    parser.add_argument(
-        "--gate-threshold",
-        type=int,
-        default=3,
-        choices=[0, 1, 2, 3, 4],
-        help="Minimum score to block pipeline (0=info to 4=critical)",
-    )
-    parser.add_argument(
+
+    pred_group = parser.add_argument_group("Prediction options")
+    pred_group.add_argument(
         "--batch-size",
         type=int,
         default=200,
         help="Number of findings per batch",
     )
-    parser.add_argument(
-        "--all",
-        dest="active_only",
-        action="store_false",
-        default=True,
-        help="Include inactive findings",
-    )
-    parser.add_argument(
+    pred_group.add_argument(
         "--no-shap",
         dest="compute_shap",
         action="store_false",
         default=True,
-        help="Disable SHAP calculations",
+        help="Disable SHAP feature explanations",
     )
-    parser.add_argument(
+    pred_group.add_argument(
+        "--gate-threshold",
+        type=int,
+        default=3,
+        choices=[0, 1, 2, 3, 4],
+        help="Security gate threshold (0=info, 4=critical)",
+    )
+
+    output_group = parser.add_argument_group("Output options")
+    output_group.add_argument(
+        "--output-file",
+        help="Save predictions to JSON file",
+    )
+    output_group.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Preview changes without updating DefectDojo",
+    )
+
+    debug_group = parser.add_argument_group("Debug options")
+    debug_group.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        help="Logging level",
+        help="Logging verbosity",
     )
+    debug_group.add_argument(
+        "--ci-mode",
+        action="store_true",
+        default=False,
+        help="Exit with code 1 if security gate blocks deployment",
+    )
+
     return parser
 
 
@@ -923,37 +924,82 @@ def main() -> None:
 
     logging.getLogger().setLevel(getattr(logging, args.log_level))
 
+    logger.info("InvisiThreat AI Risk Scoring Engine starting")
+    logger.info("Mode: %s", "CSV (testing)" if args.use_csv else "DefectDojo (production)")
+
     model_path = _resolve_model_path(args.model_path)
 
-    try:
-        live = LivePredictor.from_env(
-            model_path=model_path,
-            dd_url=args.dd_url,
-            dd_api_key=args.dd_api_key,
-            gate_threshold=args.gate_threshold,
-        )
-    except FileNotFoundError as exc:
-        logger.error(str(exc))
-        sys.exit(2)
+    if args.use_csv:
+        logger.info("=" * 70)
+        logger.info("TEST MODE: CSV-based findings")
+        logger.info("=" * 70)
 
-    if args.output_file:
-        output_path = Path(args.output_file)
+        try:
+            findings = _load_findings_from_source(
+                use_csv=True,
+                csv_path=args.csv_path,
+                engagement_id=None,
+                dd_client=None,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            logger.error("Failed to load findings: %s", exc)
+            sys.exit(1)
+
+        try:
+            predictor = RiskPredictor(model_path)
+            publisher = ResultPublisher(client=None)
+            gate = SecurityGate(threshold=args.gate_threshold)
+        except FileNotFoundError as exc:
+            logger.error("Failed to initialize predictor: %s", exc)
+            sys.exit(2)
+
+        logger.info("Scoring %d findings with AI model", len(findings))
+        all_results = predictor.predict_batch(findings, compute_shap=args.compute_shap)
+
+        output_path = Path(args.output_file) if args.output_file else Path("logs/predictions_test.json")
+        publisher.publish_to_file(all_results, output_path)
+
+        publisher._save_scores_to_cache(all_results)
+        gate.evaluate(all_results, ci_mode=args.ci_mode)
+
+        logger.info("CSV test mode completed successfully")
+
     else:
-        script_dir = Path(__file__).parent
-        output_path = script_dir / f"logs/predictions_eng_{args.engagement_id}.json"
+        logger.info("=" * 70)
+        logger.info("PRODUCTION MODE: DefectDojo API")
+        logger.info("=" * 70)
 
-    ci_mode = os.environ.get("CI", "").lower() in ("true", "1", "yes")
+        if not args.engagement_id:
+            logger.error("Engagement ID required for DefectDojo mode")
+            sys.exit(1)
 
-    live.run(
-        engagement_id=args.engagement_id,
-        active_only=args.active_only,
-        update_dojo=args.update_dojo,
-        dry_run=args.dry_run,
-        output_path=output_path,
-        ci_mode=ci_mode,
-        compute_shap=args.compute_shap,
-        batch_size=args.batch_size,
-    )
+        try:
+            live = LivePredictor.from_env(
+                model_path=model_path,
+                dd_url=args.dd_url,
+                dd_api_key=args.dd_api_key,
+                gate_threshold=args.gate_threshold,
+            )
+        except FileNotFoundError as exc:
+            logger.error("Failed to initialize predictor: %s", exc)
+            sys.exit(2)
+
+        output_path = Path(args.output_file) if args.output_file else Path(f"logs/predictions_eng_{args.engagement_id}.json")
+
+        ci_mode = args.ci_mode or os.environ.get("CI", "").lower() in ("true", "1", "yes")
+
+        live.run(
+            engagement_id=args.engagement_id,
+            active_only=True,
+            update_dojo=args.update_dojo,
+            dry_run=args.dry_run,
+            output_path=output_path,
+            ci_mode=ci_mode,
+            compute_shap=args.compute_shap,
+            batch_size=args.batch_size,
+        )
+
+        logger.info("Production mode completed successfully")
 
 
 if __name__ == "__main__":

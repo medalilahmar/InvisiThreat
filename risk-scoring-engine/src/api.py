@@ -17,6 +17,8 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from jira_service import jira_service, JiraService
+from pydantic import BaseModel
 from pydantic import BaseModel, Field, field_validator
 import urllib.parse
 from dotenv import load_dotenv
@@ -48,7 +50,6 @@ logging.basicConfig(
 logger = logging.getLogger("invisithreat.api")
 
 
-#  CONSTANTES
 API_VERSION = "3.1.0"
 APP_START   = datetime.now(timezone.utc)
 
@@ -61,13 +62,12 @@ DEFECTDOJO_API_KEY = os.getenv("DEFECTDOJO_API_KEY")
 RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
 RATE_LIMIT_WINDOW   = int(os.getenv("RATE_LIMIT_WINDOW",   "60"))
 
-# TTL du cache (secondes)
 CACHE_TTL_PRODUCTS    = 300
 CACHE_TTL_TESTS       = 300
 CACHE_TTL_FINDINGS    = 60
 SCORES_CACHE_TTL      = 60
 
-# Chemin CSV local (source de vérité)
+
 CSV_FINDINGS_PATH = Path(os.getenv("CSV_FINDINGS_PATH", "data/processed/findings_clean.csv"))
 
 RISK_LEVELS: Dict[int, str]  = {0: "info", 1: "low", 2: "medium", 3: "high", 4: "critical"}
@@ -92,7 +92,74 @@ FEATURE_COLS: List[str] = [
 ]
 
 
-#  CACHE GÉNÉRIQUE (TTL)
+class JiraCreateIssueRequest(BaseModel):
+    finding_id: int
+    title: str
+    severity: str
+    cvss_score: float
+    description: Optional[str] = None
+    cve: Optional[str] = None
+    cwe: Optional[str] = None
+    file_path: Optional[str] = None
+    line: Optional[int] = None
+    tags: Optional[List[str]] = None
+    risk_level: Optional[str] = None
+    ai_score: Optional[float] = None
+    ai_confidence: Optional[float] = None
+    engagement_id: Optional[int] = None
+    product_name: Optional[str] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "finding_id": 42,
+                "title": "SQL Injection in login form",
+                "severity": "CRITICAL",
+                "cvss_score": 9.8,
+                "description": "Attacker can execute arbitrary SQL...",
+                "cve": "CVE-2024-1234",
+                "cwe": "CWE-89",
+                "file_path": "src/login.php",
+                "line": 45,
+                "tags": ["production", "external", "sensitive"],
+                "risk_level": "Critical",
+                "ai_score": 92,
+                "ai_confidence": 0.87,
+                "engagement_id": 5,
+                "product_name": "MonApplication"
+            }
+        }
+
+
+class JiraIssueResponse(BaseModel):
+    key: str
+    id: str
+    self: str
+    url: Optional[str] = None
+    already_exists: bool = False
+    message: Optional[str] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "key": "INV-123",
+                "id": "10000",
+                "self": "https://medalilahmar.atlassian.net/rest/api/2/issue/10000",
+                "url": "https://medalilahmar.atlassian.net/browse/INV-123",
+                "already_exists": False,
+                "message": "Issue créée avec succès : INV-123"
+            }
+        }
+
+
+class JiraHealthResponse(BaseModel):
+    status: str
+    jira_server: Optional[str] = None
+    project_key: Optional[str] = None
+    connected: bool
+    message: Optional[str] = None
+
+
 _cache_store: Dict[str, Tuple[Any, float]] = {}
 _scores_cache_memory: Dict[str, Any]       = {}
 _scores_cache_loaded_at: float             = 0.0
@@ -136,15 +203,9 @@ def invalidate_cache(prefix: str = "") -> int:
     return len(keys)
 
 
-#  LOCAL DATA LOADER (CSV First)
-#  Charge findings_clean.csv et construit
-#  la hiérarchie complète en mémoire
+
 class LocalDataLoader:
-    """
-    Charge et gère les données locales depuis CSV.
-    Source de vérité pour les findings avec hiérarchie
-    stricte : product → engagement → test → finding
-    """
+  
 
     def __init__(self, csv_path: Path):
         self.csv_path = csv_path
@@ -157,7 +218,6 @@ class LocalDataLoader:
         self._ready = False
 
     def load(self) -> bool:
-        """Charge les données depuis CSV et construit la hiérarchie."""
         if not self.csv_path.exists():
             logger.warning(f"CSV introuvable : {self.csv_path}")
             return False
@@ -166,7 +226,6 @@ class LocalDataLoader:
             self.df_findings = pd.read_csv(self.csv_path)
             logger.info(f"[LocalDataLoader] CSV chargé : {len(self.df_findings)} findings")
 
-            # Construire les maps
             self._build_hierarchy()
             self._loaded_at = datetime.now(timezone.utc)
             self._ready = True
@@ -183,7 +242,6 @@ class LocalDataLoader:
             return False
 
     def _build_hierarchy(self) -> None:
-        """Construit les maps de hiérarchie depuis le CSV."""
         self.products.clear()
         self.engagements.clear()
         self.tests.clear()
@@ -199,7 +257,6 @@ class LocalDataLoader:
                 logger.error(f"[LocalDataLoader] Missing columns: {missing_cols}")
                 raise KeyError(f"Missing columns: {missing_cols}")
 
-            # Produits
             for _, row in self.df_findings[
                 ['product_id', 'product_name']
             ].drop_duplicates().iterrows():
@@ -210,7 +267,6 @@ class LocalDataLoader:
                     'engagements': set(),
                 }
 
-            # Engagements
             for _, row in self.df_findings[
                 ['product_id', 'engagement_id', 'engagement_name']
             ].drop_duplicates().iterrows():
@@ -225,8 +281,7 @@ class LocalDataLoader:
                 if prod_id in self.products:
                     self.products[prod_id]['engagements'].add(eng_id)
 
-            # Findings
-            # ✅ MAP severity_num → severity_label
+            
             SEVERITY_MAP = {
                 0: 'info',
                 1: 'low',
@@ -245,7 +300,6 @@ class LocalDataLoader:
                 finding_dict['product_id'] = prod_id
                 finding_dict['engagement_id'] = eng_id
 
-                # ✅ CONVERSION : severity_num → severity_label
                 severity_num = row['severity_num']
             
                 if pd.isna(severity_num):
@@ -271,7 +325,6 @@ class LocalDataLoader:
 
                 self.findings_by_id[finding_id] = finding_dict
 
-                # Lier engagement si nécessaire
                 if eng_id in self.engagements:
                     if 'findings' not in self.engagements[eng_id]:
                         self.engagements[eng_id]['findings'] = []
@@ -292,10 +345,7 @@ class LocalDataLoader:
             raise
 
     def get_findings_for_product(self, product_id: int) -> List[Dict]:
-        """
-        Retourne TOUS les findings d'un produit
-        en descendant strictement : produit → engagements → findings
-        """
+       
         if not self._ready:
             return []
 
@@ -304,7 +354,6 @@ class LocalDataLoader:
             return results
 
         prod = self.products[product_id]
-        # Descendre sur tous les engagements du produit
         for eng_id in prod.get('engagements', set()):
             if eng_id in self.engagements:
                 eng_findings = self.engagements[eng_id].get('findings', [])
@@ -316,7 +365,6 @@ class LocalDataLoader:
         return results
 
     def get_findings_for_engagement(self, engagement_id: int) -> List[Dict]:
-        """Retourne les findings d'un engagement spécifique."""
         if not self._ready:
             return []
 
@@ -333,13 +381,11 @@ class LocalDataLoader:
         return results
 
     def get_all_findings(self) -> List[Dict]:
-        """Retourne TOUS les findings du CSV."""
         if not self._ready:
             return []
         return list(self.findings_by_id.values())
 
     def get_products(self) -> List[Dict]:
-        """Retourne tous les produits."""
         return [
             {
                 'id': p['id'],
@@ -350,7 +396,6 @@ class LocalDataLoader:
         ]
 
     def get_engagements_for_product(self, product_id: int) -> List[Dict]:
-        """Retourne les engagements d'un produit."""
         if product_id not in self.products:
             return []
 
@@ -374,7 +419,6 @@ class LocalDataLoader:
         return self._loaded_at
 
 
-#  MODÈLES PYDANTIC
 class FindingInput(BaseModel):
     severity:        str            = Field(..., description="critical, high, medium, low, info")
     cvss_score:      float          = Field(0.0, ge=0.0, le=10.0)
@@ -561,7 +605,6 @@ class FindingSummaryResponse(BaseModel):
     context_score:   Optional[int]   = None
 
 
-#  HELPERS
 def _compute_age_days(created_str: Optional[str]) -> Optional[int]:
     if not created_str:
         return None
@@ -644,7 +687,6 @@ def safe_str(val: Any, default: str = "") -> str:
 
 
 def safe_int(val: Any) -> Optional[int]:
-    """Convertit en int, retourne None si NaN ou invalide."""
     if val is None or val == "":
         return None
     try:
@@ -658,7 +700,6 @@ def safe_int(val: Any) -> Optional[int]:
 
 
 def safe_float(val: Any, default: float = 0.0) -> float:
-    """Convertit en float, retourne default si NaN."""
     if val is None or val == "":
         return default
     try:
@@ -763,7 +804,6 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"Démarrage InvisiThreat AI Risk Engine API v{API_VERSION}")
 
-    # ── Chargement modèle ────────────────────
     if model_manager.load_model():
         logger.info("✅ Modèle ML chargé")
         try:
@@ -800,28 +840,27 @@ async def lifespan(app: FastAPI):
                         return {"top_features": [], "base_value": 0}
 
             shap_explainer = SimpleShapExplainer(estimator)
-            logger.info("✅ SHAP explainer chargé")
+            logger.info(" SHAP explainer chargé")
         except ImportError:
-            logger.warning("⚠️ SHAP non installé — explications désactivées")
+            logger.warning(" SHAP non installé — explications désactivées")
         except Exception as e:
-            logger.warning(f"⚠️ SHAP explainer échoué : {e}")
+            logger.warning(f" SHAP explainer échoué : {e}")
     else:
-        logger.warning("❌ Modèle non chargé — prédictions retourneront 503")
+        logger.warning(" Modèle non chargé — prédictions retourneront 503")
 
-    # ── LocalDataLoader (CSV First) ──────────
     try:
         local_data_loader = LocalDataLoader(CSV_FINDINGS_PATH)
         if local_data_loader.load():
             logger.info(
-                f"✅ LocalDataLoader initialisé depuis CSV : "
+                f" LocalDataLoader initialisé depuis CSV : "
                 f"{len(local_data_loader.products)} produits, "
                 f"{len(local_data_loader.engagements)} engagements, "
                 f"{len(local_data_loader.findings_by_id)} findings"
             )
         else:
-            logger.warning("⚠️ LocalDataLoader : CSV non accessible, mode dégradé")
+            logger.warning(" LocalDataLoader : CSV non accessible, mode dégradé")
     except Exception as e:
-        logger.error(f"❌ LocalDataLoader échoué : {e}")
+        logger.error(f" LocalDataLoader échoué : {e}")
 
     yield
     logger.info("API arrêtée")
@@ -831,7 +870,6 @@ async def lifespan(app: FastAPI):
 
 
 
-#  APPLICATION FASTAPI
 app = FastAPI(
     title       = "InvisiThreat AI Risk Engine",
     description = "API de scoring IA pour les vulnérabilités de sécurité",
@@ -853,9 +891,7 @@ app.add_middleware(
 
 @app.get("/debug/severity-check", tags=["Debug"])
 async def debug_severity_check() -> Dict[str, Any]:
-    """
-    ✅ Affiche les 10 premiers findings avec severité brute vs traitée
-    """
+    
     loader = _require_local_loader()
     scores_cache = get_scores_cache()
     
@@ -907,9 +943,6 @@ async def request_middleware(request: Request, call_next):
     return response
 
 
-# ─────────────────────────────────────────────
-#  GUARDS
-# ─────────────────────────────────────────────
 def _require_local_loader() -> LocalDataLoader:
     if local_data_loader is None or not local_data_loader.is_ready:
         raise HTTPException(
@@ -919,9 +952,6 @@ def _require_local_loader() -> LocalDataLoader:
     return local_data_loader
 
 
-# ─────────────────────────────────────────────
-#  ENDPOINTS — INFO
-# ─────────────────────────────────────────────
 @app.get("/", tags=["Info"])
 async def root() -> Dict[str, Any]:
     return {
@@ -972,9 +1002,6 @@ async def metrics() -> Dict[str, Any]:
     }
 
 
-# ─────────────────────────────────────────────
-#  ENDPOINTS — MODÈLE
-# ─────────────────────────────────────────────
 @app.get("/model/info", tags=["Model"])
 async def model_info() -> Dict[str, Any]:
     if not model_manager.is_ready():
@@ -1002,14 +1029,9 @@ async def reload_model() -> Dict[str, Any]:
     raise HTTPException(status_code=500, detail="Rechargement du modèle échoué")
 
 
-# ─────────────────────────────────────────────
-#  ENDPOINTS — DEFECTDOJO (LOCAL CSV FIRST)
-#  Hiérarchie stricte : Product → Engagement → Test → Finding
-# ─────────────────────────────────────────────
 
 @app.get("/defectdojo/products", response_model=List[ProductResponse], tags=["DefectDojo"])
 async def get_products() -> List[ProductResponse]:
-    """Liste tous les produits depuis le CSV local."""
     loader = _require_local_loader()
     products = loader.get_products()
     return [
@@ -1023,15 +1045,11 @@ async def get_products() -> List[ProductResponse]:
 
 @app.get("/defectdojo/engagements", response_model=List[EngagementResponse], tags=["DefectDojo"])
 async def get_engagements(product_id: Optional[int] = None) -> List[EngagementResponse]:
-    """
-    Liste les engagements.
-    Si product_id est fourni, filtre sur ce produit uniquement.
-    """
+ 
     loader = _require_local_loader()
 
     results = []
     if product_id is not None:
-        # Filtre : descendre produit → engagements
         if product_id not in loader.products:
             logger.warning(f"[get_engagements] Produit {product_id} introuvable")
             return results
@@ -1047,7 +1065,6 @@ async def get_engagements(product_id: Optional[int] = None) -> List[EngagementRe
             for e in engs
         ]
     else:
-        # Retour tous les engagements
         for eng in loader.engagements.values():
             prod_id = safe_int(eng['product_id'])
             results.append(
@@ -1073,12 +1090,7 @@ async def get_findings(
     product_id:       Optional[int] = None,
     limit:            int           = 2000,
 ) -> List[FindingSummaryResponse]:
-    """
-    Récupère les findings en respectant strictement la hiérarchie CSV.
-    - Si engagement_id : retourne findings de cet engagement uniquement
-    - Si product_id : descend produit → engagements → findings
-    - Sinon : retourne tous les findings
-    """
+
     loader = _require_local_loader()
     scores_cache = get_scores_cache()
 
@@ -1086,22 +1098,18 @@ async def get_findings(
 
     try:
         if engagement_id is not None:
-            # Cas 1 : filtre par engagement
             if engagement_id not in loader.engagements:
                 raise HTTPException(status_code=404, detail=f"Engagement {engagement_id} introuvable")
             raw_findings = loader.get_findings_for_engagement(engagement_id)
 
         elif product_id is not None:
-            # Cas 2 : descend produit → engagements → findings
             if product_id not in loader.products:
                 raise HTTPException(status_code=404, detail=f"Produit {product_id} introuvable")
             raw_findings = loader.get_findings_for_product(product_id)
 
         else:
-            # Cas 3 : tous les findings
             raw_findings = loader.get_all_findings()
 
-        # Convertir avec gestion complète des NaN
         results = [_finding_to_response(f, scores_cache) for f in raw_findings]
         logger.info(
             f"[get_findings] engagement={engagement_id}, product={product_id} → {len(results)} findings"
@@ -1123,14 +1131,9 @@ async def get_product_findings(
     product_id: int,
     limit:      int = 2000,
 ) -> List[FindingSummaryResponse]:
-    """
-    Findings d'un produit.
-    Descend strictement : produit → engagements → findings.
-    Le compte retourné est identique au CSV (source de vérité).
-    """
+    
     loader = _require_local_loader()
 
-    # Vérifier que le produit existe
     if product_id not in loader.products:
         raise HTTPException(status_code=404, detail=f"Produit {product_id} introuvable")
 
@@ -1162,7 +1165,6 @@ async def get_engagement_findings(
     """
     loader = _require_local_loader()
 
-    # Vérifier que l'engagement existe
     if engagement_id not in loader.engagements:
         raise HTTPException(status_code=404, detail=f"Engagement {engagement_id} introuvable")
 
@@ -1184,7 +1186,6 @@ async def get_engagement_findings(
     tags=["DefectDojo"],
 )
 async def get_finding_by_id(finding_id: int) -> FindingSummaryResponse:
-    """Retourne un finding individuel depuis le CSV."""
     loader = _require_local_loader()
 
     if finding_id not in loader.findings_by_id:
@@ -1198,15 +1199,11 @@ async def get_finding_by_id(finding_id: int) -> FindingSummaryResponse:
     except Exception as e:
         logger.error(f"[get_finding_by_id] Erreur : {e}")
         raise HTTPException(status_code=500, detail=str(e))
-# ─────────────────────────────────────────────
-#  ENDPOINTS — ADMIN
-# ─────────────────────────────────────────────
+
+
 @app.post("/data/refresh", tags=["Admin"])
 async def refresh_data() -> Dict[str, Any]:
-    """
-    Force le rechargement des données depuis le CSV.
-    À appeler après modification du CSV ou nouveau export DefectDojo.
-    """
+    
     loader = _require_local_loader()
 
     try:
@@ -1235,7 +1232,6 @@ async def invalidate_findings_cache(prefix: str = "") -> Dict[str, Any]:
     return {"invalidated": count, "prefix": prefix}
 
 
-#  ENDPOINTS — PRÉDICTION IA
 
 @app.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
 async def predict(finding: FindingInput, request: Request) -> PredictionResponse:
@@ -1338,7 +1334,6 @@ async def predict_batch(batch: BatchInput, request: Request) -> BatchPredictionR
         raise HTTPException(status_code=500, detail=str(e))
 
 
-#  ENDPOINTS — LLM
 
 class LLMRequest(BaseModel):
     finding_id:  Optional[int]       = None
@@ -1473,6 +1468,150 @@ async def llm_health():
         }
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+    
+
+
+@app.post(
+    "/defectdojo/findings/{finding_id}/create-jira-issue",  
+    response_model=JiraIssueResponse,
+    tags=["Jira"],
+    summary="Crée une issue Jira pour un finding avec score IA + LLM",
+)
+async def create_jira_issue_for_finding(finding_id: int):  
+
+
+    existing = jira_service._find_existing_issue(finding_id)
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Un ticket Jira existe déjà : {existing.key}"
+        )
+   
+    if local_data_loader is None or not local_data_loader.is_ready:
+        raise HTTPException(status_code=503, detail="LocalDataLoader non prêt")
+    
+    finding = local_data_loader.findings_by_id.get(finding_id)
+    if not finding:
+        raise HTTPException(status_code=404, detail=f"Finding {finding_id} introuvable")
+
+    try:
+        def dict_to_features(f):
+            inp = FindingInput(
+                severity=f.get("severity", "info"),
+                cvss_score=safe_float(f.get("cvss_score"), 0.0),
+                title=f.get("title", ""),
+                description=f.get("description", ""),
+                tags=f.get("tags", []),
+                days_open=_compute_age_days(f.get("created")) or 0,
+                epss_score=safe_float(f.get("epss_score"), 0.0),
+                epss_percentile=safe_float(f.get("epss_percentile"), 0.0),
+                has_cve=1 if f.get("cve") else 0,
+                has_cwe=1 if f.get("cwe") else 0,
+            )
+            feat = inp.to_features()
+            expected = model_manager.feature_columns
+            return pd.DataFrame([{c: feat.get(c, 0.0) for c in expected}])
+        
+        X = dict_to_features(finding)
+        classes_arr, probas_arr = model_manager.predict_batch_cached(X)
+        risk_class = int(classes_arr[0])
+        probas = probas_arr[0]
+        classes = model_manager.classes
+        risk_score = round(sum(c * p for c, p in zip(classes, probas)) * 100 / 4, 2)
+        confidence = round(float(max(probas)), 4)
+        proba_dict = {CLASS_LABELS.get(c, str(c)): round(p, 4) for c, p in zip(classes, probas)}
+        risk_level = CLASS_LABELS.get(risk_class, "Unknown")
+        ai_result = {
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "confidence": confidence,
+            "probabilities": proba_dict,
+        }
+    except Exception as e:
+        logger.warning(f"Prédiction IA échouée pour finding {finding_id} : {e}")
+        ai_result = {
+            "risk_level": finding.get("severity", "Medium").capitalize(),
+            "risk_score": 50,
+            "confidence": 0.0,
+            "probabilities": {},
+        }
+
+    explanation = None
+    recommendation = None
+    if _LLM_AVAILABLE:
+        try:
+            llm_req = LLMRequest(
+                finding_id=finding_id,
+                title=finding.get("title", ""),
+                severity=ai_result.get("risk_level", "medium"),
+                cvss_score=finding.get("cvss_score", 0.0),
+                description=finding.get("description", ""),
+                cve=finding.get("cve", ""),
+                tags=finding.get("tags", []),
+                risk_level=ai_result.get("risk_level"),
+            )
+            explanation = await explain_with_llm(llm_req)
+            recommendation = await recommend_with_llm(llm_req)
+        except Exception as e:
+            logger.warning(f"LLM indisponible pour finding {finding_id} : {e}")
+
+    try:
+        result = jira_service.create_security_issue(
+            finding=finding,
+            ai_prediction=ai_result,
+            llm_explanation=explanation.dict() if explanation else None,
+            llm_recommendation=recommendation.dict() if recommendation else None,
+        )
+    except Exception as e:
+        logger.error(f"Erreur création issue Jira : {e}")
+        raise HTTPException(status_code=502, detail=f"Erreur Jira : {str(e)}")
+
+    message = (
+        "Issue déjà existante" if result.get("already_exists")
+        else f"Issue créée avec succès : {result['jira_key']}"
+    )
+    
+    return JiraIssueResponse(
+        key=result["jira_key"],
+        id=result.get("jira_id", ""),
+        self=result.get("jira_self", ""),
+        url=result.get("jira_url"),
+        already_exists=result.get("already_exists", False),
+        message=message
+    )
+
+
+@app.get("/defectdojo/findings/{finding_id}/jira-issue", tags=["Jira"])
+async def get_jira_issue_for_finding(finding_id: int):
+   
+    if not local_data_loader or not local_data_loader.is_ready:
+        raise HTTPException(503, "LocalDataLoader non prêt")
+    if finding_id not in local_data_loader.findings_by_id:
+        raise HTTPException(404, detail=f"Finding {finding_id} introuvable")
+
+    try:
+        issue = jira_service._find_existing_issue(finding_id)
+        if issue:
+            return {
+                "exists": True,
+                "jira_key": issue.key,
+                "jira_url": f"{jira_service.server}/browse/{issue.key}",
+                "created": issue.fields.created if hasattr(issue, 'fields') else None,
+            }
+        else:
+            return {"exists": False, "jira_key": None, "jira_url": None}
+    except Exception as e:
+        logger.error(f"Erreur lors de la vérification Jira pour finding {finding_id}: {e}")
+        return {"exists": False, "jira_key": None, "jira_url": None}
+
+
+
+@app.get("/jira/health", response_model=JiraHealthResponse, tags=["Jira"])
+async def jira_health():
+    """Teste la connexion à Jira"""
+    health = jira_service.health_check()
+    return JiraHealthResponse(**health)
+
 
 
 if __name__ == "__main__":
@@ -1483,3 +1622,5 @@ if __name__ == "__main__":
     logger.info(f"Démarrage API sur {host}:{port}")
     logger.info(f"Documentation : http://localhost:{port}/docs")
     uvicorn.run("api:app", host=host, port=port, reload=reload_mode, log_level="info")
+
+

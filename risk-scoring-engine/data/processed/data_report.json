@@ -1,37 +1,76 @@
 {
-  "version": "5.0",
-  "timestamp": "2026-04-20T17:04:42.276917",
-  "label_strategy": "severity_only + days_to_fix_correction (zero leakage)",
-  "n_rows_total": 1311,
-  "n_rows_training": 1310,
-  "n_rows_excluded": 1,
-  "n_cols": 50,
-  "leakage_status": "CLEAN \u2014 severity_num et days_to_fix absents de FEATURE_COLS",
-  "label_source_dist": {
-    "fast_fix_boost_1.40": 1310,
-    "excluded": 1
+  "version": "9.0",
+  "timestamp": "2026-04-25T00:27:35.274838",
+  "label_strategy": "severity_defectdojo_v9 : severity_num -> MERGE_MAP -> 4 classes. Aucune correction heuristique. L'intelligence = modele ML (LightGBM).",
+  "class_names": {
+    "0": "Low",
+    "1": "Medium",
+    "2": "High",
+    "3": "Critical"
   },
-  "days_to_fix_coverage": {
-    "count": 1311,
-    "pct": 100.0
+  "n_rows_total": 1905,
+  "n_rows_training": 1904,
+  "n_rows_excluded": 1,
+  "n_cols": 49,
+  "n_features_ml": 22,
+  "leakage_status": "CLEAN",
+  "correlations": {
+    "severity_num_vs_risk_class": 0.9794,
+    "cvss_score_vs_risk_class": 0.3426,
+    "epss_score_vs_risk_class": 0.2327,
+    "delay_norm_vs_risk_class": 0.2123,
+    "cvss_vs_epss_redundancy": 0.247
   },
   "risk_class_dist": {
-    "0.0": 29,
-    "1.0": 153,
-    "3.0": 759,
-    "4.0": 369
+    "0.0": 275,
+    "1.0": 1180,
+    "2.0": 433,
+    "3.0": 16
   },
-  "feature_stats": {
-    "exploit_risk_mean": 0.0127,
-    "context_score_dist": {
-      "0": 355,
-      "2": 296,
-      "1": 283,
-      "3": 275,
-      "5": 82,
-      "4": 20
-    },
-    "days_open_high_mean": 16.0,
-    "epss_with_score": 257
-  }
+  "signal_coverage": {
+    "days_to_fix_count": 1905,
+    "days_to_fix_pct": 100.0,
+    "epss_positive_count": 530,
+    "has_cve_count": 537
+  },
+  "delay_norm_stats": {
+    "count": 1905.0,
+    "mean": 0.8957,
+    "std": 0.2925,
+    "min": 0.0759,
+    "25%": 1.0,
+    "50%": 1.0,
+    "75%": 1.0,
+    "max": 1.0
+  },
+  "product_fp_rate_laplace": {
+    "min": 0.0012,
+    "max": 0.0043
+  },
+  "sample_weight_generated": true,
+  "feature_cols_count": 22,
+  "feature_cols": [
+    "cvss_score",
+    "cvss_score_norm",
+    "has_cve",
+    "has_cwe",
+    "epss_score",
+    "epss_percentile",
+    "has_high_epss",
+    "age_days",
+    "age_days_norm",
+    "delay_norm",
+    "tag_urgent",
+    "tag_in_production",
+    "tag_sensitive",
+    "tag_external",
+    "tags_count",
+    "tags_count_norm",
+    "context_score",
+    "exposure_norm",
+    "product_fp_rate",
+    "cvss_x_has_cve",
+    "age_x_cvss",
+    "epss_x_cvss"
+  ]
 }

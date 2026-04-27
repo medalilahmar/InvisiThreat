@@ -1183,3 +1183,1730 @@ weighted avg       0.89      0.88      0.86       120
 2026-03-19 12:19:04,800 [INFO] Model saved: models\pipeline_20260319_121904.pkl
 2026-03-19 12:19:04,800 [INFO] Metadata:    models\pipeline_latest_meta.json
 2026-03-19 12:19:04,801 [INFO] Training complete — F1-weighted=0.8574  F1-macro=0.6802  ROC-AUC=0.965
+2026-04-21 12:18:01,591 [INFO] 
+======================================================================
+2026-04-21 12:18:01,592 [INFO] InvisiThreat AI Risk Engine — Training v4.4 (COMPLETE)
+2026-04-21 12:18:01,592 [INFO] ======================================================================
+
+2026-04-21 12:18:01,617 [INFO] ✓ Loaded: 1311 rows × 50 cols
+2026-04-21 12:18:01,618 [INFO] ✓ Features available: 23/23
+2026-04-21 12:18:01,619 [INFO] ✓ Target samples: 1310 valid | 1 excluded
+2026-04-21 12:18:01,624 [INFO] Label sources:
+label_source
+fast_fix_boost_1.40    1310
+2026-04-21 12:18:01,628 [INFO] 
+Target distribution:
+2026-04-21 12:18:01,629 [INFO]   Info         (0):    29 samples  (  2.2%)
+2026-04-21 12:18:01,629 [INFO]   Low          (1):   153 samples  ( 11.7%)
+2026-04-21 12:18:01,630 [INFO]   High         (3):   759 samples  ( 57.9%)
+2026-04-21 12:18:01,630 [INFO]   Critical     (4):   369 samples  ( 28.2%)
+2026-04-21 12:18:01,637 [INFO] ✓ Labels re-mapped for XGBoost compatibility: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-21 12:18:01,644 [INFO] 
+✓ Split: 1048 train | 262 test
+
+2026-04-21 12:18:01,656 [INFO] ✓ Features: (1310, 23) | Target: (1310,)
+2026-04-21 12:18:01,658 [INFO] 
+Training set (Encoded):
+2026-04-21 12:18:01,659 [INFO]   Info         (0):    23 samples  (  2.2%)
+2026-04-21 12:18:01,659 [INFO]   Low          (1):   123 samples  ( 11.7%)
+2026-04-21 12:18:01,659 [INFO]   Medium       (2):   607 samples  ( 57.9%)
+2026-04-21 12:18:01,659 [INFO]   High         (3):   295 samples  ( 28.1%)
+2026-04-21 12:18:01,660 [INFO] 
+Test set (Encoded):
+2026-04-21 12:18:01,661 [INFO]   Info         (0):     6 samples  (  2.3%)
+2026-04-21 12:18:01,661 [INFO]   Low          (1):    30 samples  ( 11.5%)
+2026-04-21 12:18:01,661 [INFO]   Medium       (2):   152 samples  ( 58.0%)
+2026-04-21 12:18:01,661 [INFO]   High         (3):    74 samples  ( 28.2%)
+2026-04-21 12:18:01,662 [INFO] 
+======================================================================
+2026-04-21 12:18:01,662 [INFO] Training RandomForest...
+2026-04-21 12:18:01,662 [INFO] ======================================================================
+2026-04-21 12:18:01,663 [INFO] [RandomForest] Hyperparameter search (2-fold stratified CV)...
+2026-04-21 12:18:11,438 [INFO] [RandomForest] Best F1-weighted (CV): 0.9185
+2026-04-21 12:18:11,439 [INFO] 
+======================================================================
+2026-04-21 12:18:11,439 [INFO] Training XGBoost...
+2026-04-21 12:18:11,440 [INFO] ======================================================================
+2026-04-21 12:18:11,441 [INFO] [XGBoost] Hyperparameter search (2-fold stratified CV)...
+2026-04-21 12:18:19,220 [INFO] [XGBoost] Best F1-weighted (CV): 0.9218
+2026-04-21 12:18:19,221 [INFO] 
+======================================================================
+2026-04-21 12:18:19,222 [INFO] Training LightGBM...
+2026-04-21 12:18:19,222 [INFO] ======================================================================
+2026-04-21 12:18:19,224 [INFO] [LightGBM] Hyperparameter search (2-fold stratified CV)...
+2026-04-21 12:19:00,995 [INFO] [LightGBM] Best F1-weighted (CV): 0.9222
+2026-04-21 12:19:00,996 [INFO] 
+======================================================================
+2026-04-21 12:19:00,996 [INFO] MODEL COMPARISON & RANKING
+2026-04-21 12:19:00,997 [INFO] ======================================================================
+2026-04-21 12:19:00,997 [INFO]   #1 LightGBM        F1-weighted: 0.9222  🏆 ← SELECTED
+2026-04-21 12:19:00,998 [INFO]   #2 XGBoost         F1-weighted: 0.9218
+2026-04-21 12:19:00,998 [INFO]   #3 RandomForest    F1-weighted: 0.9185
+2026-04-21 12:19:00,999 [INFO] ======================================================================
+
+2026-04-21 12:19:00,999 [INFO] Calibrating model probabilities (Platt scaling)...
+2026-04-21 12:19:01,001 [INFO]   Auto-adjusted CV folds: 3 (min class count: 23)
+2026-04-21 12:19:03,265 [INFO] ✓ Calibration complete
+2026-04-21 12:19:03,266 [INFO] 
+======================================================================
+2026-04-21 12:19:03,266 [INFO] MODEL EVALUATION ON TEST SET
+2026-04-21 12:19:03,267 [INFO] ======================================================================
+
+2026-04-21 12:19:03,394 [INFO]   Metrics:
+2026-04-21 12:19:03,395 [INFO]   F1-weighted: 0.8970
+2026-04-21 12:19:03,396 [INFO]   F1-macro:    0.7538
+2026-04-21 12:19:03,396 [INFO]   Balanced Accuracy: 0.7435
+2026-04-21 12:19:03,423 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.50      0.50      0.50         6
+         Low       0.67      0.53      0.59        30
+      Medium       0.91      0.94      0.92       152
+        High       1.00      1.00      1.00        74
+
+    accuracy                           0.90       262
+   macro avg       0.77      0.74      0.75       262
+weighted avg       0.90      0.90      0.90       262
+
+2026-04-21 12:19:03,442 [INFO]   ROC-AUC OvR (weighted): 0.9622
+2026-04-21 12:19:03,496 [INFO] 
+Generating confusion matrix...
+2026-04-21 12:19:04,649 [INFO] ✓ Confusion matrix saved
+2026-04-21 12:19:04,650 [INFO] Generating feature importance...
+2026-04-21 12:19:05,695 [INFO] Feature importance saved
+2026-04-21 12:19:05,695 [INFO] 
+Top 15 Features:
+2026-04-21 12:19:05,696 [INFO]    1. tags_count                               2917.0000
+2026-04-21 12:19:05,697 [INFO]    2. age_days                                 1624.0000
+2026-04-21 12:19:05,698 [INFO]    3. cvss_score                               1581.0000
+2026-04-21 12:19:05,698 [INFO]    4. age_x_cvss                               970.0000
+2026-04-21 12:19:05,699 [INFO]    5. tags_count_norm                          801.0000
+2026-04-21 12:19:05,699 [INFO]    6. context_score                            777.0000
+2026-04-21 12:19:05,700 [INFO]    7. epss_score                               628.0000
+2026-04-21 12:19:05,701 [INFO]    8. tag_urgent                               571.0000
+2026-04-21 12:19:05,701 [INFO]    9. cvss_score_norm                          482.0000
+2026-04-21 12:19:05,702 [INFO]   10. age_days_norm                            475.0000
+2026-04-21 12:19:05,703 [INFO]   11. tag_sensitive                            459.0000
+2026-04-21 12:19:05,703 [INFO]   12. tag_in_production                        424.0000
+2026-04-21 12:19:05,704 [INFO]   13. tag_external                             304.0000
+2026-04-21 12:19:05,704 [INFO]   14. cvss_x_has_cve                           302.0000
+2026-04-21 12:19:05,704 [INFO]   15. days_open_high                           292.0000
+2026-04-21 12:19:05,714 [INFO] Generating SHAP explanations...
+2026-04-21 12:19:08,498 [INFO] ✓ SHAP explanations saved
+2026-04-21 12:19:09,433 [INFO] Model saved: models\pipeline_20260421_121908.pkl
+2026-04-21 12:19:09,434 [INFO] Latest: models\pipeline_latest.pkl
+2026-04-21 12:19:09,437 [INFO] Metadata: models\pipeline_latest_meta.json
+2026-04-21 12:19:09,438 [INFO] Label mapping saved: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-21 12:19:09,438 [INFO] 
+======================================================================
+2026-04-21 12:19:09,439 [INFO] FINAL RESULTS
+2026-04-21 12:19:09,439 [INFO] ======================================================================
+2026-04-21 12:19:09,440 [INFO] Best Model: LightGBM
+2026-04-21 12:19:09,440 [INFO] F1-weighted: 0.897
+2026-04-21 12:19:09,440 [INFO] F1-macro: 0.7538
+2026-04-21 12:19:09,441 [INFO] Balanced Accuracy: 0.7435
+2026-04-21 12:19:09,442 [INFO] ROC-AUC: 0.9622
+2026-04-21 12:19:09,442 [INFO] Data Leakage:  ZERO
+2026-04-21 12:19:09,443 [INFO] Classes processed: [np.int64(0), np.int64(1), np.int64(3), np.int64(4)] (Mapped to sequential integers)
+2026-04-21 12:19:09,443 [INFO] ======================================================================
+
+2026-04-21 12:19:09,445 [INFO] Training complete! Model ready for deployment.
+
+2026-04-22 14:20:43,082 [INFO] 
+======================================================================
+2026-04-22 14:20:43,084 [INFO] InvisiThreat AI Risk Engine — Training v4.4 (COMPLETE)
+2026-04-22 14:20:43,084 [INFO] ======================================================================
+
+2026-04-22 14:20:43,191 [INFO] ✓ Loaded: 1311 rows × 50 cols
+2026-04-22 14:20:43,196 [INFO] ✓ Features available: 23/23
+2026-04-22 14:20:43,198 [INFO] ✓ Target samples: 1310 valid | 1 excluded
+2026-04-22 14:20:43,208 [INFO] Label sources:
+label_source
+fast_fix_boost_1.40    1310
+2026-04-22 14:20:43,214 [INFO] 
+Target distribution:
+2026-04-22 14:20:43,214 [INFO]   Info         (0):    29 samples  (  2.2%)
+2026-04-22 14:20:43,215 [INFO]   Low          (1):   153 samples  ( 11.7%)
+2026-04-22 14:20:43,215 [INFO]   High         (3):   759 samples  ( 57.9%)
+2026-04-22 14:20:43,215 [INFO]   Critical     (4):   369 samples  ( 28.2%)
+2026-04-22 14:20:43,225 [INFO] ✓ Labels re-mapped for XGBoost compatibility: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-22 14:20:43,233 [INFO] 
+✓ Split: 1048 train | 262 test
+
+2026-04-22 14:20:43,254 [INFO] ✓ Features: (1310, 23) | Target: (1310,)
+2026-04-22 14:20:43,259 [INFO] 
+Training set (Encoded):
+2026-04-22 14:20:43,260 [INFO]   Info         (0):    23 samples  (  2.2%)
+2026-04-22 14:20:43,261 [INFO]   Low          (1):   123 samples  ( 11.7%)
+2026-04-22 14:20:43,262 [INFO]   Medium       (2):   607 samples  ( 57.9%)
+2026-04-22 14:20:43,263 [INFO]   High         (3):   295 samples  ( 28.1%)
+2026-04-22 14:20:43,265 [INFO] 
+Test set (Encoded):
+2026-04-22 14:20:43,265 [INFO]   Info         (0):     6 samples  (  2.3%)
+2026-04-22 14:20:43,266 [INFO]   Low          (1):    30 samples  ( 11.5%)
+2026-04-22 14:20:43,267 [INFO]   Medium       (2):   152 samples  ( 58.0%)
+2026-04-22 14:20:43,267 [INFO]   High         (3):    74 samples  ( 28.2%)
+2026-04-22 14:20:43,268 [INFO] 
+======================================================================
+2026-04-22 14:20:43,269 [INFO] Training RandomForest...
+2026-04-22 14:20:43,269 [INFO] ======================================================================
+2026-04-22 14:20:43,271 [INFO] [RandomForest] Hyperparameter search (2-fold stratified CV)...
+2026-04-22 14:20:52,502 [INFO] [RandomForest] Best F1-weighted (CV): 0.9185
+2026-04-22 14:20:52,503 [INFO] 
+======================================================================
+2026-04-22 14:20:52,503 [INFO] Training XGBoost...
+2026-04-22 14:20:52,504 [INFO] ======================================================================
+2026-04-22 14:20:52,506 [INFO] [XGBoost] Hyperparameter search (2-fold stratified CV)...
+2026-04-22 14:21:00,730 [INFO] [XGBoost] Best F1-weighted (CV): 0.9218
+2026-04-22 14:21:00,731 [INFO] 
+======================================================================
+2026-04-22 14:21:00,732 [INFO] Training LightGBM...
+2026-04-22 14:21:00,732 [INFO] ======================================================================
+2026-04-22 14:21:00,734 [INFO] [LightGBM] Hyperparameter search (2-fold stratified CV)...
+2026-04-22 14:21:58,726 [INFO] [LightGBM] Best F1-weighted (CV): 0.9222
+2026-04-22 14:21:58,727 [INFO] 
+======================================================================
+2026-04-22 14:21:58,728 [INFO] MODEL COMPARISON & RANKING
+2026-04-22 14:21:58,728 [INFO] ======================================================================
+2026-04-22 14:21:58,729 [INFO]   #1 LightGBM        F1-weighted: 0.9222  🏆 ← SELECTED
+2026-04-22 14:21:58,729 [INFO]   #2 XGBoost         F1-weighted: 0.9218
+2026-04-22 14:21:58,730 [INFO]   #3 RandomForest    F1-weighted: 0.9185
+2026-04-22 14:21:58,730 [INFO] ======================================================================
+
+2026-04-22 14:21:58,731 [INFO] Calibrating model probabilities (Platt scaling)...
+2026-04-22 14:21:58,733 [INFO]   Auto-adjusted CV folds: 3 (min class count: 23)
+2026-04-22 14:22:03,093 [INFO] ✓ Calibration complete
+2026-04-22 14:22:03,094 [INFO] 
+======================================================================
+2026-04-22 14:22:03,094 [INFO] MODEL EVALUATION ON TEST SET
+2026-04-22 14:22:03,095 [INFO] ======================================================================
+
+2026-04-22 14:22:03,248 [INFO]   Metrics:
+2026-04-22 14:22:03,249 [INFO]   F1-weighted: 0.8970
+2026-04-22 14:22:03,249 [INFO]   F1-macro:    0.7538
+2026-04-22 14:22:03,250 [INFO]   Balanced Accuracy: 0.7435
+2026-04-22 14:22:03,286 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.50      0.50      0.50         6
+         Low       0.67      0.53      0.59        30
+      Medium       0.91      0.94      0.92       152
+        High       1.00      1.00      1.00        74
+
+    accuracy                           0.90       262
+   macro avg       0.77      0.74      0.75       262
+weighted avg       0.90      0.90      0.90       262
+
+2026-04-22 14:22:03,311 [INFO]   ROC-AUC OvR (weighted): 0.9622
+2026-04-22 14:22:03,372 [INFO] 
+Generating confusion matrix...
+2026-04-22 14:22:04,594 [INFO] ✓ Confusion matrix saved
+2026-04-22 14:22:04,596 [INFO] Generating feature importance...
+2026-04-22 14:22:05,796 [INFO] Feature importance saved
+2026-04-22 14:22:05,797 [INFO] 
+Top 15 Features:
+2026-04-22 14:22:05,798 [INFO]    1. tags_count                               2917.0000
+2026-04-22 14:22:05,798 [INFO]    2. age_days                                 1624.0000
+2026-04-22 14:22:05,799 [INFO]    3. cvss_score                               1581.0000
+2026-04-22 14:22:05,800 [INFO]    4. age_x_cvss                               970.0000
+2026-04-22 14:22:05,800 [INFO]    5. tags_count_norm                          801.0000
+2026-04-22 14:22:05,801 [INFO]    6. context_score                            777.0000
+2026-04-22 14:22:05,802 [INFO]    7. epss_score                               628.0000
+2026-04-22 14:22:05,803 [INFO]    8. tag_urgent                               571.0000
+2026-04-22 14:22:05,803 [INFO]    9. cvss_score_norm                          482.0000
+2026-04-22 14:22:05,804 [INFO]   10. age_days_norm                            475.0000
+2026-04-22 14:22:05,804 [INFO]   11. tag_sensitive                            459.0000
+2026-04-22 14:22:05,805 [INFO]   12. tag_in_production                        424.0000
+2026-04-22 14:22:05,806 [INFO]   13. tag_external                             304.0000
+2026-04-22 14:22:05,806 [INFO]   14. cvss_x_has_cve                           302.0000
+2026-04-22 14:22:05,807 [INFO]   15. days_open_high                           292.0000
+2026-04-22 14:22:05,817 [INFO] Generating SHAP explanations...
+2026-04-22 14:22:08,990 [INFO] ✓ SHAP explanations saved
+2026-04-22 14:22:09,785 [INFO] Model saved: models\pipeline_20260422_142208.pkl
+2026-04-22 14:22:09,786 [INFO] Latest: models\pipeline_latest.pkl
+2026-04-22 14:22:09,794 [INFO] Metadata: models\pipeline_latest_meta.json
+2026-04-22 14:22:09,795 [INFO] Label mapping saved: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-22 14:22:09,798 [INFO] 
+======================================================================
+2026-04-22 14:22:09,807 [INFO] FINAL RESULTS
+2026-04-22 14:22:09,811 [INFO] ======================================================================
+2026-04-22 14:22:09,815 [INFO] Best Model: LightGBM
+2026-04-22 14:22:09,816 [INFO] F1-weighted: 0.897
+2026-04-22 14:22:09,816 [INFO] F1-macro: 0.7538
+2026-04-22 14:22:09,817 [INFO] Balanced Accuracy: 0.7435
+2026-04-22 14:22:09,817 [INFO] ROC-AUC: 0.9622
+2026-04-22 14:22:09,818 [INFO] Data Leakage:  ZERO
+2026-04-22 14:22:09,818 [INFO] Classes processed: [np.int64(0), np.int64(1), np.int64(3), np.int64(4)] (Mapped to sequential integers)
+2026-04-22 14:22:09,819 [INFO] ======================================================================
+
+2026-04-22 14:22:09,822 [INFO] Training complete! Model ready for deployment.
+
+2026-04-22 16:13:49,965 [INFO] 
+======================================================================
+2026-04-22 16:13:49,966 [INFO] InvisiThreat AI Risk Engine — Training v4.4 (COMPLETE)
+2026-04-22 16:13:49,966 [INFO] ======================================================================
+
+2026-04-22 16:13:50,013 [INFO] ✓ Loaded: 1905 rows × 50 cols
+2026-04-22 16:13:50,014 [INFO] ✓ Features available: 23/23
+2026-04-22 16:13:50,014 [INFO] ✓ Target samples: 1904 valid | 1 excluded
+2026-04-22 16:13:50,015 [INFO] Label sources:
+label_source
+fast_fix_boost_1.40       1689
+very_slow_penalty_0.55     215
+2026-04-22 16:13:50,016 [INFO] 
+Target distribution:
+2026-04-22 16:13:50,016 [INFO]   Info         (0):    98 samples  (  5.1%)
+2026-04-22 16:13:50,017 [INFO]   Low          (1):   333 samples  ( 17.5%)
+2026-04-22 16:13:50,017 [INFO]   High         (3):  1024 samples  ( 53.8%)
+2026-04-22 16:13:50,017 [INFO]   Critical     (4):   449 samples  ( 23.6%)
+2026-04-22 16:13:50,019 [INFO] ✓ Labels re-mapped for XGBoost compatibility: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-22 16:13:50,021 [INFO] 
+✓ Split: 1523 train | 381 test
+
+2026-04-22 16:13:50,026 [INFO] ✓ Features: (1904, 23) | Target: (1904,)
+2026-04-22 16:13:50,029 [INFO] 
+Training set (Encoded):
+2026-04-22 16:13:50,030 [INFO]   Info         (0):    79 samples  (  5.2%)
+2026-04-22 16:13:50,030 [INFO]   Low          (1):   266 samples  ( 17.5%)
+2026-04-22 16:13:50,030 [INFO]   Medium       (2):   819 samples  ( 53.8%)
+2026-04-22 16:13:50,030 [INFO]   High         (3):   359 samples  ( 23.6%)
+2026-04-22 16:13:50,030 [INFO] 
+Test set (Encoded):
+2026-04-22 16:13:50,030 [INFO]   Info         (0):    19 samples  (  5.0%)
+2026-04-22 16:13:50,031 [INFO]   Low          (1):    67 samples  ( 17.6%)
+2026-04-22 16:13:50,031 [INFO]   Medium       (2):   205 samples  ( 53.8%)
+2026-04-22 16:13:50,031 [INFO]   High         (3):    90 samples  ( 23.6%)
+2026-04-22 16:13:50,031 [INFO] 
+======================================================================
+2026-04-22 16:13:50,031 [INFO] Training RandomForest...
+2026-04-22 16:13:50,031 [INFO] ======================================================================
+2026-04-22 16:13:50,031 [INFO] [RandomForest] Hyperparameter search (5-fold stratified CV)...
+2026-04-22 16:14:02,410 [INFO] [RandomForest] Best F1-weighted (CV): 0.8263
+2026-04-22 16:14:02,411 [INFO] 
+======================================================================
+2026-04-22 16:14:02,411 [INFO] Training XGBoost...
+2026-04-22 16:14:02,411 [INFO] ======================================================================
+2026-04-22 16:14:02,412 [INFO] [XGBoost] Hyperparameter search (5-fold stratified CV)...
+2026-04-22 16:14:12,835 [INFO] [XGBoost] Best F1-weighted (CV): 0.8824
+2026-04-22 16:14:12,835 [INFO] 
+======================================================================
+2026-04-22 16:14:12,836 [INFO] Training LightGBM...
+2026-04-22 16:14:12,836 [INFO] ======================================================================
+2026-04-22 16:14:12,837 [INFO] [LightGBM] Hyperparameter search (5-fold stratified CV)...
+2026-04-22 16:15:12,345 [INFO] [LightGBM] Best F1-weighted (CV): 0.8830
+2026-04-22 16:15:12,349 [INFO] 
+======================================================================
+2026-04-22 16:15:12,349 [INFO] MODEL COMPARISON & RANKING
+2026-04-22 16:15:12,349 [INFO] ======================================================================
+2026-04-22 16:15:12,350 [INFO]   #1 LightGBM        F1-weighted: 0.8830  🏆 ← SELECTED
+2026-04-22 16:15:12,350 [INFO]   #2 XGBoost         F1-weighted: 0.8824
+2026-04-22 16:15:12,351 [INFO]   #3 RandomForest    F1-weighted: 0.8263
+2026-04-22 16:15:12,351 [INFO] ======================================================================
+
+2026-04-22 16:15:12,351 [INFO] Calibrating model probabilities (Platt scaling)...
+2026-04-22 16:15:12,357 [INFO]   Auto-adjusted CV folds: 3 (min class count: 79)
+2026-04-22 16:15:14,322 [INFO] ✓ Calibration complete
+2026-04-22 16:15:14,323 [INFO] 
+======================================================================
+2026-04-22 16:15:14,323 [INFO] MODEL EVALUATION ON TEST SET
+2026-04-22 16:15:14,323 [INFO] ======================================================================
+
+2026-04-22 16:15:14,423 [INFO]   Metrics:
+2026-04-22 16:15:14,423 [INFO]   F1-weighted: 0.8808
+2026-04-22 16:15:14,423 [INFO]   F1-macro:    0.7239
+2026-04-22 16:15:14,423 [INFO]   Balanced Accuracy: 0.7173
+2026-04-22 16:15:14,442 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.67      0.11      0.18        19
+         Low       0.78      0.88      0.83        67
+      Medium       0.90      0.96      0.93       205
+        High       1.00      0.92      0.96        90
+
+    accuracy                           0.90       381
+   macro avg       0.84      0.72      0.72       381
+weighted avg       0.89      0.90      0.88       381
+
+2026-04-22 16:15:14,466 [INFO]   ROC-AUC OvR (weighted): 0.9777
+2026-04-22 16:15:14,507 [INFO] 
+Generating confusion matrix...
+2026-04-22 16:15:16,105 [INFO] ✓ Confusion matrix saved
+2026-04-22 16:15:16,108 [INFO] Generating feature importance...
+2026-04-22 16:15:16,540 [INFO] Feature importance saved
+2026-04-22 16:15:16,540 [INFO] 
+Top 15 Features:
+2026-04-22 16:15:16,541 [INFO]    1. tags_count                               5633.0000
+2026-04-22 16:15:16,541 [INFO]    2. age_days                                 4854.0000
+2026-04-22 16:15:16,541 [INFO]    3. cvss_score                               1693.0000
+2026-04-22 16:15:16,541 [INFO]    4. tags_count_norm                          1469.0000
+2026-04-22 16:15:16,541 [INFO]    5. context_score                            1382.0000
+2026-04-22 16:15:16,541 [INFO]    6. age_days_norm                            1352.0000
+2026-04-22 16:15:16,541 [INFO]    7. epss_score                               879.0000
+2026-04-22 16:15:16,541 [INFO]    8. tag_sensitive                            717.0000
+2026-04-22 16:15:16,541 [INFO]    9. tag_external                             633.0000
+2026-04-22 16:15:16,541 [INFO]   10. cvss_score_norm                          524.0000
+2026-04-22 16:15:16,541 [INFO]   11. tag_in_production                        484.0000
+2026-04-22 16:15:16,541 [INFO]   12. age_x_cvss                               382.0000
+2026-04-22 16:15:16,541 [INFO]   13. cvss_x_has_cve                           337.0000
+2026-04-22 16:15:16,541 [INFO]   14. tag_urgent                               270.0000
+2026-04-22 16:15:16,541 [INFO]   15. epss_percentile                          243.0000
+2026-04-22 16:15:16,568 [INFO] Generating SHAP explanations...
+2026-04-22 16:15:17,593 [INFO] ✓ SHAP explanations saved
+2026-04-22 16:15:18,131 [INFO] Model saved: models\pipeline_20260422_161517.pkl
+2026-04-22 16:15:18,131 [INFO] Latest: models\pipeline_latest.pkl
+2026-04-22 16:15:18,138 [INFO] Metadata: models\pipeline_latest_meta.json
+2026-04-22 16:15:18,138 [INFO] Label mapping saved: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-22 16:15:18,138 [INFO] 
+======================================================================
+2026-04-22 16:15:18,139 [INFO] FINAL RESULTS
+2026-04-22 16:15:18,139 [INFO] ======================================================================
+2026-04-22 16:15:18,139 [INFO] Best Model: LightGBM
+2026-04-22 16:15:18,139 [INFO] F1-weighted: 0.8808
+2026-04-22 16:15:18,140 [INFO] F1-macro: 0.7239
+2026-04-22 16:15:18,140 [INFO] Balanced Accuracy: 0.7173
+2026-04-22 16:15:18,140 [INFO] ROC-AUC: 0.9777
+2026-04-22 16:15:18,140 [INFO] Data Leakage:  ZERO
+2026-04-22 16:15:18,140 [INFO] Classes processed: [np.int64(0), np.int64(1), np.int64(3), np.int64(4)] (Mapped to sequential integers)
+2026-04-22 16:15:18,140 [INFO] ======================================================================
+
+2026-04-22 16:15:18,141 [INFO] Training complete! Model ready for deployment.
+
+2026-04-23 00:02:24,502 [INFO] 
+======================================================================
+2026-04-23 00:02:24,502 [INFO] InvisiThreat AI Risk Engine — Training v4.4 (COMPLETE)
+2026-04-23 00:02:24,502 [INFO] ======================================================================
+
+2026-04-23 00:02:24,551 [INFO] ✓ Loaded: 1905 rows × 50 cols
+2026-04-23 00:02:24,551 [INFO] ✓ Features available: 23/23
+2026-04-23 00:02:24,551 [INFO] ✓ Target samples: 1904 valid | 1 excluded
+2026-04-23 00:02:24,553 [INFO] Label sources:
+label_source
+fast_fix_boost_1.40       1689
+very_slow_penalty_0.55     215
+2026-04-23 00:02:24,554 [INFO] 
+Target distribution:
+2026-04-23 00:02:24,554 [INFO]   Info         (0):    98 samples  (  5.1%)
+2026-04-23 00:02:24,554 [INFO]   Low          (1):   333 samples  ( 17.5%)
+2026-04-23 00:02:24,554 [INFO]   High         (3):  1024 samples  ( 53.8%)
+2026-04-23 00:02:24,554 [INFO]   Critical     (4):   449 samples  ( 23.6%)
+2026-04-23 00:02:24,557 [INFO] ✓ Labels re-mapped for XGBoost compatibility: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-23 00:02:24,560 [INFO] 
+✓ Split: 1523 train | 381 test
+
+2026-04-23 00:02:24,564 [INFO] ✓ Features: (1904, 23) | Target: (1904,)
+2026-04-23 00:02:24,565 [INFO] 
+Training set (Encoded):
+2026-04-23 00:02:24,566 [INFO]   Info         (0):    79 samples  (  5.2%)
+2026-04-23 00:02:24,566 [INFO]   Low          (1):   266 samples  ( 17.5%)
+2026-04-23 00:02:24,566 [INFO]   Medium       (2):   819 samples  ( 53.8%)
+2026-04-23 00:02:24,566 [INFO]   High         (3):   359 samples  ( 23.6%)
+2026-04-23 00:02:24,566 [INFO] 
+Test set (Encoded):
+2026-04-23 00:02:24,566 [INFO]   Info         (0):    19 samples  (  5.0%)
+2026-04-23 00:02:24,566 [INFO]   Low          (1):    67 samples  ( 17.6%)
+2026-04-23 00:02:24,567 [INFO]   Medium       (2):   205 samples  ( 53.8%)
+2026-04-23 00:02:24,567 [INFO]   High         (3):    90 samples  ( 23.6%)
+2026-04-23 00:02:24,567 [INFO] 
+======================================================================
+2026-04-23 00:02:24,567 [INFO] Training RandomForest...
+2026-04-23 00:02:24,567 [INFO] ======================================================================
+2026-04-23 00:02:24,567 [INFO] [RandomForest] Hyperparameter search (5-fold stratified CV)...
+2026-04-23 00:02:36,875 [INFO] [RandomForest] Best F1-weighted (CV): 0.8263
+2026-04-23 00:02:36,876 [INFO] 
+======================================================================
+2026-04-23 00:02:36,876 [INFO] Training XGBoost...
+2026-04-23 00:02:36,876 [INFO] ======================================================================
+2026-04-23 00:02:36,876 [INFO] [XGBoost] Hyperparameter search (5-fold stratified CV)...
+2026-04-23 00:02:55,944 [INFO] [XGBoost] Best F1-weighted (CV): 0.8824
+2026-04-23 00:02:55,944 [INFO] 
+======================================================================
+2026-04-23 00:02:55,944 [INFO] Training LightGBM...
+2026-04-23 00:02:55,944 [INFO] ======================================================================
+2026-04-23 00:02:55,945 [INFO] [LightGBM] Hyperparameter search (5-fold stratified CV)...
+2026-04-23 00:03:51,446 [INFO] [LightGBM] Best F1-weighted (CV): 0.8812
+2026-04-23 00:03:51,447 [INFO] 
+======================================================================
+2026-04-23 00:03:51,447 [INFO] MODEL COMPARISON & RANKING
+2026-04-23 00:03:51,447 [INFO] ======================================================================
+2026-04-23 00:03:51,447 [INFO]   #1 XGBoost         F1-weighted: 0.8824  🏆 ← SELECTED
+2026-04-23 00:03:51,449 [INFO]   #2 LightGBM        F1-weighted: 0.8812
+2026-04-23 00:03:51,449 [INFO]   #3 RandomForest    F1-weighted: 0.8263
+2026-04-23 00:03:51,450 [INFO] ======================================================================
+
+2026-04-23 00:03:51,450 [INFO] Calibrating model probabilities (Platt scaling)...
+2026-04-23 00:03:51,451 [INFO]   Auto-adjusted CV folds: 3 (min class count: 79)
+2026-04-23 00:03:52,149 [INFO] ✓ Calibration complete
+2026-04-23 00:03:52,149 [INFO] 
+======================================================================
+2026-04-23 00:03:52,149 [INFO] MODEL EVALUATION ON TEST SET
+2026-04-23 00:03:52,150 [INFO] ======================================================================
+
+2026-04-23 00:03:52,192 [INFO]   Metrics:
+2026-04-23 00:03:52,192 [INFO]   F1-weighted: 0.8832
+2026-04-23 00:03:52,193 [INFO]   F1-macro:    0.7260
+2026-04-23 00:03:52,193 [INFO]   Balanced Accuracy: 0.7185
+2026-04-23 00:03:52,204 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.67      0.11      0.18        19
+         Low       0.79      0.88      0.83        67
+      Medium       0.90      0.97      0.93       205
+        High       1.00      0.92      0.96        90
+
+    accuracy                           0.90       381
+   macro avg       0.84      0.72      0.73       381
+weighted avg       0.89      0.90      0.88       381
+
+2026-04-23 00:03:52,213 [INFO]   ROC-AUC OvR (weighted): 0.9778
+2026-04-23 00:03:52,231 [INFO] 
+Generating confusion matrix...
+2026-04-23 00:03:52,553 [INFO] ✓ Confusion matrix saved
+2026-04-23 00:03:52,555 [INFO] Generating feature importance...
+2026-04-23 00:03:52,807 [INFO] Feature importance saved
+2026-04-23 00:03:52,807 [INFO] 
+Top 15 Features:
+2026-04-23 00:03:52,807 [INFO]    1. tag_urgent                               0.5352
+2026-04-23 00:03:52,808 [INFO]    2. tags_count                               0.1499
+2026-04-23 00:03:52,808 [INFO]    3. cvss_score                               0.0767
+2026-04-23 00:03:52,808 [INFO]    4. age_days                                 0.0627
+2026-04-23 00:03:52,808 [INFO]    5. epss_score                               0.0618
+2026-04-23 00:03:52,808 [INFO]    6. age_x_cvss                               0.0239
+2026-04-23 00:03:52,808 [INFO]    7. context_score                            0.0202
+2026-04-23 00:03:52,808 [INFO]    8. tag_external                             0.0184
+2026-04-23 00:03:52,808 [INFO]    9. tag_sensitive                            0.0184
+2026-04-23 00:03:52,808 [INFO]   10. tag_in_production                        0.0171
+2026-04-23 00:03:52,808 [INFO]   11. epss_x_cvss                              0.0085
+2026-04-23 00:03:52,808 [INFO]   12. cvss_x_has_cve                           0.0071
+2026-04-23 00:03:52,809 [INFO]   13. days_open_high                           0.0000
+2026-04-23 00:03:52,809 [INFO]   14. epss_score_norm                          0.0000
+2026-04-23 00:03:52,809 [INFO]   15. exploit_risk                             0.0000
+2026-04-23 00:03:52,811 [INFO] Generating SHAP explanations...
+2026-04-23 00:03:53,227 [INFO] ✓ SHAP explanations saved
+2026-04-23 00:03:53,293 [INFO] Model saved: models\pipeline_20260423_000353.pkl
+2026-04-23 00:03:53,293 [INFO] Latest: models\pipeline_latest.pkl
+2026-04-23 00:03:53,295 [INFO] Metadata: models\pipeline_latest_meta.json
+2026-04-23 00:03:53,295 [INFO] Label mapping saved: {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-23 00:03:53,295 [INFO] 
+======================================================================
+2026-04-23 00:03:53,295 [INFO] FINAL RESULTS
+2026-04-23 00:03:53,296 [INFO] ======================================================================
+2026-04-23 00:03:53,296 [INFO] Best Model: XGBoost
+2026-04-23 00:03:53,296 [INFO] F1-weighted: 0.8832
+2026-04-23 00:03:53,296 [INFO] F1-macro: 0.726
+2026-04-23 00:03:53,296 [INFO] Balanced Accuracy: 0.7185
+2026-04-23 00:03:53,296 [INFO] ROC-AUC: 0.9778
+2026-04-23 00:03:53,296 [INFO] Data Leakage:  ZERO
+2026-04-23 00:03:53,296 [INFO] Classes processed: [np.int64(0), np.int64(1), np.int64(3), np.int64(4)] (Mapped to sequential integers)
+2026-04-23 00:03:53,297 [INFO] ======================================================================
+
+2026-04-23 00:03:53,297 [INFO] Training complete! Model ready for deployment.
+
+2026-04-23 11:57:07,313 [INFO] 
+======================================================================
+2026-04-23 11:57:07,314 [INFO] InvisiThreat AI Risk Engine — Training v5.0
+2026-04-23 11:57:07,314 [INFO]   [T1] Chemins ancres a ROOT
+2026-04-23 11:57:07,314 [INFO]   [T2] Features proxy retirees (cvss_norm, epss_norm, exploit_risk, days_open_high)
+2026-04-23 11:57:07,314 [INFO]   [T3] StandardScaler supprime (arbres)
+2026-04-23 11:57:07,314 [INFO]   [T4] sample_weight pour XGBoost et LightGBM
+2026-04-23 11:57:07,315 [INFO]   [T5] product_fp_rate sur train set uniquement
+2026-04-23 11:57:07,315 [INFO]   [T6] Audit correlation features/cible
+2026-04-23 11:57:07,315 [INFO]   [T7] Metadonnees enrichies
+2026-04-23 11:57:07,315 [INFO] ======================================================================
+2026-04-23 11:57:07,315 [INFO] ROOT   : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine
+2026-04-23 11:57:07,315 [INFO] DATA   : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\processed\findings_clean.csv
+2026-04-23 11:57:07,315 [INFO] MODELS : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models
+
+2026-04-23 11:57:07,350 [INFO] Charge : 1905 lignes x 50 cols
+2026-04-23 11:57:07,350 [INFO] Features disponibles : 19/19
+2026-04-23 11:57:07,351 [INFO] Samples valides : 1904 | exclus : 1
+2026-04-23 11:57:07,353 [INFO] Label sources :
+label_source
+fast_fix_boost_1.40       1689
+very_slow_penalty_0.55     215
+2026-04-23 11:57:07,353 [INFO] 
+Distribution cible:
+2026-04-23 11:57:07,354 [INFO]   Info         (0):    98  (  5.1%)
+2026-04-23 11:57:07,354 [INFO]   Low          (1):   333  ( 17.5%)
+2026-04-23 11:57:07,354 [INFO]   High         (3):  1024  ( 53.8%)
+2026-04-23 11:57:07,354 [INFO]   Critical     (4):   449  ( 23.6%)
+2026-04-23 11:57:07,357 [INFO] Labels re-mappes : {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-23 11:57:07,360 [INFO] Split : 1523 train | 381 test
+
+2026-04-23 11:57:07,362 [INFO] [T5] product_fp_rate sur 1523 train samples (3 produits, moyenne=0.0000)
+2026-04-23 11:57:07,363 [INFO] Features : (1904, 19) | Cible : (1904,)
+2026-04-23 11:57:07,366 [INFO] 
+Train set:
+2026-04-23 11:57:07,366 [INFO]   Info         (0):    79  (  5.2%)
+2026-04-23 11:57:07,366 [INFO]   Low          (1):   266  ( 17.5%)
+2026-04-23 11:57:07,366 [INFO]   Medium       (2):   819  ( 53.8%)
+2026-04-23 11:57:07,366 [INFO]   High         (3):   359  ( 23.6%)
+2026-04-23 11:57:07,367 [INFO] 
+Test set:
+2026-04-23 11:57:07,367 [INFO]   Info         (0):    19  (  5.0%)
+2026-04-23 11:57:07,367 [INFO]   Low          (1):    67  ( 17.6%)
+2026-04-23 11:57:07,367 [INFO]   Medium       (2):   205  ( 53.8%)
+2026-04-23 11:57:07,367 [INFO]   High         (3):    90  ( 23.6%)
+2026-04-23 11:57:07,367 [INFO] 
+── [T6] Audit correlation features/cible ──
+2026-04-23 11:57:07,373 [INFO] Top 10 correlations |r| :
+2026-04-23 11:57:07,373 [INFO]   has_cwe                             r=+nan
+2026-04-23 11:57:07,373 [INFO]   tag_urgent                          r=+0.6593
+2026-04-23 11:57:07,374 [INFO]   age_days                            r=-0.5639
+2026-04-23 11:57:07,374 [INFO]   age_days_norm                       r=-0.5639
+2026-04-23 11:57:07,374 [INFO]   tags_count                          r=+0.4175
+2026-04-23 11:57:07,374 [INFO]   tags_count_norm                     r=+0.4174
+2026-04-23 11:57:07,374 [INFO]   cvss_score                          r=+0.3477
+2026-04-23 11:57:07,374 [INFO]   product_fp_rate                     r=+nan
+2026-04-23 11:57:07,374 [INFO]   cvss_x_has_cve                      r=+0.3076
+2026-04-23 11:57:07,374 [INFO]   age_x_cvss                          r=+0.2961
+2026-04-23 11:57:07,374 [INFO] Aucune correlation >0.85 detectee — signal sain
+2026-04-23 11:57:07,375 [INFO] [T4] Sample weights :
+2026-04-23 11:57:07,375 [INFO]   Info       -> 4.820
+2026-04-23 11:57:07,375 [INFO]   Low        -> 1.431
+2026-04-23 11:57:07,375 [INFO]   Medium     -> 0.465
+2026-04-23 11:57:07,375 [INFO]   High       -> 1.061
+2026-04-23 11:57:07,375 [INFO] 
+============================================================
+2026-04-23 11:57:07,376 [INFO] RandomForest...
+2026-04-23 11:57:07,376 [INFO] [RandomForest] Hyperopt (5-fold)...
+2026-04-23 11:57:19,343 [INFO] [RandomForest] Meilleur F1-weighted CV : 0.8264
+2026-04-23 11:57:19,344 [INFO] 
+============================================================
+2026-04-23 11:57:19,344 [INFO] XGBoost (sample_weight [T4])...
+2026-04-23 11:57:19,344 [INFO] [XGBoost] Hyperopt (5-fold)...
+2026-04-23 11:57:26,159 [INFO] [XGBoost] Meilleur F1-weighted CV : 0.8315
+2026-04-23 11:57:26,159 [INFO] 
+============================================================
+2026-04-23 11:57:26,160 [INFO] LightGBM (sample_weight [T4])...
+2026-04-23 11:57:26,160 [INFO] [LightGBM] Hyperopt (5-fold)...
+2026-04-23 11:58:30,252 [INFO] [LightGBM] Meilleur F1-weighted CV : 0.8328
+2026-04-23 11:58:30,254 [INFO] 
+============================================================
+2026-04-23 11:58:30,255 [INFO] COMPARAISON DES MODELES
+2026-04-23 11:58:30,255 [INFO] ============================================================
+2026-04-23 11:58:30,256 [INFO]   #1 LightGBM        F1-weighted: 0.8328  <- SELECTIONNE
+2026-04-23 11:58:30,256 [INFO]   #2 XGBoost         F1-weighted: 0.8315
+2026-04-23 11:58:30,256 [INFO]   #3 RandomForest    F1-weighted: 0.8264
+2026-04-23 11:58:30,256 [INFO] ============================================================
+
+2026-04-23 11:58:30,256 [INFO] Calibration Platt scaling...
+2026-04-23 11:58:30,257 [INFO]   CV folds : 3
+2026-04-23 11:58:32,978 [INFO] Calibration terminee
+2026-04-23 11:58:32,978 [INFO] 
+============================================================
+2026-04-23 11:58:32,978 [INFO] EVALUATION SUR LE TEST SET
+2026-04-23 11:58:32,978 [INFO] ============================================================
+2026-04-23 11:58:33,121 [INFO]   F1-weighted (test)  : 0.8808
+2026-04-23 11:58:33,122 [INFO]   F1-weighted (train) : 0.8924
+2026-04-23 11:58:33,122 [INFO]   Surapprentissage    : +0.0116  OK
+2026-04-23 11:58:33,122 [INFO]   F1-macro            : 0.7239
+2026-04-23 11:58:33,122 [INFO]   Balanced Accuracy   : 0.7173
+2026-04-23 11:58:33,131 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.67      0.11      0.18        19
+         Low       0.78      0.88      0.83        67
+      Medium       0.90      0.96      0.93       205
+        High       1.00      0.92      0.96        90
+
+    accuracy                           0.90       381
+   macro avg       0.84      0.72      0.72       381
+weighted avg       0.89      0.90      0.88       381
+
+2026-04-23 11:58:33,138 [INFO]   ROC-AUC OvR : 0.9777
+2026-04-23 11:58:33,505 [INFO] Matrice de confusion sauvegardee
+2026-04-23 11:58:33,717 [INFO] Feature importance sauvegardee
+2026-04-23 11:58:33,718 [INFO] 
+Top 15 features :
+2026-04-23 11:58:33,718 [INFO]    1. tags_count                               6635.0000
+2026-04-23 11:58:33,718 [INFO]    2. age_days                                 6394.0000
+2026-04-23 11:58:33,718 [INFO]    3. cvss_score                               1781.0000
+2026-04-23 11:58:33,718 [INFO]    4. context_score                            1365.0000
+2026-04-23 11:58:33,718 [INFO]    5. epss_score                               1063.0000
+2026-04-23 11:58:33,718 [INFO]    6. tags_count_norm                          996.0000
+2026-04-23 11:58:33,719 [INFO]    7. tag_sensitive                            899.0000
+2026-04-23 11:58:33,719 [INFO]    8. age_x_cvss                               850.0000
+2026-04-23 11:58:33,719 [INFO]    9. age_days_norm                            692.0000
+2026-04-23 11:58:33,719 [INFO]   10. tag_external                             651.0000
+2026-04-23 11:58:33,719 [INFO]   11. cvss_x_has_cve                           373.0000
+2026-04-23 11:58:33,720 [INFO]   12. tag_in_production                        355.0000
+2026-04-23 11:58:33,720 [INFO]   13. tag_urgent                               337.0000
+2026-04-23 11:58:33,720 [INFO]   14. epss_x_cvss                              203.0000
+2026-04-23 11:58:33,720 [INFO]   15. epss_percentile                          128.0000
+2026-04-23 11:58:33,722 [INFO] Explications SHAP...
+2026-04-23 11:58:34,807 [INFO] SHAP sauvegarde
+2026-04-23 11:58:35,354 [INFO] Modele sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models\pipeline_20260423_115834.pkl
+2026-04-23 11:58:35,356 [INFO] Metadonnees : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models\pipeline_latest_meta.json
+2026-04-23 11:58:35,357 [INFO] 
+======================================================================
+2026-04-23 11:58:35,357 [INFO] RESULTATS FINAUX
+2026-04-23 11:58:35,357 [INFO] ======================================================================
+2026-04-23 11:58:35,357 [INFO] Modele         : LightGBM
+2026-04-23 11:58:35,357 [INFO] F1-weighted    : 0.8808  (train=0.8924)
+2026-04-23 11:58:35,358 [INFO] Surapprentissage : +0.0116
+2026-04-23 11:58:35,358 [INFO] F1-macro       : 0.7239
+2026-04-23 11:58:35,358 [INFO] Balanced Acc   : 0.7173
+2026-04-23 11:58:35,358 [INFO] ROC-AUC        : 0.9777
+2026-04-23 11:58:35,359 [INFO] Data Leakage   : ZERO
+2026-04-23 11:58:35,359 [INFO] Classes        : [np.int64(0), np.int64(1), np.int64(3), np.int64(4)] -> {0: 0, 1: 1, 3: 2, 4: 3}
+2026-04-23 11:58:35,359 [INFO] ======================================================================
+
+2026-04-23 11:58:35,360 [INFO] Entrainement termine. Modele pret pour le deploiement.
+
+2026-04-23 11:58:53,988 [INFO] 
+======================================================================
+2026-04-23 11:58:53,988 [INFO] InvisiThreat AI Risk Engine — Training v5.0
+2026-04-23 11:58:53,989 [INFO]   [T1] Chemins ancres a ROOT
+2026-04-23 11:58:53,989 [INFO]   [T2] Features proxy retirees (cvss_norm, epss_norm, exploit_risk, days_open_high)
+2026-04-23 11:58:53,989 [INFO]   [T3] StandardScaler supprime (arbres)
+2026-04-23 11:58:53,989 [INFO]   [T4] sample_weight pour XGBoost et LightGBM
+2026-04-23 11:58:53,989 [INFO]   [T5] product_fp_rate sur train set uniquement
+2026-04-23 11:58:53,989 [INFO]   [T6] Audit correlation features/cible
+2026-04-23 11:58:53,989 [INFO]   [T7] Metadonnees enrichies
+2026-04-23 11:58:53,989 [INFO] ======================================================================
+2026-04-23 11:58:53,989 [INFO] ROOT   : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine
+2026-04-23 11:58:53,989 [INFO] DATA   : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\processed\findings_clean.csv
+2026-04-23 11:58:53,989 [INFO] MODELS : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models
+
+2026-04-23 11:58:54,032 [INFO] Charge : 1905 lignes x 51 cols
+2026-04-23 11:58:54,032 [INFO] Features disponibles : 19/19
+2026-04-23 11:58:54,033 [INFO] Samples valides : 1904 | exclus : 1
+2026-04-23 11:58:54,034 [INFO] Label sources :
+label_source
+fast_fix_boost_1.40       1689
+very_slow_penalty_0.55     215
+2026-04-23 11:58:54,035 [INFO] 
+Distribution cible:
+2026-04-23 11:58:54,035 [INFO]   Info         (0):  1166  ( 61.2%)
+2026-04-23 11:58:54,035 [INFO]   Low          (1):   394  ( 20.7%)
+2026-04-23 11:58:54,035 [INFO]   Medium       (2):   269  ( 14.1%)
+2026-04-23 11:58:54,035 [INFO]   High         (3):    68  (  3.6%)
+2026-04-23 11:58:54,035 [INFO]   Critical     (4):     7  (  0.4%)
+2026-04-23 11:58:54,038 [INFO] Labels re-mappes : {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+2026-04-23 11:58:54,040 [INFO] Split : 1523 train | 381 test
+
+2026-04-23 11:58:54,042 [INFO] [T5] product_fp_rate sur 1523 train samples (3 produits, moyenne=0.0000)
+2026-04-23 11:58:54,043 [INFO] Features : (1904, 19) | Cible : (1904,)
+2026-04-23 11:58:54,046 [INFO] 
+Train set:
+2026-04-23 11:58:54,046 [INFO]   Info         (0):   933  ( 61.3%)
+2026-04-23 11:58:54,046 [INFO]   Low          (1):   315  ( 20.7%)
+2026-04-23 11:58:54,046 [INFO]   Medium       (2):   215  ( 14.1%)
+2026-04-23 11:58:54,046 [INFO]   High         (3):    54  (  3.5%)
+2026-04-23 11:58:54,046 [INFO]   Critical     (4):     6  (  0.4%)
+2026-04-23 11:58:54,046 [INFO] 
+Test set:
+2026-04-23 11:58:54,046 [INFO]   Info         (0):   233  ( 61.2%)
+2026-04-23 11:58:54,047 [INFO]   Low          (1):    79  ( 20.7%)
+2026-04-23 11:58:54,047 [INFO]   Medium       (2):    54  ( 14.2%)
+2026-04-23 11:58:54,047 [INFO]   High         (3):    14  (  3.7%)
+2026-04-23 11:58:54,047 [INFO]   Critical     (4):     1  (  0.3%)
+2026-04-23 11:58:54,047 [INFO] 
+── [T6] Audit correlation features/cible ──
+2026-04-23 11:58:54,052 [INFO] Top 10 correlations |r| :
+2026-04-23 11:58:54,052 [INFO]   cvss_score                          r=+0.8976  FORT >0.85
+2026-04-23 11:58:54,053 [INFO]   has_cwe                             r=+nan
+2026-04-23 11:58:54,053 [INFO]   product_fp_rate                     r=+nan
+2026-04-23 11:58:54,053 [INFO]   age_x_cvss                          r=+0.8144
+2026-04-23 11:58:54,053 [INFO]   cvss_x_has_cve                      r=+0.7945
+2026-04-23 11:58:54,053 [INFO]   tags_count                          r=+0.7869
+2026-04-23 11:58:54,053 [INFO]   tags_count_norm                     r=+0.7869
+2026-04-23 11:58:54,053 [INFO]   has_cve                             r=+0.7407
+2026-04-23 11:58:54,053 [INFO]   tag_external                        r=+0.6457
+2026-04-23 11:58:54,053 [INFO]   epss_percentile                     r=+0.6314
+2026-04-23 11:58:54,054 [WARNING] 1 feature(s) avec |r|>0.85 :
+2026-04-23 11:58:54,054 [WARNING]   cvss_score : r=0.8976
+2026-04-23 11:58:54,055 [INFO] [T4] Sample weights :
+2026-04-23 11:58:54,055 [INFO]   Info       -> 0.326
+2026-04-23 11:58:54,055 [INFO]   Low        -> 0.967
+2026-04-23 11:58:54,055 [INFO]   Medium     -> 1.417
+2026-04-23 11:58:54,055 [INFO]   High       -> 5.641
+2026-04-23 11:58:54,056 [INFO]   Critical   -> 50.767
+2026-04-23 11:58:54,056 [INFO] 
+============================================================
+2026-04-23 11:58:54,056 [INFO] RandomForest...
+2026-04-23 11:58:54,056 [INFO] [RandomForest] Hyperopt (2-fold)...
+2026-04-23 11:59:00,932 [INFO] [RandomForest] Meilleur F1-weighted CV : 0.9967
+2026-04-23 11:59:00,932 [INFO] 
+============================================================
+2026-04-23 11:59:00,932 [INFO] XGBoost (sample_weight [T4])...
+2026-04-23 11:59:00,933 [INFO] [XGBoost] Hyperopt (2-fold)...
+2026-04-23 11:59:04,499 [INFO] [XGBoost] Meilleur F1-weighted CV : 0.9974
+2026-04-23 11:59:04,499 [INFO] 
+============================================================
+2026-04-23 11:59:04,500 [INFO] LightGBM (sample_weight [T4])...
+2026-04-23 11:59:04,501 [INFO] [LightGBM] Hyperopt (2-fold)...
+2026-04-23 11:59:27,887 [INFO] [LightGBM] Meilleur F1-weighted CV : 0.9974
+2026-04-23 11:59:27,888 [INFO] 
+============================================================
+2026-04-23 11:59:27,888 [INFO] COMPARAISON DES MODELES
+2026-04-23 11:59:27,888 [INFO] ============================================================
+2026-04-23 11:59:27,888 [INFO]   #1 LightGBM        F1-weighted: 0.9974  <- SELECTIONNE
+2026-04-23 11:59:27,888 [INFO]   #2 XGBoost         F1-weighted: 0.9974
+2026-04-23 11:59:27,888 [INFO]   #3 RandomForest    F1-weighted: 0.9967
+2026-04-23 11:59:27,889 [INFO] ============================================================
+
+2026-04-23 11:59:27,889 [INFO] Calibration Platt scaling...
+2026-04-23 11:59:27,891 [INFO]   CV folds : 3
+2026-04-23 11:59:30,733 [INFO] Calibration terminee
+2026-04-23 11:59:30,733 [INFO] 
+============================================================
+2026-04-23 11:59:30,734 [INFO] EVALUATION SUR LE TEST SET
+2026-04-23 11:59:30,734 [INFO] ============================================================
+2026-04-23 11:59:30,911 [INFO]   F1-weighted (test)  : 0.9974
+2026-04-23 11:59:30,911 [INFO]   F1-weighted (train) : 1.0000
+2026-04-23 11:59:30,911 [INFO]   Surapprentissage    : +0.0026  OK
+2026-04-23 11:59:30,912 [INFO]   F1-macro            : 0.9969
+2026-04-23 11:59:30,912 [INFO]   Balanced Accuracy   : 0.9963
+2026-04-23 11:59:30,920 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       1.00      1.00      1.00       233
+         Low       0.99      1.00      0.99        79
+      Medium       1.00      0.98      0.99        54
+        High       1.00      1.00      1.00        14
+    Critical       1.00      1.00      1.00         1
+
+    accuracy                           1.00       381
+   macro avg       1.00      1.00      1.00       381
+weighted avg       1.00      1.00      1.00       381
+
+2026-04-23 11:59:30,929 [INFO]   ROC-AUC OvR : 0.9973
+2026-04-23 11:59:31,228 [INFO] Matrice de confusion sauvegardee
+2026-04-23 11:59:31,482 [INFO] Feature importance sauvegardee
+2026-04-23 11:59:31,482 [INFO] 
+Top 15 features :
+2026-04-23 11:59:31,482 [INFO]    1. tags_count                               3873.0000
+2026-04-23 11:59:31,482 [INFO]    2. cvss_score                               3606.0000
+2026-04-23 11:59:31,482 [INFO]    3. epss_score                               2683.0000
+2026-04-23 11:59:31,483 [INFO]    4. age_x_cvss                               2260.0000
+2026-04-23 11:59:31,483 [INFO]    5. age_days                                 2051.0000
+2026-04-23 11:59:31,483 [INFO]    6. cvss_x_has_cve                           1501.0000
+2026-04-23 11:59:31,483 [INFO]    7. context_score                            1312.0000
+2026-04-23 11:59:31,483 [INFO]    8. tag_in_production                        978.0000
+2026-04-23 11:59:31,483 [INFO]    9. tags_count_norm                          972.0000
+2026-04-23 11:59:31,483 [INFO]   10. epss_x_cvss                              689.0000
+2026-04-23 11:59:31,483 [INFO]   11. tag_urgent                               641.0000
+2026-04-23 11:59:31,483 [INFO]   12. epss_percentile                          546.0000
+2026-04-23 11:59:31,483 [INFO]   13. tag_external                             474.0000
+2026-04-23 11:59:31,484 [INFO]   14. tag_sensitive                            472.0000
+2026-04-23 11:59:31,484 [INFO]   15. age_days_norm                            397.0000
+2026-04-23 11:59:31,486 [INFO] Explications SHAP...
+2026-04-23 11:59:32,737 [INFO] SHAP sauvegarde
+2026-04-23 11:59:33,357 [INFO] Modele sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models\pipeline_20260423_115932.pkl
+2026-04-23 11:59:33,358 [INFO] Metadonnees : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models\pipeline_latest_meta.json
+2026-04-23 11:59:33,358 [INFO] 
+======================================================================
+2026-04-23 11:59:33,359 [INFO] RESULTATS FINAUX
+2026-04-23 11:59:33,359 [INFO] ======================================================================
+2026-04-23 11:59:33,359 [INFO] Modele         : LightGBM
+2026-04-23 11:59:33,359 [INFO] F1-weighted    : 0.9974  (train=1.0)
+2026-04-23 11:59:33,359 [INFO] Surapprentissage : +0.0026
+2026-04-23 11:59:33,359 [INFO] F1-macro       : 0.9969
+2026-04-23 11:59:33,360 [INFO] Balanced Acc   : 0.9963
+2026-04-23 11:59:33,360 [INFO] ROC-AUC        : 0.9973
+2026-04-23 11:59:33,360 [INFO] Data Leakage   : ZERO
+2026-04-23 11:59:33,360 [INFO] Classes        : [np.int64(0), np.int64(1), np.int64(2), np.int64(3), np.int64(4)] -> {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+2026-04-23 11:59:33,360 [INFO] ======================================================================
+
+2026-04-23 11:59:33,360 [INFO] Entrainement termine. Modele pret pour le deploiement.
+
+2026-04-23 18:30:44,344 [INFO] 
+======================================================================
+2026-04-23 18:30:44,344 [INFO] InvisiThreat AI Risk Engine — Training v7.0
+2026-04-23 18:30:44,344 [INFO]   [V1]  LabelEncoder supprimé      [V2]  SHAP base model propre
+2026-04-23 18:30:44,344 [INFO]   [V3]  Calibration prefit+split   [V4]  StackingClassifier
+2026-04-23 18:30:44,344 [INFO]   [V5]  Isotonic conditionnel       [V6]  SHAP dual plots
+2026-04-23 18:30:44,344 [INFO]   [V7]  SHAP ranking logs           [V8]  Time split check
+2026-04-23 18:30:44,344 [INFO]   [V9]  HTML report                 [V10] JSON run history
+2026-04-23 18:30:44,344 [INFO] ======================================================================
+2026-04-23 18:30:44,378 [INFO] Chargé : 1905 lignes | features : 20/20
+2026-04-23 18:30:44,379 [INFO] Valides : 1904 | Exclus : 1
+2026-04-23 18:30:44,382 [INFO] Sources :
+label_source
+severity_defectdojo_v8    1904
+2026-04-23 18:30:44,384 [INFO] 
+Distribution cible:
+2026-04-23 18:30:44,384 [INFO]   Low        (0):   275  ( 14.4%)
+2026-04-23 18:30:44,384 [INFO]   Medium     (1):  1180  ( 62.0%)
+2026-04-23 18:30:44,384 [INFO]   High       (2):   433  ( 22.7%)
+2026-04-23 18:30:44,384 [INFO]   Critical   (3):    16  (  0.8%)
+2026-04-23 18:30:44,385 [INFO] [V1] y_valid dtype=int64 classes=[np.int64(0), np.int64(1), np.int64(2), np.int64(3)]
+2026-04-23 18:30:44,389 [INFO] Split : 1523 train | 381 test
+2026-04-23 18:30:44,396 [INFO] [V8] Colonne date : 'created'
+2026-04-23 18:30:44,396 [INFO] [V8] Train max date : 2026-04-22
+2026-04-23 18:30:44,396 [INFO] [V8] Test  min date : 2026-02-11
+2026-04-23 18:30:44,397 [WARNING] [V8] ⚠ Overlap temporel détecté (test contient des dates < train max) → split stratifié aléatoire utilisé (acceptable pour ce projet)
+2026-04-23 18:30:44,401 [INFO] [T6] product_fp_rate sur 1523 train (3 produits, moy=0.0000)
+2026-04-23 18:30:44,402 [INFO] Features : (1904, 20) | Cible : (1904,)
+2026-04-23 18:30:44,405 [INFO] 
+Train:
+2026-04-23 18:30:44,406 [INFO]   Low        (0):   220  ( 14.4%)
+2026-04-23 18:30:44,406 [INFO]   Medium     (1):   944  ( 62.0%)
+2026-04-23 18:30:44,406 [INFO]   High       (2):   346  ( 22.7%)
+2026-04-23 18:30:44,406 [INFO]   Critical   (3):    13  (  0.9%)
+2026-04-23 18:30:44,406 [INFO] 
+Test:
+2026-04-23 18:30:44,406 [INFO]   Low        (0):    55  ( 14.4%)
+2026-04-23 18:30:44,406 [INFO]   Medium     (1):   236  ( 61.9%)
+2026-04-23 18:30:44,407 [INFO]   High       (2):    87  ( 22.8%)
+2026-04-23 18:30:44,407 [INFO]   Critical   (3):     3  (  0.8%)
+2026-04-23 18:30:44,407 [INFO] 
+── [T7] Audit corrélation features/cible ──
+2026-04-23 18:30:44,411 [INFO] Top 10 |r| :
+2026-04-23 18:30:44,411 [INFO]   has_cwe                             r=+nan
+2026-04-23 18:30:44,412 [INFO]   tag_urgent                          r=+0.7401
+2026-04-23 18:30:44,412 [INFO]   tags_count                          r=+0.3536
+2026-04-23 18:30:44,412 [INFO]   tags_count_norm                     r=+0.3536
+2026-04-23 18:30:44,412 [INFO]   cvss_score                          r=+0.3208
+2026-04-23 18:30:44,412 [INFO]   cvss_score_norm                     r=+0.3208
+2026-04-23 18:30:44,412 [INFO]   product_fp_rate                     r=+nan
+2026-04-23 18:30:44,412 [INFO]   age_x_cvss                          r=+0.3027
+2026-04-23 18:30:44,412 [INFO]   cvss_x_has_cve                      r=+0.2732
+2026-04-23 18:30:44,412 [INFO]   epss_score                          r=+0.2308
+2026-04-23 18:30:44,412 [INFO] Aucune corrélation >0.85 — signal cohérent
+2026-04-23 18:30:44,413 [INFO] [T3] Sample weights (plafond=10.0) :
+2026-04-23 18:30:44,414 [INFO]   Low        → 1.731
+2026-04-23 18:30:44,414 [INFO]   Medium     → 0.403
+2026-04-23 18:30:44,414 [INFO]   High       → 1.100
+2026-04-23 18:30:44,414 [INFO]   Critical   → 10.000
+2026-04-23 18:30:44,414 [INFO] 
+============================================================
+2026-04-23 18:30:44,414 [INFO] [V4] Entraînement des modèles de base pour Stacking...
+2026-04-23 18:30:44,414 [INFO] ============================================================
+2026-04-23 18:30:44,415 [INFO] [RandomForest] Hyperopt 2-fold...
+2026-04-23 18:30:51,967 [INFO] [RandomForest] F1-weighted CV : 0.8319
+2026-04-23 18:30:51,967 [INFO] ============================================================
+2026-04-23 18:30:51,968 [INFO] [XGBoost] Hyperopt 2-fold...
+2026-04-23 18:30:56,263 [INFO] [XGBoost] F1-weighted CV : 0.8346
+2026-04-23 18:30:56,264 [INFO] ============================================================
+2026-04-23 18:30:56,265 [INFO] [LightGBM] Hyperopt 2-fold...
+2026-04-23 18:31:19,488 [INFO] [LightGBM] F1-weighted CV : 0.8317
+2026-04-23 18:31:19,488 [INFO] 
+Comparaison modèles de base :
+2026-04-23 18:31:19,488 [INFO]   #1 XGBoost         CV F1=0.8346
+2026-04-23 18:31:19,489 [INFO]   #2 RandomForest    CV F1=0.8319
+2026-04-23 18:31:19,489 [INFO]   #3 LightGBM        CV F1=0.8317
+2026-04-23 18:31:19,489 [INFO] 
+[V4] Fit StackingClassifier...
+2026-04-23 18:31:26,895 [INFO] [V4] StackingClassifier F1-train : 0.8453
+2026-04-23 18:31:26,895 [INFO] [V5] Méthode calibration : isotonic (n=1523)
+2026-04-23 18:31:26,903 [INFO] [V3] Cal split : 1218 fit | 305 calibration
+2026-04-23 18:31:26,903 [INFO] [V3] Re-fit pipeline sur X_fit...
+2026-04-23 18:31:34,215 [INFO] [V3] Calibration prefit OK (method=isotonic)
+2026-04-23 18:31:34,592 [INFO] 
+============================================================
+ÉVALUATION
+2026-04-23 18:31:34,592 [INFO]   F1-weighted  (test)  : 0.8938
+2026-04-23 18:31:34,592 [INFO]   F1-weighted  (train) : 0.8812
+2026-04-23 18:31:34,593 [INFO]   Surapprentissage Δ   : -0.0126  OK
+2026-04-23 18:31:34,593 [INFO]   F1-macro             : 0.8811
+2026-04-23 18:31:34,593 [INFO]   Balanced Accuracy    : 0.8541
+2026-04-23 18:31:34,593 [INFO] F1=0.8938 — bon résultat, dans la plage attendue.
+2026-04-23 18:31:34,606 [INFO] 
+              precision    recall  f1-score   support
+
+         Low       0.87      0.49      0.63        55
+      Medium       0.88      0.98      0.93       236
+        High       1.00      0.94      0.97        87
+    Critical       1.00      1.00      1.00         3
+
+    accuracy                           0.90       381
+   macro avg       0.94      0.85      0.88       381
+weighted avg       0.90      0.90      0.89       381
+
+2026-04-23 18:31:34,617 [INFO]   ROC-AUC OvR : 0.9672
+2026-04-23 18:31:34,811 [INFO] [V2] SHAP base model extrait : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-23 18:31:35,561 [INFO] Top 10 Feature Importance :
+2026-04-23 18:31:35,562 [INFO]    1. tag_urgent                             0.2083
+2026-04-23 18:31:35,562 [INFO]    2. cvss_score_norm                        0.1520
+2026-04-23 18:31:35,563 [INFO]    3. cvss_score                             0.1499
+2026-04-23 18:31:35,563 [INFO]    4. tags_count_norm                        0.0819
+2026-04-23 18:31:35,563 [INFO]    5. age_x_cvss                             0.0795
+2026-04-23 18:31:35,563 [INFO]    6. tags_count                             0.0723
+2026-04-23 18:31:35,563 [INFO]    7. cvss_x_has_cve                         0.0640
+2026-04-23 18:31:35,563 [INFO]    8. age_days_norm                          0.0290
+2026-04-23 18:31:35,563 [INFO]    9. epss_x_cvss                            0.0278
+2026-04-23 18:31:35,563 [INFO]   10. age_days                               0.0278
+2026-04-23 18:31:35,618 [INFO] [V2] SHAP base model extrait : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-23 18:31:37,164 [INFO] [V6] SHAP dual plots sauvegardés (bar + dot)
+2026-04-23 18:31:37,164 [WARNING] [V6/V7] SHAP échoué : The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-04-23 18:31:37,166 [INFO] [V9] Rapport HTML sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-04-23 18:31:37,942 [INFO] [V2] SHAP base model extrait : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-23 18:31:37,944 [INFO] [SAVE] Modèle + méta sauvegardés (StackingClassifier)
+2026-04-23 18:31:37,946 [INFO] [V10] Run history sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\logs\train_run_20260423_183137.json
+2026-04-23 18:31:37,947 [INFO] 
+======================================================================
+2026-04-23 18:31:37,947 [INFO] ✅ Modèle : StackingClassifier
+2026-04-23 18:31:37,947 [INFO]    F1-weighted  : 0.8938  (train=0.8812)
+2026-04-23 18:31:37,947 [INFO]    Δ overfit    : -0.0126
+2026-04-23 18:31:37,948 [INFO]    Bal. Acc.    : 0.8541
+2026-04-23 18:31:37,948 [INFO]    ROC-AUC      : 0.9672
+2026-04-23 18:31:37,948 [INFO]    Calibration  : isotonic (prefit)
+2026-04-23 18:31:37,948 [INFO]    Rapport HTML : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-04-23 18:31:37,949 [INFO]    Run JSON     : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\logs\train_run_20260423_183137.json
+2026-04-23 18:31:37,949 [INFO] ======================================================================
+
+2026-04-23 18:46:57,071 [INFO] ======================================================================
+2026-04-23 18:46:57,071 [INFO] InvisiThreat AI Risk Engine — Training v8.0
+2026-04-23 18:46:57,071 [INFO]   Fixes : split temporel strict | SHAP crash | LightGBM DataFrame
+2026-04-23 18:46:57,071 [INFO]           NaN correlations | sample_weights corrigé | leakage 0.75
+2026-04-23 18:46:57,071 [INFO] ======================================================================
+2026-04-23 18:46:57,107 [INFO] Dataset chargé : 1,905 lignes | Features présentes : 20/20
+2026-04-23 18:46:57,108 [INFO] Cible — valides : 1,904 | exclus (NaN) : 1
+2026-04-23 18:46:57,109 [INFO] Sources de labels :
+label_source
+severity_defectdojo_v8    1904
+2026-04-23 18:46:57,109 [INFO] Distribution cible initiale (1,904 samples) :
+2026-04-23 18:46:57,110 [INFO]   Low        (class 0) :   275  ( 14.4%)  █████
+2026-04-23 18:46:57,110 [INFO]   Medium     (class 1) : 1,180  ( 62.0%)  ████████████████████████
+2026-04-23 18:46:57,110 [INFO]   High       (class 2) :   433  ( 22.7%)  █████████
+2026-04-23 18:46:57,110 [INFO]   Critical   (class 3) :    16  (  0.8%)    ⚠ CLASSE RARE
+2026-04-23 18:46:57,112 [INFO] y_valid dtype=int64 | classes=[np.int64(0), np.int64(1), np.int64(2), np.int64(3)]
+2026-04-23 18:46:57,119 [INFO] Split temporel strict — cutoff : 2026-04-22 | train : 1,523 | test : 381
+2026-04-23 18:46:57,120 [INFO] Train max date : 2026-04-22 | Test  min date : 2026-04-22
+2026-04-23 18:46:57,121 [INFO] product_fp_rate — 1,523 samples train | 3 produits | moyenne globale : 0.0000
+2026-04-23 18:46:57,122 [INFO] Matrice features : (1904, 20) | Vecteur cible : (1904,)
+2026-04-23 18:46:57,124 [INFO] Distribution train (1,523 samples) :
+2026-04-23 18:46:57,124 [INFO]   Low        (class 0) :   192  ( 12.6%)  █████
+2026-04-23 18:46:57,124 [INFO]   Medium     (class 1) :   928  ( 60.9%)  ████████████████████████
+2026-04-23 18:46:57,124 [INFO]   High       (class 2) :   388  ( 25.5%)  ██████████
+2026-04-23 18:46:57,125 [INFO]   Critical   (class 3) :    15  (  1.0%)    ⚠ CLASSE RARE
+2026-04-23 18:46:57,125 [INFO] Distribution test (381 samples) :
+2026-04-23 18:46:57,125 [INFO]   Low        (class 0) :    83  ( 21.8%)  ████████
+2026-04-23 18:46:57,125 [INFO]   Medium     (class 1) :   252  ( 66.1%)  ██████████████████████████
+2026-04-23 18:46:57,125 [INFO]   High       (class 2) :    45  ( 11.8%)  ████
+2026-04-23 18:46:57,126 [INFO]   Critical   (class 3) :     1  (  0.3%)    ⚠ CLASSE RARE
+2026-04-23 18:46:57,126 [INFO] ─── Audit corrélation features / cible ───
+2026-04-23 18:46:57,134 [WARNING] Corrélation ignorée pour 2 colonne(s) à variance nulle : ['has_cwe', 'product_fp_rate']
+2026-04-23 18:46:57,134 [INFO] Top 10 corrélations |r| :
+2026-04-23 18:46:57,134 [INFO]   tag_urgent                             r=+0.7996  ⚠ LEAKAGE POTENTIEL |r|>0.75
+2026-04-23 18:46:57,134 [INFO]   tags_count                             r=+0.3566
+2026-04-23 18:46:57,134 [INFO]   tags_count_norm                        r=+0.3566
+2026-04-23 18:46:57,134 [INFO]   age_x_cvss                             r=+0.3232
+2026-04-23 18:46:57,134 [INFO]   cvss_score                             r=+0.2954
+2026-04-23 18:46:57,135 [INFO]   cvss_score_norm                        r=+0.2954
+2026-04-23 18:46:57,135 [INFO]   cvss_x_has_cve                         r=+0.2545
+2026-04-23 18:46:57,135 [INFO]   epss_x_cvss                            r=+0.2234
+2026-04-23 18:46:57,135 [INFO]   epss_score                             r=+0.2232
+2026-04-23 18:46:57,135 [INFO]   epss_percentile                        r=+0.1855
+2026-04-23 18:46:57,135 [WARNING] 1 feature(s) avec |r|>0.75 — vérifier formule du label.
+2026-04-23 18:46:57,138 [INFO] Sample weights (plafond=10.0) :
+2026-04-23 18:46:57,138 [INFO]   Low        → 1.983
+2026-04-23 18:46:57,138 [INFO]   Medium     → 0.410
+2026-04-23 18:46:57,139 [INFO]   High       → 0.981
+2026-04-23 18:46:57,139 [INFO]   Critical   → 10.000
+2026-04-23 18:46:57,139 [INFO] ─── Entraînement des modèles de base (Stacking) ───
+2026-04-23 18:46:57,139 [INFO] Optimisation RandomForest...
+2026-04-23 18:46:57,139 [INFO] [RandomForest] Hyperopt 2-fold en cours...
+2026-04-23 18:47:03,233 [INFO] [RandomForest] Meilleur F1-weighted CV : 0.9052
+2026-04-23 18:47:03,233 [INFO] Optimisation XGBoost...
+2026-04-23 18:47:03,234 [INFO] [XGBoost] Hyperopt 2-fold en cours...
+2026-04-23 18:47:06,644 [INFO] [XGBoost] Meilleur F1-weighted CV : 0.9190
+2026-04-23 18:47:06,644 [INFO] Optimisation LightGBM...
+2026-04-23 18:47:06,645 [INFO] [LightGBM] Hyperopt 2-fold en cours...
+2026-04-23 18:47:24,531 [INFO] [LightGBM] Meilleur F1-weighted CV : 0.9239
+2026-04-23 18:47:24,532 [INFO] Comparaison modèles de base :
+2026-04-23 18:47:24,532 [INFO]   #1  LightGBM         CV F1=0.9239
+2026-04-23 18:47:24,532 [INFO]   #2  XGBoost          CV F1=0.9190
+2026-04-23 18:47:24,532 [INFO]   #3  RandomForest     CV F1=0.9052
+2026-04-23 18:47:24,532 [INFO] Fit StackingClassifier...
+2026-04-23 18:47:31,960 [INFO] StackingClassifier F1 sur train : 0.9287
+2026-04-23 18:47:31,960 [INFO] Calibration — méthode : isotonic | n=1,523
+2026-04-23 18:47:31,963 [INFO] Calibration split — fit : 1,218 | cal : 305
+2026-04-23 18:47:39,292 [INFO] Calibration prefit terminée (method=isotonic).
+2026-04-23 18:47:39,477 [INFO] ─── Évaluation finale ───
+2026-04-23 18:47:39,477 [INFO]   F1-weighted  test  : 0.5233
+2026-04-23 18:47:39,477 [INFO]   F1-weighted  train : 0.9279
+2026-04-23 18:47:39,477 [INFO]   Δ surapprentissage : +0.4046  ⚠ FORT (>0.10)
+2026-04-23 18:47:39,477 [INFO]   F1-macro           : 0.4445
+2026-04-23 18:47:39,478 [INFO]   Balanced Accuracy  : 0.4729
+2026-04-23 18:47:39,485 [INFO] 
+              precision    recall  f1-score   support
+
+         Low       0.27      0.71      0.40        83
+      Medium       0.74      0.38      0.50       252
+        High       0.97      0.80      0.88        45
+    Critical       0.00      0.00      0.00         1
+
+    accuracy                           0.50       381
+   macro avg       0.50      0.47      0.44       381
+weighted avg       0.67      0.50      0.52       381
+
+2026-04-23 18:47:39,491 [INFO]   ROC-AUC OvR weighted : 0.7093
+2026-04-23 18:47:39,529 [INFO] SHAP base model : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-23 18:47:40,031 [INFO] Top 10 Feature Importance :
+2026-04-23 18:47:40,031 [INFO]    1. tag_urgent                             0.3689
+2026-04-23 18:47:40,032 [INFO]    2. cvss_score                             0.1695
+2026-04-23 18:47:40,032 [INFO]    3. cvss_score_norm                        0.1529
+2026-04-23 18:47:40,032 [INFO]    4. age_x_cvss                             0.0786
+2026-04-23 18:47:40,032 [INFO]    5. tags_count_norm                        0.0549
+2026-04-23 18:47:40,032 [INFO]    6. tags_count                             0.0531
+2026-04-23 18:47:40,033 [INFO]    7. age_days_norm                          0.0295
+2026-04-23 18:47:40,033 [INFO]    8. cvss_x_has_cve                         0.0276
+2026-04-23 18:47:40,033 [INFO]    9. age_days                               0.0273
+2026-04-23 18:47:40,033 [INFO]   10. context_score                          0.0118
+2026-04-23 18:47:40,052 [INFO] SHAP base model : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-23 18:47:40,124 [WARNING] SHAP non disponible : summary_legacy() got an unexpected keyword argument 'ax'
+Traceback (most recent call last):
+  File "C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\src\train.py", line 633, in explain_with_shap
+    shap.summary_plot(
+    ~~~~~~~~~~~~~~~~~^
+        sv_class, X_t, feature_names=feature_cols,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        show=False, plot_type="bar", max_display=15, ax=ax,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+TypeError: summary_legacy() got an unexpected keyword argument 'ax'
+2026-04-23 18:47:40,126 [INFO] Rapport HTML sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-04-23 18:47:40,618 [INFO] SHAP base model : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-23 18:47:40,619 [INFO] Modèle sauvegardé : pipeline_20260423_184740.pkl + pipeline_latest.pkl
+2026-04-23 18:47:40,621 [INFO] Run history sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\logs\train_run_20260423_184740.json
+2026-04-23 18:47:40,621 [INFO] ======================================================================
+2026-04-23 18:47:40,621 [INFO] Modèle          : StackingClassifier
+2026-04-23 18:47:40,621 [INFO] F1-weighted     : 0.5233  (train=0.9279)
+2026-04-23 18:47:40,621 [INFO] Δ surapprentissage : +0.4046
+2026-04-23 18:47:40,621 [INFO] Balanced Acc.   : 0.4729
+2026-04-23 18:47:40,622 [INFO] ROC-AUC         : 0.7093
+2026-04-23 18:47:40,622 [INFO] Calibration     : isotonic (prefit)
+2026-04-23 18:47:40,622 [INFO] Rapport HTML    : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-04-23 18:47:40,622 [INFO] Run JSON        : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\logs\train_run_20260423_184740.json
+2026-04-23 18:47:40,622 [INFO] ======================================================================
+2026-04-23 18:52:40,940 [INFO] 
+======================================================================
+2026-04-23 18:52:40,940 [INFO] InvisiThreat AI Risk Engine — Training v4.4 (COMPLETE)
+2026-04-23 18:52:40,940 [INFO] ======================================================================
+
+2026-04-23 18:52:40,975 [INFO] ✓ Loaded: 1905 rows × 50 cols
+2026-04-23 18:52:40,976 [INFO] ✓ Features available: 20/23
+2026-04-23 18:52:40,976 [INFO] ✓ Target samples: 1904 valid | 1 excluded
+2026-04-23 18:52:40,977 [INFO] Label sources:
+label_source
+severity_defectdojo_v8    1904
+2026-04-23 18:52:40,978 [INFO] 
+Target distribution:
+2026-04-23 18:52:40,978 [INFO]   Info         (0):   275 samples  ( 14.4%)
+2026-04-23 18:52:40,978 [INFO]   Low          (1):  1180 samples  ( 62.0%)
+2026-04-23 18:52:40,978 [INFO]   Medium       (2):   433 samples  ( 22.7%)
+2026-04-23 18:52:40,979 [INFO]   High         (3):    16 samples  (  0.8%)
+2026-04-23 18:52:40,980 [INFO] ✓ Labels re-mapped for XGBoost compatibility: {0: 0, 1: 1, 2: 2, 3: 3}
+2026-04-23 18:52:40,982 [INFO] 
+✓ Split: 1523 train | 381 test
+
+2026-04-23 18:52:40,982 [WARNING]   Missing features: ['days_open_high', 'epss_score_norm', 'exploit_risk']
+2026-04-23 18:52:40,985 [INFO] ✓ Features: (1904, 20) | Target: (1904,)
+2026-04-23 18:52:40,986 [INFO] 
+Training set (Encoded):
+2026-04-23 18:52:40,986 [INFO]   Info         (0):   220 samples  ( 14.4%)
+2026-04-23 18:52:40,986 [INFO]   Low          (1):   944 samples  ( 62.0%)
+2026-04-23 18:52:40,986 [INFO]   Medium       (2):   346 samples  ( 22.7%)
+2026-04-23 18:52:40,986 [INFO]   High         (3):    13 samples  (  0.9%)
+2026-04-23 18:52:40,987 [INFO] 
+Test set (Encoded):
+2026-04-23 18:52:40,987 [INFO]   Info         (0):    55 samples  ( 14.4%)
+2026-04-23 18:52:40,987 [INFO]   Low          (1):   236 samples  ( 61.9%)
+2026-04-23 18:52:40,987 [INFO]   Medium       (2):    87 samples  ( 22.8%)
+2026-04-23 18:52:40,987 [INFO]   High         (3):     3 samples  (  0.8%)
+2026-04-23 18:52:40,987 [INFO] 
+======================================================================
+2026-04-23 18:52:40,987 [INFO] Training RandomForest...
+2026-04-23 18:52:40,987 [INFO] ======================================================================
+2026-04-23 18:52:40,988 [INFO] [RandomForest] Hyperparameter search (2-fold stratified CV)...
+2026-04-23 18:52:47,602 [INFO] [RandomForest] Best F1-weighted (CV): 0.8333
+2026-04-23 18:52:47,603 [INFO] 
+======================================================================
+2026-04-23 18:52:47,603 [INFO] Training XGBoost...
+2026-04-23 18:52:47,603 [INFO] ======================================================================
+2026-04-23 18:52:47,603 [INFO] [XGBoost] Hyperparameter search (2-fold stratified CV)...
+2026-04-23 18:52:51,266 [INFO] [XGBoost] Best F1-weighted (CV): 0.8797
+2026-04-23 18:52:51,266 [INFO] 
+======================================================================
+2026-04-23 18:52:51,266 [INFO] Training LightGBM...
+2026-04-23 18:52:51,266 [INFO] ======================================================================
+2026-04-23 18:52:51,267 [INFO] [LightGBM] Hyperparameter search (2-fold stratified CV)...
+2026-04-23 18:53:11,982 [INFO] [LightGBM] Best F1-weighted (CV): 0.8800
+2026-04-23 18:53:11,982 [INFO] 
+======================================================================
+2026-04-23 18:53:11,982 [INFO] MODEL COMPARISON & RANKING
+2026-04-23 18:53:11,983 [INFO] ======================================================================
+2026-04-23 18:53:11,983 [INFO]   #1 LightGBM        F1-weighted: 0.8800  🏆 ← SELECTED
+2026-04-23 18:53:11,983 [INFO]   #2 XGBoost         F1-weighted: 0.8797
+2026-04-23 18:53:11,983 [INFO]   #3 RandomForest    F1-weighted: 0.8333
+2026-04-23 18:53:11,983 [INFO] ======================================================================
+
+2026-04-23 18:53:11,983 [INFO] Calibrating model probabilities (Platt scaling)...
+2026-04-23 18:53:11,984 [INFO]   Auto-adjusted CV folds: 3 (min class count: 13)
+2026-04-23 18:53:12,863 [INFO] ✓ Calibration complete
+2026-04-23 18:53:12,863 [INFO] 
+======================================================================
+2026-04-23 18:53:12,863 [INFO] MODEL EVALUATION ON TEST SET
+2026-04-23 18:53:12,863 [INFO] ======================================================================
+
+2026-04-23 18:53:12,909 [INFO]   Metrics:
+2026-04-23 18:53:12,910 [INFO]   F1-weighted: 0.9080
+2026-04-23 18:53:12,910 [INFO]   F1-macro:    0.8998
+2026-04-23 18:53:12,911 [INFO]   Balanced Accuracy: 0.8758
+2026-04-23 18:53:12,923 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.86      0.58      0.70        55
+         Low       0.89      0.98      0.93       236
+      Medium       1.00      0.94      0.97        87
+        High       1.00      1.00      1.00         3
+
+    accuracy                           0.91       381
+   macro avg       0.94      0.88      0.90       381
+weighted avg       0.91      0.91      0.91       381
+
+2026-04-23 18:53:12,929 [INFO]   ROC-AUC OvR (weighted): 0.9721
+2026-04-23 18:53:12,953 [INFO] 
+Generating confusion matrix...
+2026-04-23 18:53:13,187 [INFO] ✓ Confusion matrix saved
+2026-04-23 18:53:13,187 [INFO] Generating feature importance...
+2026-04-23 18:53:13,409 [INFO] Feature importance saved
+2026-04-23 18:53:13,409 [INFO] 
+Top 15 Features:
+2026-04-23 18:53:13,410 [INFO]    1. tags_count                               2343.0000
+2026-04-23 18:53:13,410 [INFO]    2. age_days                                 2141.0000
+2026-04-23 18:53:13,410 [INFO]    3. cvss_score                               1235.0000
+2026-04-23 18:53:13,410 [INFO]    4. epss_score                               640.0000
+2026-04-23 18:53:13,410 [INFO]    5. age_x_cvss                               480.0000
+2026-04-23 18:53:13,411 [INFO]    6. tag_sensitive                            466.0000
+2026-04-23 18:53:13,411 [INFO]    7. context_score                            464.0000
+2026-04-23 18:53:13,411 [INFO]    8. tag_external                             366.0000
+2026-04-23 18:53:13,411 [INFO]    9. tag_in_production                        258.0000
+2026-04-23 18:53:13,411 [INFO]   10. cvss_x_has_cve                           232.0000
+2026-04-23 18:53:13,411 [INFO]   11. epss_x_cvss                              203.0000
+2026-04-23 18:53:13,411 [INFO]   12. tag_urgent                               182.0000
+2026-04-23 18:53:13,411 [INFO]   13. has_cve                                  44.0000
+2026-04-23 18:53:13,411 [INFO]   14. epss_percentile                          3.0000
+2026-04-23 18:53:13,412 [INFO]   15. has_high_epss                            0.0000
+2026-04-23 18:53:13,414 [INFO] Generating SHAP explanations...
+2026-04-23 18:53:14,055 [INFO] ✓ SHAP explanations saved
+2026-04-23 18:53:14,194 [INFO] Model saved: models\pipeline_20260423_185314.pkl
+2026-04-23 18:53:14,194 [INFO] Latest: models\pipeline_latest.pkl
+2026-04-23 18:53:14,196 [INFO] Metadata: models\pipeline_latest_meta.json
+2026-04-23 18:53:14,196 [INFO] Label mapping saved: {0: 0, 1: 1, 2: 2, 3: 3}
+2026-04-23 18:53:14,197 [INFO] 
+======================================================================
+2026-04-23 18:53:14,197 [INFO] FINAL RESULTS
+2026-04-23 18:53:14,197 [INFO] ======================================================================
+2026-04-23 18:53:14,197 [INFO] Best Model: LightGBM
+2026-04-23 18:53:14,198 [INFO] F1-weighted: 0.908
+2026-04-23 18:53:14,198 [INFO] F1-macro: 0.8998
+2026-04-23 18:53:14,199 [INFO] Balanced Accuracy: 0.8758
+2026-04-23 18:53:14,199 [INFO] ROC-AUC: 0.9721
+2026-04-23 18:53:14,199 [INFO] Data Leakage:  ZERO
+2026-04-23 18:53:14,199 [INFO] Classes processed: [np.int64(0), np.int64(1), np.int64(2), np.int64(3)] (Mapped to sequential integers)
+2026-04-23 18:53:14,199 [INFO] ======================================================================
+
+2026-04-23 18:53:14,200 [INFO] Training complete! Model ready for deployment.
+
+2026-04-25 01:13:02,030 [INFO] 
+======================================================================
+2026-04-25 01:13:02,031 [INFO] InvisiThreat AI Risk Engine — Training v4.4 (COMPLETE)
+2026-04-25 01:13:02,031 [INFO] ======================================================================
+
+2026-04-25 01:13:02,074 [INFO] ✓ Loaded: 1905 rows × 49 cols
+2026-04-25 01:13:02,076 [INFO] ✓ Features available: 20/23
+2026-04-25 01:13:02,077 [INFO] ✓ Target samples: 1904 valid | 1 excluded
+2026-04-25 01:13:02,081 [INFO] Label sources:
+label_source
+severity_defectdojo_v9    1904
+2026-04-25 01:13:02,082 [INFO] 
+Target distribution:
+2026-04-25 01:13:02,083 [INFO]   Info         (0):   275 samples  ( 14.4%)
+2026-04-25 01:13:02,083 [INFO]   Low          (1):  1180 samples  ( 62.0%)
+2026-04-25 01:13:02,083 [INFO]   Medium       (2):   433 samples  ( 22.7%)
+2026-04-25 01:13:02,083 [INFO]   High         (3):    16 samples  (  0.8%)
+2026-04-25 01:13:02,087 [INFO] ✓ Labels re-mapped for XGBoost compatibility: {0: 0, 1: 1, 2: 2, 3: 3}
+2026-04-25 01:13:02,090 [INFO] 
+✓ Split: 1523 train | 381 test
+
+2026-04-25 01:13:02,090 [WARNING]   Missing features: ['days_open_high', 'epss_score_norm', 'exploit_risk']
+2026-04-25 01:13:02,099 [INFO] ✓ Features: (1904, 20) | Target: (1904,)
+2026-04-25 01:13:02,100 [INFO] 
+Training set (Encoded):
+2026-04-25 01:13:02,100 [INFO]   Info         (0):   220 samples  ( 14.4%)
+2026-04-25 01:13:02,100 [INFO]   Low          (1):   944 samples  ( 62.0%)
+2026-04-25 01:13:02,101 [INFO]   Medium       (2):   346 samples  ( 22.7%)
+2026-04-25 01:13:02,101 [INFO]   High         (3):    13 samples  (  0.9%)
+2026-04-25 01:13:02,101 [INFO] 
+Test set (Encoded):
+2026-04-25 01:13:02,101 [INFO]   Info         (0):    55 samples  ( 14.4%)
+2026-04-25 01:13:02,101 [INFO]   Low          (1):   236 samples  ( 61.9%)
+2026-04-25 01:13:02,101 [INFO]   Medium       (2):    87 samples  ( 22.8%)
+2026-04-25 01:13:02,101 [INFO]   High         (3):     3 samples  (  0.8%)
+2026-04-25 01:13:02,101 [INFO] 
+======================================================================
+2026-04-25 01:13:02,102 [INFO] Training RandomForest...
+2026-04-25 01:13:02,102 [INFO] ======================================================================
+2026-04-25 01:13:02,102 [INFO] [RandomForest] Hyperparameter search (2-fold stratified CV)...
+2026-04-25 01:13:11,236 [INFO] [RandomForest] Best F1-weighted (CV): 0.8339
+2026-04-25 01:13:11,237 [INFO] 
+======================================================================
+2026-04-25 01:13:11,237 [INFO] Training XGBoost...
+2026-04-25 01:13:11,237 [INFO] ======================================================================
+2026-04-25 01:13:11,238 [INFO] [XGBoost] Hyperparameter search (2-fold stratified CV)...
+2026-04-25 01:13:14,938 [INFO] [XGBoost] Best F1-weighted (CV): 0.8803
+2026-04-25 01:13:14,939 [INFO] 
+======================================================================
+2026-04-25 01:13:14,939 [INFO] Training LightGBM...
+2026-04-25 01:13:14,939 [INFO] ======================================================================
+2026-04-25 01:13:14,940 [INFO] [LightGBM] Hyperparameter search (2-fold stratified CV)...
+2026-04-25 01:13:32,274 [INFO] [LightGBM] Best F1-weighted (CV): 0.8797
+2026-04-25 01:13:32,275 [INFO] 
+======================================================================
+2026-04-25 01:13:32,275 [INFO] MODEL COMPARISON & RANKING
+2026-04-25 01:13:32,275 [INFO] ======================================================================
+2026-04-25 01:13:32,275 [INFO]   #1 XGBoost         F1-weighted: 0.8803  🏆 ← SELECTED
+2026-04-25 01:13:32,275 [INFO]   #2 LightGBM        F1-weighted: 0.8797
+2026-04-25 01:13:32,276 [INFO]   #3 RandomForest    F1-weighted: 0.8339
+2026-04-25 01:13:32,276 [INFO] ======================================================================
+
+2026-04-25 01:13:32,276 [INFO] Calibrating model probabilities (Platt scaling)...
+2026-04-25 01:13:32,277 [INFO]   Auto-adjusted CV folds: 3 (min class count: 13)
+2026-04-25 01:13:32,744 [INFO] ✓ Calibration complete
+2026-04-25 01:13:32,745 [INFO] 
+======================================================================
+2026-04-25 01:13:32,745 [INFO] MODEL EVALUATION ON TEST SET
+2026-04-25 01:13:32,745 [INFO] ======================================================================
+
+2026-04-25 01:13:32,779 [INFO]   Metrics:
+2026-04-25 01:13:32,780 [INFO]   F1-weighted: 0.9080
+2026-04-25 01:13:32,780 [INFO]   F1-macro:    0.8998
+2026-04-25 01:13:32,780 [INFO]   Balanced Accuracy: 0.8758
+2026-04-25 01:13:32,788 [INFO] 
+              precision    recall  f1-score   support
+
+        Info       0.86      0.58      0.70        55
+         Low       0.89      0.98      0.93       236
+      Medium       1.00      0.94      0.97        87
+        High       1.00      1.00      1.00         3
+
+    accuracy                           0.91       381
+   macro avg       0.94      0.88      0.90       381
+weighted avg       0.91      0.91      0.91       381
+
+2026-04-25 01:13:32,793 [INFO]   ROC-AUC OvR (weighted): 0.9728
+2026-04-25 01:13:32,809 [INFO] 
+Generating confusion matrix...
+2026-04-25 01:13:33,109 [INFO] ✓ Confusion matrix saved
+2026-04-25 01:13:33,110 [INFO] Generating feature importance...
+2026-04-25 01:13:33,312 [INFO] Feature importance saved
+2026-04-25 01:13:33,312 [INFO] 
+Top 15 Features:
+2026-04-25 01:13:33,313 [INFO]    1. tag_urgent                               0.6077
+2026-04-25 01:13:33,313 [INFO]    2. cvss_score                               0.0850
+2026-04-25 01:13:33,313 [INFO]    3. tags_count                               0.0824
+2026-04-25 01:13:33,313 [INFO]    4. age_x_cvss                               0.0710
+2026-04-25 01:13:33,314 [INFO]    5. age_days                                 0.0410
+2026-04-25 01:13:33,314 [INFO]    6. epss_score                               0.0300
+2026-04-25 01:13:33,314 [INFO]    7. tag_in_production                        0.0215
+2026-04-25 01:13:33,314 [INFO]    8. tag_external                             0.0201
+2026-04-25 01:13:33,314 [INFO]    9. tag_sensitive                            0.0143
+2026-04-25 01:13:33,314 [INFO]   10. cvss_x_has_cve                           0.0129
+2026-04-25 01:13:33,314 [INFO]   11. context_score                            0.0079
+2026-04-25 01:13:33,315 [INFO]   12. epss_x_cvss                              0.0061
+2026-04-25 01:13:33,315 [INFO]   13. epss_percentile                          0.0000
+2026-04-25 01:13:33,315 [INFO]   14. has_high_epss                            0.0000
+2026-04-25 01:13:33,315 [INFO]   15. product_fp_rate                          0.0000
+2026-04-25 01:13:33,317 [INFO] Generating SHAP explanations...
+2026-04-25 01:13:33,718 [INFO] ✓ SHAP explanations saved
+2026-04-25 01:13:33,768 [INFO] Model saved: models\pipeline_20260425_011333.pkl
+2026-04-25 01:13:33,768 [INFO] Latest: models\pipeline_latest.pkl
+2026-04-25 01:13:33,770 [INFO] Metadata: models\pipeline_latest_meta.json
+2026-04-25 01:13:33,770 [INFO] Label mapping saved: {0: 0, 1: 1, 2: 2, 3: 3}
+2026-04-25 01:13:33,770 [INFO] 
+======================================================================
+2026-04-25 01:13:33,770 [INFO] FINAL RESULTS
+2026-04-25 01:13:33,770 [INFO] ======================================================================
+2026-04-25 01:13:33,770 [INFO] Best Model: XGBoost
+2026-04-25 01:13:33,771 [INFO] F1-weighted: 0.908
+2026-04-25 01:13:33,771 [INFO] F1-macro: 0.8998
+2026-04-25 01:13:33,771 [INFO] Balanced Accuracy: 0.8758
+2026-04-25 01:13:33,771 [INFO] ROC-AUC: 0.9728
+2026-04-25 01:13:33,772 [INFO] Data Leakage:  ZERO
+2026-04-25 01:13:33,772 [INFO] Classes processed: [np.int64(0), np.int64(1), np.int64(2), np.int64(3)] (Mapped to sequential integers)
+2026-04-25 01:13:33,772 [INFO] ======================================================================
+
+2026-04-25 01:13:33,772 [INFO] Training complete! Model ready for deployment.
+
+2026-04-25 01:13:51,885 [INFO] ======================================================================
+2026-04-25 01:13:51,886 [INFO] InvisiThreat AI Risk Engine — Training v8.0
+2026-04-25 01:13:51,886 [INFO]   [T1] FEATURE_COLS alignee sur preprocess.py v9.0
+2026-04-25 01:13:51,886 [INFO]   [T2] SHAP class_index resolu depuis base_model.classes_
+2026-04-25 01:13:51,886 [INFO]   [T3] StackingClassifier stack_method=predict_proba
+2026-04-25 01:13:51,886 [INFO]   [T4] sample_weight applique a tous les modeles (RF inclus)
+2026-04-25 01:13:51,886 [INFO]   [T5] CV fixe k=5 stratifie
+2026-04-25 01:13:51,886 [INFO]   [T6] Feature importance normalisee (sum=1)
+2026-04-25 01:13:51,886 [INFO]   [T7] Audit leakage Mutual Information
+2026-04-25 01:13:51,886 [INFO]   [T8] Seed global numpy + random = 42
+2026-04-25 01:13:51,886 [INFO]   [T9] Seuil correlation warning a 0.95
+2026-04-25 01:13:51,886 [INFO]   [T10] Calibration ignoree pour StackingClassifier
+2026-04-25 01:13:51,887 [INFO] ======================================================================
+2026-04-25 01:13:51,922 [INFO] Donnees chargees : 1905 lignes | features disponibles : 22/22
+2026-04-25 01:13:51,923 [INFO] Findings valides : 1904 | Exclus (FP/OOS) : 1
+2026-04-25 01:13:51,924 [INFO] Distribution cible complete :
+2026-04-25 01:13:51,924 [INFO]   Low        (classe 0) :   275  ( 14.4%)
+2026-04-25 01:13:51,925 [INFO]   Medium     (classe 1) :  1180  ( 62.0%)
+2026-04-25 01:13:51,925 [INFO]   High       (classe 2) :   433  ( 22.7%)
+2026-04-25 01:13:51,925 [INFO]   Critical   (classe 3) :    16  (  0.8%)
+2026-04-25 01:13:51,929 [INFO] Matrice features : (1904, 22) | Cible : (1904,)
+2026-04-25 01:13:51,931 [INFO] Split : 1523 train | 381 test
+2026-04-25 01:13:51,932 [INFO] Distribution train :
+2026-04-25 01:13:51,932 [INFO]   Low        (classe 0) :   220  ( 14.4%)
+2026-04-25 01:13:51,932 [INFO]   Medium     (classe 1) :   944  ( 62.0%)
+2026-04-25 01:13:51,932 [INFO]   High       (classe 2) :   346  ( 22.7%)
+2026-04-25 01:13:51,933 [INFO]   Critical   (classe 3) :    13  (  0.9%)
+2026-04-25 01:13:51,933 [INFO] Distribution test :
+2026-04-25 01:13:51,933 [INFO]   Low        (classe 0) :    55  ( 14.4%)
+2026-04-25 01:13:51,933 [INFO]   Medium     (classe 1) :   236  ( 61.9%)
+2026-04-25 01:13:51,933 [INFO]   High       (classe 2) :    87  ( 22.8%)
+2026-04-25 01:13:51,933 [INFO]   Critical   (classe 3) :     3  (  0.8%)
+2026-04-25 01:13:51,933 [INFO] Audit leakage — Mutual Information (top 10) :
+2026-04-25 01:13:52,051 [INFO]   tag_urgent                             MI=0.3843
+2026-04-25 01:13:52,052 [INFO]   cvss_score_norm                        MI=0.3039
+2026-04-25 01:13:52,052 [INFO]   cvss_score                             MI=0.2691
+2026-04-25 01:13:52,052 [INFO]   age_x_cvss                             MI=0.2464
+2026-04-25 01:13:52,052 [INFO]   tags_count_norm                        MI=0.2435
+2026-04-25 01:13:52,052 [INFO]   tags_count                             MI=0.2330
+2026-04-25 01:13:52,053 [INFO]   cvss_x_has_cve                         MI=0.2244
+2026-04-25 01:13:52,053 [INFO]   epss_score                             MI=0.1663
+2026-04-25 01:13:52,053 [INFO]   epss_percentile                        MI=0.1613
+2026-04-25 01:13:52,053 [INFO]   epss_x_cvss                            MI=0.1517
+2026-04-25 01:13:52,053 [INFO] Audit correlations Pearson features/cible (top 10) :
+2026-04-25 01:13:52,058 [INFO]   has_cwe                                r=+nan
+2026-04-25 01:13:52,058 [INFO]   tag_urgent                             r=+0.7401
+2026-04-25 01:13:52,058 [INFO]   tags_count                             r=+0.3536
+2026-04-25 01:13:52,058 [INFO]   tags_count_norm                        r=+0.3536
+2026-04-25 01:13:52,059 [INFO]   cvss_score                             r=+0.3251
+2026-04-25 01:13:52,059 [INFO]   cvss_score_norm                        r=+0.3251
+2026-04-25 01:13:52,059 [INFO]   age_x_cvss                             r=+0.3054
+2026-04-25 01:13:52,059 [INFO]   cvss_x_has_cve                         r=+0.2732
+2026-04-25 01:13:52,059 [INFO]   epss_score                             r=+0.2308
+2026-04-25 01:13:52,059 [INFO]   epss_x_cvss                            r=+0.2276
+2026-04-25 01:13:52,060 [INFO] Sample weights (plafond=10.0) :
+2026-04-25 01:13:52,060 [INFO]   Low        -> 1.731
+2026-04-25 01:13:52,060 [INFO]   Medium     -> 0.403
+2026-04-25 01:13:52,061 [INFO]   High       -> 1.100
+2026-04-25 01:13:52,061 [INFO]   Critical   -> 10.000
+2026-04-25 01:13:52,061 [INFO] ============================================================
+2026-04-25 01:13:52,061 [INFO] Entrainement des modeles de base pour Stacking...
+2026-04-25 01:13:52,061 [INFO] ============================================================
+2026-04-25 01:13:52,061 [INFO] Hyperopt RandomForest — 5-fold stratifie, 20 iterations...
+2026-04-25 01:14:03,981 [INFO]   RandomForest meilleur F1-weighted CV : 0.7208
+2026-04-25 01:14:03,981 [INFO] ============================================================
+2026-04-25 01:14:03,981 [INFO] Hyperopt XGBoost — 5-fold stratifie, 20 iterations...
+2026-04-25 01:14:09,939 [INFO]   XGBoost meilleur F1-weighted CV : 0.8433
+2026-04-25 01:14:09,940 [INFO] ============================================================
+2026-04-25 01:14:09,940 [INFO] Hyperopt LightGBM — 5-fold stratifie, 20 iterations...
+2026-04-25 01:15:00,348 [INFO]   LightGBM meilleur F1-weighted CV : 0.8400
+2026-04-25 01:15:00,348 [INFO] Comparaison modeles de base :
+2026-04-25 01:15:00,349 [INFO]   #1 XGBoost         CV F1=0.8433
+2026-04-25 01:15:00,349 [INFO]   #2 LightGBM        CV F1=0.8400
+2026-04-25 01:15:00,349 [INFO]   #3 RandomForest    CV F1=0.7208
+2026-04-25 01:15:00,349 [INFO] Fit StackingClassifier (stack_method=predict_proba)...
+2026-04-25 01:15:13,418 [INFO] StackingClassifier F1-train : 0.8478 | F1-CV (3-fold) : 0.8313
+2026-04-25 01:15:13,419 [INFO] StackingClassifier detecte — calibration ignoree (final_estimator LogisticRegression est deja calibre)
+2026-04-25 01:15:13,632 [INFO] ============================================================
+2026-04-25 01:15:13,632 [INFO] EVALUATION FINALE
+2026-04-25 01:15:13,633 [INFO]   F1-weighted  (test)  : 0.8605
+2026-04-25 01:15:13,633 [INFO]   F1-weighted  (train) : 0.8478
+2026-04-25 01:15:13,633 [INFO]   Surapprentissage D   : -0.0128  [OK]
+2026-04-25 01:15:13,633 [INFO]   F1-macro             : 0.8332
+2026-04-25 01:15:13,633 [INFO]   Balanced Accuracy    : 0.9092
+2026-04-25 01:15:13,634 [INFO]   Recall (Critical)    : 1.0000
+2026-04-25 01:15:13,634 [INFO]   F1     (Critical)    : 0.8571
+2026-04-25 01:15:13,642 [INFO] 
+              precision    recall  f1-score   support
+
+         Low       0.49      0.91      0.64        55
+      Medium       0.97      0.80      0.87       236
+        High       1.00      0.93      0.96        87
+    Critical       0.75      1.00      0.86         3
+
+    accuracy                           0.85       381
+   macro avg       0.80      0.91      0.83       381
+weighted avg       0.91      0.85      0.86       381
+
+2026-04-25 01:15:13,647 [INFO]   ROC-AUC OvR (weighted) : 0.9715
+2026-04-25 01:15:13,744 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-25 01:15:13,956 [INFO] Confusion matrix sauvegardee
+2026-04-25 01:15:14,222 [INFO] Top 10 Feature Importance (normalisee) :
+2026-04-25 01:15:14,223 [INFO]    1. tag_urgent                             0.2262
+2026-04-25 01:15:14,223 [INFO]    2. cvss_score_norm                        0.1476
+2026-04-25 01:15:14,223 [INFO]    3. cvss_score                             0.1222
+2026-04-25 01:15:14,223 [INFO]    4. age_x_cvss                             0.1076
+2026-04-25 01:15:14,223 [INFO]    5. tags_count_norm                        0.0768
+2026-04-25 01:15:14,223 [INFO]    6. tags_count                             0.0638
+2026-04-25 01:15:14,224 [INFO]    7. cvss_x_has_cve                         0.0559
+2026-04-25 01:15:14,224 [INFO]    8. age_days                               0.0292
+2026-04-25 01:15:14,224 [INFO]    9. age_days_norm                          0.0230
+2026-04-25 01:15:14,224 [INFO]   10. epss_percentile                        0.0227
+2026-04-25 01:15:14,253 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-25 01:15:15,318 [INFO] SHAP : bar plot + dot plot sauvegardes
+2026-04-25 01:15:15,318 [WARNING] SHAP echoue : The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-04-27 15:04:20,258 [INFO] ======================================================================
+2026-04-27 15:04:20,259 [INFO] InvisiThreat AI Risk Engine — Training v8.0
+2026-04-27 15:04:20,259 [INFO]   [T1] FEATURE_COLS alignee sur preprocess.py v9.0
+2026-04-27 15:04:20,259 [INFO]   [T2] SHAP class_index resolu depuis base_model.classes_
+2026-04-27 15:04:20,259 [INFO]   [T3] StackingClassifier stack_method=predict_proba
+2026-04-27 15:04:20,260 [INFO]   [T4] sample_weight applique a tous les modeles (RF inclus)
+2026-04-27 15:04:20,260 [INFO]   [T5] CV fixe k=5 stratifie
+2026-04-27 15:04:20,260 [INFO]   [T6] Feature importance normalisee (sum=1)
+2026-04-27 15:04:20,260 [INFO]   [T7] Audit leakage Mutual Information
+2026-04-27 15:04:20,260 [INFO]   [T8] Seed global numpy + random = 42
+2026-04-27 15:04:20,260 [INFO]   [T9] Seuil correlation warning a 0.95
+2026-04-27 15:04:20,260 [INFO]   [T10] Calibration ignoree pour StackingClassifier
+2026-04-27 15:04:20,260 [INFO] ======================================================================
+2026-04-27 15:04:20,312 [INFO] Donnees chargees : 1905 lignes | features disponibles : 22/22
+2026-04-27 15:04:20,313 [INFO] Findings valides : 1904 | Exclus (FP/OOS) : 1
+2026-04-27 15:04:20,317 [INFO] Distribution cible complete :
+2026-04-27 15:04:20,317 [INFO]   Low        (classe 0) :   275  ( 14.4%)
+2026-04-27 15:04:20,317 [INFO]   Medium     (classe 1) :  1180  ( 62.0%)
+2026-04-27 15:04:20,318 [INFO]   High       (classe 2) :   433  ( 22.7%)
+2026-04-27 15:04:20,318 [INFO]   Critical   (classe 3) :    16  (  0.8%)
+2026-04-27 15:04:20,324 [INFO] Matrice features : (1904, 22) | Cible : (1904,)
+2026-04-27 15:04:20,329 [INFO] Split : 1523 train | 381 test
+2026-04-27 15:04:20,330 [INFO] Distribution train :
+2026-04-27 15:04:20,330 [INFO]   Low        (classe 0) :   220  ( 14.4%)
+2026-04-27 15:04:20,330 [INFO]   Medium     (classe 1) :   944  ( 62.0%)
+2026-04-27 15:04:20,330 [INFO]   High       (classe 2) :   346  ( 22.7%)
+2026-04-27 15:04:20,330 [INFO]   Critical   (classe 3) :    13  (  0.9%)
+2026-04-27 15:04:20,331 [INFO] Distribution test :
+2026-04-27 15:04:20,331 [INFO]   Low        (classe 0) :    55  ( 14.4%)
+2026-04-27 15:04:20,331 [INFO]   Medium     (classe 1) :   236  ( 61.9%)
+2026-04-27 15:04:20,331 [INFO]   High       (classe 2) :    87  ( 22.8%)
+2026-04-27 15:04:20,331 [INFO]   Critical   (classe 3) :     3  (  0.8%)
+2026-04-27 15:04:20,331 [INFO] Audit leakage — Mutual Information (top 10) :
+2026-04-27 15:04:20,454 [INFO]   tag_urgent                             MI=0.3843
+2026-04-27 15:04:20,455 [INFO]   cvss_score_norm                        MI=0.3039
+2026-04-27 15:04:20,455 [INFO]   cvss_score                             MI=0.2691
+2026-04-27 15:04:20,455 [INFO]   age_x_cvss                             MI=0.2464
+2026-04-27 15:04:20,455 [INFO]   tags_count_norm                        MI=0.2435
+2026-04-27 15:04:20,456 [INFO]   tags_count                             MI=0.2330
+2026-04-27 15:04:20,456 [INFO]   cvss_x_has_cve                         MI=0.2244
+2026-04-27 15:04:20,456 [INFO]   epss_score                             MI=0.1663
+2026-04-27 15:04:20,456 [INFO]   epss_percentile                        MI=0.1613
+2026-04-27 15:04:20,456 [INFO]   epss_x_cvss                            MI=0.1517
+2026-04-27 15:04:20,456 [INFO] Audit correlations Pearson features/cible (top 10) :
+2026-04-27 15:04:20,462 [INFO]   has_cwe                                r=+nan
+2026-04-27 15:04:20,462 [INFO]   tag_urgent                             r=+0.7401
+2026-04-27 15:04:20,462 [INFO]   tags_count                             r=+0.3536
+2026-04-27 15:04:20,463 [INFO]   tags_count_norm                        r=+0.3536
+2026-04-27 15:04:20,463 [INFO]   cvss_score                             r=+0.3251
+2026-04-27 15:04:20,463 [INFO]   cvss_score_norm                        r=+0.3251
+2026-04-27 15:04:20,463 [INFO]   age_x_cvss                             r=+0.3054
+2026-04-27 15:04:20,463 [INFO]   cvss_x_has_cve                         r=+0.2732
+2026-04-27 15:04:20,463 [INFO]   epss_score                             r=+0.2308
+2026-04-27 15:04:20,463 [INFO]   epss_x_cvss                            r=+0.2276
+2026-04-27 15:04:20,464 [INFO] Sample weights (plafond=10.0) :
+2026-04-27 15:04:20,464 [INFO]   Low        -> 1.731
+2026-04-27 15:04:20,464 [INFO]   Medium     -> 0.403
+2026-04-27 15:04:20,464 [INFO]   High       -> 1.100
+2026-04-27 15:04:20,464 [INFO]   Critical   -> 10.000
+2026-04-27 15:04:20,464 [INFO] ============================================================
+2026-04-27 15:04:20,464 [INFO] Entrainement des modeles de base pour Stacking...
+2026-04-27 15:04:20,464 [INFO] ============================================================
+2026-04-27 15:04:20,465 [INFO] Hyperopt RandomForest — 5-fold stratifie, 20 iterations...
+2026-04-27 15:04:33,481 [INFO]   RandomForest meilleur F1-weighted CV : 0.7208
+2026-04-27 15:04:33,481 [INFO] ============================================================
+2026-04-27 15:04:33,482 [INFO] Hyperopt XGBoost — 5-fold stratifie, 20 iterations...
+2026-04-27 15:04:40,803 [INFO]   XGBoost meilleur F1-weighted CV : 0.8433
+2026-04-27 15:04:40,803 [INFO] ============================================================
+2026-04-27 15:04:40,803 [INFO] Hyperopt LightGBM — 5-fold stratifie, 20 iterations...
+2026-04-27 15:05:37,053 [INFO]   LightGBM meilleur F1-weighted CV : 0.8400
+2026-04-27 15:05:37,053 [INFO] Comparaison modeles de base :
+2026-04-27 15:05:37,054 [INFO]   #1 XGBoost         CV F1=0.8433
+2026-04-27 15:05:37,054 [INFO]   #2 LightGBM        CV F1=0.8400
+2026-04-27 15:05:37,054 [INFO]   #3 RandomForest    CV F1=0.7208
+2026-04-27 15:05:37,054 [INFO] Fit StackingClassifier (stack_method=predict_proba)...
+2026-04-27 15:05:51,038 [INFO] StackingClassifier F1-train : 0.8478 | F1-CV (3-fold) : 0.8313
+2026-04-27 15:05:51,039 [INFO] StackingClassifier detecte — calibration ignoree (final_estimator LogisticRegression est deja calibre)
+2026-04-27 15:05:51,283 [INFO] ============================================================
+2026-04-27 15:05:51,284 [INFO] EVALUATION FINALE
+2026-04-27 15:05:51,284 [INFO]   F1-weighted  (test)  : 0.8605
+2026-04-27 15:05:51,284 [INFO]   F1-weighted  (train) : 0.8478
+2026-04-27 15:05:51,284 [INFO]   Surapprentissage D   : -0.0128  [OK]
+2026-04-27 15:05:51,284 [INFO]   F1-macro             : 0.8332
+2026-04-27 15:05:51,284 [INFO]   Balanced Accuracy    : 0.9092
+2026-04-27 15:05:51,285 [INFO]   Recall (Critical)    : 1.0000
+2026-04-27 15:05:51,285 [INFO]   F1     (Critical)    : 0.8571
+2026-04-27 15:05:51,294 [INFO] 
+              precision    recall  f1-score   support
+
+         Low       0.49      0.91      0.64        55
+      Medium       0.97      0.80      0.87       236
+        High       1.00      0.93      0.96        87
+    Critical       0.75      1.00      0.86         3
+
+    accuracy                           0.85       381
+   macro avg       0.80      0.91      0.83       381
+weighted avg       0.91      0.85      0.86       381
+
+2026-04-27 15:05:51,301 [INFO]   ROC-AUC OvR (weighted) : 0.9715
+2026-04-27 15:05:51,428 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-27 15:05:51,806 [INFO] Confusion matrix sauvegardee
+2026-04-27 15:05:52,115 [INFO] Top 10 Feature Importance (normalisee) :
+2026-04-27 15:05:52,115 [INFO]    1. tag_urgent                             0.2262
+2026-04-27 15:05:52,115 [INFO]    2. cvss_score_norm                        0.1476
+2026-04-27 15:05:52,115 [INFO]    3. cvss_score                             0.1222
+2026-04-27 15:05:52,115 [INFO]    4. age_x_cvss                             0.1076
+2026-04-27 15:05:52,116 [INFO]    5. tags_count_norm                        0.0768
+2026-04-27 15:05:52,116 [INFO]    6. tags_count                             0.0638
+2026-04-27 15:05:52,116 [INFO]    7. cvss_x_has_cve                         0.0559
+2026-04-27 15:05:52,116 [INFO]    8. age_days                               0.0292
+2026-04-27 15:05:52,116 [INFO]    9. age_days_norm                          0.0230
+2026-04-27 15:05:52,116 [INFO]   10. epss_percentile                        0.0227
+2026-04-27 15:05:52,145 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-27 15:05:53,244 [INFO] SHAP : bar plot + dot plot sauvegardes
+2026-04-27 15:05:53,245 [WARNING] SHAP echoue : The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+2026-04-27 15:12:39,607 [INFO] ======================================================================
+2026-04-27 15:12:39,608 [INFO] InvisiThreat AI Risk Engine — Training v8.0
+2026-04-27 15:12:39,608 [INFO]   [T1] FEATURE_COLS alignee sur preprocess.py v9.0
+2026-04-27 15:12:39,608 [INFO]   [T2] SHAP class_index resolu depuis base_model.classes_
+2026-04-27 15:12:39,608 [INFO]   [T3] StackingClassifier stack_method=predict_proba
+2026-04-27 15:12:39,608 [INFO]   [T4] sample_weight applique a tous les modeles (RF inclus)
+2026-04-27 15:12:39,608 [INFO]   [T5] CV fixe k=5 stratifie
+2026-04-27 15:12:39,608 [INFO]   [T6] Feature importance normalisee (sum=1)
+2026-04-27 15:12:39,608 [INFO]   [T7] Audit leakage Mutual Information
+2026-04-27 15:12:39,608 [INFO]   [T8] Seed global numpy + random = 42
+2026-04-27 15:12:39,608 [INFO]   [T9] Seuil correlation warning a 0.95
+2026-04-27 15:12:39,608 [INFO]   [T10] Calibration ignoree pour StackingClassifier
+2026-04-27 15:12:39,608 [INFO] ======================================================================
+2026-04-27 15:12:39,655 [INFO] Donnees chargees : 1905 lignes | features disponibles : 22/22
+2026-04-27 15:12:39,656 [INFO] Findings valides : 1904 | Exclus (FP/OOS) : 1
+2026-04-27 15:12:39,657 [INFO] Distribution cible complete :
+2026-04-27 15:12:39,657 [INFO]   Low        (classe 0) :   275  ( 14.4%)
+2026-04-27 15:12:39,657 [INFO]   Medium     (classe 1) :  1180  ( 62.0%)
+2026-04-27 15:12:39,657 [INFO]   High       (classe 2) :   433  ( 22.7%)
+2026-04-27 15:12:39,657 [INFO]   Critical   (classe 3) :    16  (  0.8%)
+2026-04-27 15:12:39,659 [INFO] Matrice features : (1904, 22) | Cible : (1904,)
+2026-04-27 15:12:39,662 [INFO] Split : 1523 train | 381 test
+2026-04-27 15:12:39,663 [INFO] Distribution train :
+2026-04-27 15:12:39,663 [INFO]   Low        (classe 0) :   220  ( 14.4%)
+2026-04-27 15:12:39,663 [INFO]   Medium     (classe 1) :   944  ( 62.0%)
+2026-04-27 15:12:39,663 [INFO]   High       (classe 2) :   346  ( 22.7%)
+2026-04-27 15:12:39,663 [INFO]   Critical   (classe 3) :    13  (  0.9%)
+2026-04-27 15:12:39,663 [INFO] Distribution test :
+2026-04-27 15:12:39,664 [INFO]   Low        (classe 0) :    55  ( 14.4%)
+2026-04-27 15:12:39,664 [INFO]   Medium     (classe 1) :   236  ( 61.9%)
+2026-04-27 15:12:39,664 [INFO]   High       (classe 2) :    87  ( 22.8%)
+2026-04-27 15:12:39,664 [INFO]   Critical   (classe 3) :     3  (  0.8%)
+2026-04-27 15:12:39,664 [INFO] Audit leakage — Mutual Information (top 10) :
+2026-04-27 15:12:39,795 [INFO]   tag_urgent                             MI=0.3843
+2026-04-27 15:12:39,795 [INFO]   cvss_score_norm                        MI=0.3039
+2026-04-27 15:12:39,796 [INFO]   cvss_score                             MI=0.2691
+2026-04-27 15:12:39,796 [INFO]   age_x_cvss                             MI=0.2464
+2026-04-27 15:12:39,796 [INFO]   tags_count_norm                        MI=0.2435
+2026-04-27 15:12:39,796 [INFO]   tags_count                             MI=0.2330
+2026-04-27 15:12:39,796 [INFO]   cvss_x_has_cve                         MI=0.2244
+2026-04-27 15:12:39,796 [INFO]   epss_score                             MI=0.1663
+2026-04-27 15:12:39,797 [INFO]   epss_percentile                        MI=0.1613
+2026-04-27 15:12:39,797 [INFO]   epss_x_cvss                            MI=0.1517
+2026-04-27 15:12:39,797 [INFO] Audit correlations Pearson features/cible (top 10) :
+2026-04-27 15:12:39,801 [INFO]   has_cwe                                r=+nan
+2026-04-27 15:12:39,801 [INFO]   tag_urgent                             r=+0.7401
+2026-04-27 15:12:39,802 [INFO]   tags_count                             r=+0.3536
+2026-04-27 15:12:39,802 [INFO]   tags_count_norm                        r=+0.3536
+2026-04-27 15:12:39,802 [INFO]   cvss_score                             r=+0.3251
+2026-04-27 15:12:39,802 [INFO]   cvss_score_norm                        r=+0.3251
+2026-04-27 15:12:39,802 [INFO]   age_x_cvss                             r=+0.3054
+2026-04-27 15:12:39,802 [INFO]   cvss_x_has_cve                         r=+0.2732
+2026-04-27 15:12:39,803 [INFO]   epss_score                             r=+0.2308
+2026-04-27 15:12:39,803 [INFO]   epss_x_cvss                            r=+0.2276
+2026-04-27 15:12:39,803 [INFO] Sample weights (plafond=10.0) :
+2026-04-27 15:12:39,804 [INFO]   Low        -> 1.731
+2026-04-27 15:12:39,804 [INFO]   Medium     -> 0.403
+2026-04-27 15:12:39,804 [INFO]   High       -> 1.100
+2026-04-27 15:12:39,804 [INFO]   Critical   -> 10.000
+2026-04-27 15:12:39,804 [INFO] ============================================================
+2026-04-27 15:12:39,804 [INFO] Entrainement des modeles de base pour Stacking...
+2026-04-27 15:12:39,804 [INFO] ============================================================
+2026-04-27 15:12:39,805 [INFO] Hyperopt RandomForest — 5-fold stratifie, 20 iterations...
+2026-04-27 15:12:53,723 [INFO]   RandomForest meilleur F1-weighted CV : 0.7208
+2026-04-27 15:12:53,723 [INFO] ============================================================
+2026-04-27 15:12:53,723 [INFO] Hyperopt XGBoost — 5-fold stratifie, 20 iterations...
+2026-04-27 15:13:00,120 [INFO]   XGBoost meilleur F1-weighted CV : 0.8433
+2026-04-27 15:13:00,121 [INFO] ============================================================
+2026-04-27 15:13:00,121 [INFO] Hyperopt LightGBM — 5-fold stratifie, 20 iterations...
+2026-04-27 15:13:54,344 [INFO]   LightGBM meilleur F1-weighted CV : 0.8400
+2026-04-27 15:13:54,345 [INFO] Comparaison modeles de base :
+2026-04-27 15:13:54,345 [INFO]   #1 XGBoost         CV F1=0.8433
+2026-04-27 15:13:54,345 [INFO]   #2 LightGBM        CV F1=0.8400
+2026-04-27 15:13:54,345 [INFO]   #3 RandomForest    CV F1=0.7208
+2026-04-27 15:13:54,346 [INFO] Fit StackingClassifier (stack_method=predict_proba)...
+2026-04-27 15:14:09,914 [INFO] StackingClassifier F1-train : 0.8478 | F1-CV (3-fold) : 0.8313
+2026-04-27 15:14:09,914 [INFO] StackingClassifier detecte — calibration ignoree (final_estimator LogisticRegression est deja calibre)
+2026-04-27 15:14:10,149 [INFO] ============================================================
+2026-04-27 15:14:10,149 [INFO] EVALUATION FINALE
+2026-04-27 15:14:10,149 [INFO]   F1-weighted  (test)  : 0.8605
+2026-04-27 15:14:10,149 [INFO]   F1-weighted  (train) : 0.8478
+2026-04-27 15:14:10,149 [INFO]   Surapprentissage D   : -0.0128  [OK]
+2026-04-27 15:14:10,150 [INFO]   F1-macro             : 0.8332
+2026-04-27 15:14:10,150 [INFO]   Balanced Accuracy    : 0.9092
+2026-04-27 15:14:10,150 [INFO]   Recall (Critical)    : 1.0000
+2026-04-27 15:14:10,150 [INFO]   F1     (Critical)    : 0.8571
+2026-04-27 15:14:10,158 [INFO] 
+              precision    recall  f1-score   support
+
+         Low       0.49      0.91      0.64        55
+      Medium       0.97      0.80      0.87       236
+        High       1.00      0.93      0.96        87
+    Critical       0.75      1.00      0.86         3
+
+    accuracy                           0.85       381
+   macro avg       0.80      0.91      0.83       381
+weighted avg       0.91      0.85      0.86       381
+
+2026-04-27 15:14:10,164 [INFO]   ROC-AUC OvR (weighted) : 0.9715
+2026-04-27 15:14:10,289 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-27 15:14:10,586 [INFO] Confusion matrix sauvegardee
+2026-04-27 15:14:10,874 [INFO] Top 10 Feature Importance (normalisee) :
+2026-04-27 15:14:10,874 [INFO]    1. tag_urgent                             0.2262
+2026-04-27 15:14:10,875 [INFO]    2. cvss_score_norm                        0.1476
+2026-04-27 15:14:10,875 [INFO]    3. cvss_score                             0.1222
+2026-04-27 15:14:10,875 [INFO]    4. age_x_cvss                             0.1076
+2026-04-27 15:14:10,875 [INFO]    5. tags_count_norm                        0.0768
+2026-04-27 15:14:10,875 [INFO]    6. tags_count                             0.0638
+2026-04-27 15:14:10,875 [INFO]    7. cvss_x_has_cve                         0.0559
+2026-04-27 15:14:10,875 [INFO]    8. age_days                               0.0292
+2026-04-27 15:14:10,875 [INFO]    9. age_days_norm                          0.0230
+2026-04-27 15:14:10,875 [INFO]   10. epss_percentile                        0.0227
+2026-04-27 15:14:10,906 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-27 15:14:12,055 [INFO] SHAP : bar plot + dot plot sauvegardes
+2026-04-27 15:14:12,056 [INFO] SHAP Feature Ranking (mean |SHAP|) :
+2026-04-27 15:14:12,056 [INFO]    1. tag_urgent                             0.1118
+2026-04-27 15:14:12,056 [INFO]    2. cvss_score_norm                        0.0465
+2026-04-27 15:14:12,056 [INFO]    3. tags_count_norm                        0.0380
+2026-04-27 15:14:12,056 [INFO]    4. cvss_score                             0.0378
+2026-04-27 15:14:12,057 [INFO]    5. tags_count                             0.0338
+2026-04-27 15:14:12,057 [INFO]    6. age_x_cvss                             0.0292
+2026-04-27 15:14:12,057 [INFO]    7. cvss_x_has_cve                         0.0200
+2026-04-27 15:14:12,057 [INFO]    8. age_days                               0.0109
+2026-04-27 15:14:12,057 [INFO]    9. tag_sensitive                          0.0103
+2026-04-27 15:14:12,057 [INFO]   10. context_score                          0.0094
+2026-04-27 15:14:12,058 [INFO]   11. exposure_norm                          0.0094
+2026-04-27 15:14:12,058 [INFO]   12. age_days_norm                          0.0088
+2026-04-27 15:14:12,058 [INFO]   13. product_fp_rate                        0.0079
+2026-04-27 15:14:12,058 [INFO]   14. tag_in_production                      0.0076
+2026-04-27 15:14:12,058 [INFO]   15. epss_percentile                        0.0069
+2026-04-27 15:14:12,060 [INFO] Rapport HTML sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-04-27 15:14:12,515 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-04-27 15:14:12,517 [INFO] Modele sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models/pipeline_20260427_151239.pkl
+2026-04-27 15:14:12,517 [INFO] Meta sauvegardee  : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models/pipeline_latest_meta.json
+2026-04-27 15:14:12,519 [INFO] Historique run sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\logs\train_run_20260427_151239.json
+2026-04-27 15:14:12,519 [INFO] ======================================================================
+2026-04-27 15:14:12,519 [INFO] Modele final        : StackingClassifier
+2026-04-27 15:14:12,519 [INFO] F1-weighted (test)  : 0.8605
+2026-04-27 15:14:12,519 [INFO] F1-weighted (train) : 0.8478
+2026-04-27 15:14:12,520 [INFO] Surapprentissage D  : -0.0128
+2026-04-27 15:14:12,520 [INFO] Balanced Accuracy   : 0.9092
+2026-04-27 15:14:12,520 [INFO] ROC-AUC OvR         : 0.9715
+2026-04-27 15:14:12,520 [INFO] Recall (Critical)   : 1.0000
+2026-04-27 15:14:12,520 [INFO] F1     (Critical)   : 0.8571
+2026-04-27 15:14:12,520 [INFO] Calibration         : none
+2026-04-27 15:14:12,521 [INFO] Rapport HTML        : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-04-27 15:14:12,521 [INFO] ======================================================================

@@ -1,13 +1,16 @@
 {
-  "timestamp": "2026-04-20T16:22:13.063838",
+  "timestamp": "2026-04-22T23:48:12.666917",
   "base_url": "http://192.168.11.170:8080",
   "products": 5,
-  "engagements": 6,
-  "tests": 26,
-  "findings": 1311,
+  "engagements": 13,
+  "tests": 37,
+  "findings": 1905,
   "errors": [],
+  "findings_with_cve": 537,
+  "findings_with_epss_score": 530,
   "distribution_by_product": {
     "automation-hub": 458,
-    "InvisiThreat": 853
+    "InvisiThreat": 853,
+    "Laboratoire d'Analyse SAST": 594
   }
 }

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { findingsApi } from '../../../api/services/findings';
 import { predictionsApi, PredictionRequest } from '../../../api/services/predictions';
 import { explanationsApi, LLMExplanation, LLMRecommendation } from '../../../api/services/explanations';
+import { jiraApi } from '../../../api/services/jira';
+import type { JiraIntegrationState } from '../../../types/jira';
 
 import './FindingDetailPage.css';
 
@@ -18,6 +20,40 @@ export default function FindingDetailPage() {
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [explanationError, setExplanationError] = useState<string | null>(null);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
+
+  const [jiraState, setJiraState] = useState<JiraIntegrationState>({
+    loading: false,
+    error: null,
+    success: false,
+    jiraKey: null,
+    jiraUrl: null,
+  });
+
+  useEffect(() => {
+    if (findingId) {
+      const checkExistingTicket = async () => {
+        try {
+          console.log('[Jira] Checking for existing issue...');
+          const result = await jiraApi.checkIssue(findingId);
+          
+          if (result.exists && result.jira_key) {
+            console.log('[Jira] Found existing issue:', result.jira_key);
+            setJiraState({
+              loading: false,
+              error: null,
+              success: true,
+              jiraKey: result.jira_key,
+              jiraUrl: result.jira_url,
+            });
+          }
+        } catch (err) {
+          console.error('[Jira] Erreur vérification initiale:', err);
+        }
+      };
+
+      checkExistingTicket();
+    }
+  }, [findingId]);
 
   const { data: finding, isLoading: loadingFinding, error } = useQuery({
     queryKey: ['finding', findingId],
@@ -43,7 +79,6 @@ export default function FindingDetailPage() {
 
   const aiScore = scoreResult?.results[0];
 
-  // ── FIX : helper pour construire le payload LLM proprement ──────────────
   const buildLLMPayload = () => ({
     finding_id: finding!.id,
     title: finding!.title ?? '',
@@ -63,10 +98,8 @@ export default function FindingDetailPage() {
     setExplanationError(null);
 
     try {
-      // ── FIX : explanationsApi.explain utilise llmClient (timeout 180s) ──
       const res = await explanationsApi.explain(buildLLMPayload());
 
-      // ── FIX : vérifier que les champs attendus sont bien présents ────────
       const data = res.data;
       if (!data?.summary) {
         console.error('[LLM explain] Réponse inattendue du backend:', data);
@@ -89,7 +122,6 @@ export default function FindingDetailPage() {
         setExplanationError(`Erreur lors de l'explication (${status ?? code ?? 'inconnue'})`);
       }
 
-      // Log complet pour debug
       console.error('[LLM explain] Erreur:', {
         status,
         code,
@@ -107,7 +139,6 @@ export default function FindingDetailPage() {
     setRecommendationError(null);
 
     try {
-      // ── FIX : explanationsApi.recommend utilise llmClient (timeout 180s) ─
       const res = await explanationsApi.recommend(buildLLMPayload());
 
       const data = res.data;
@@ -141,6 +172,70 @@ export default function FindingDetailPage() {
     } finally {
       setRecommendationLoading(false);
     }
+  };
+
+  const handleCreateJiraIssue = async () => {
+    if (!finding) return;
+
+    setJiraState({ loading: true, error: null, success: false, jiraKey: null, jiraUrl: null });
+
+    const payload = {
+      finding_id: finding.id,
+      title: finding.title,
+      severity: finding.severity.toUpperCase(),
+      cvss_score: finding.cvss_score ?? 0,
+      description: finding.description ?? '',
+      cve: (finding as any).cve ?? '',
+      cwe: (finding as any).cwe ?? '',
+      file_path: finding.file_path ?? '',
+      line: (finding as any).line,
+      tags: finding.tags ?? [],
+      risk_level: aiScore?.risk_level ?? 'UNKNOWN',
+      ai_score: aiScore?.risk_class,
+      ai_confidence: aiScore?.confidence,
+      engagement_id: finding.engagement_id,
+      product_name: finding.product_name,
+    };
+
+    try {
+      const data = await jiraApi.createIssue(payload);
+      setJiraState({
+        loading: false,
+        error: null,
+        success: true,
+        jiraKey: data.key,
+        jiraUrl: jiraApi.getIssueUrl(data.key),
+      });
+    } catch (error: any) {
+      let errorMessage = 'Erreur lors de la création du ticket Jira';
+      if (error.response?.status === 409) {
+        const existing = await jiraApi.checkIssue(findingId);
+        if (existing.exists && existing.jira_key) {
+          setJiraState({
+            loading: false,
+            error: null,
+            success: true,
+            jiraKey: existing.jira_key,
+            jiraUrl: existing.jira_url,
+          });
+          return;
+        }
+        errorMessage = ' Un ticket Jira existe déjà pour ce finding';
+      } else if (error.response?.status === 502) {
+        errorMessage = ' Backend InvisiThreat indisponible';
+      } else if (error.response?.status === 503) {
+        errorMessage = ' Service Jira indisponible';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = ' Délai réseau dépassé';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      setJiraState({ loading: false, error: errorMessage, success: false, jiraKey: null, jiraUrl: null });
+    }
+  };
+
+  const handleResetJira = () => {
+    setJiraState({ loading: false, error: null, success: false, jiraKey: null, jiraUrl: null });
   };
 
   const getSeverityColor = (severity: string) => {
@@ -207,7 +302,6 @@ export default function FindingDetailPage() {
 
       <div className="fdp-page">
 
-        {/* ── Back button ── */}
         <button className="fdp-back-btn" onClick={() => navigate(-1)}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <path d="M9 2L4 7l5 5" />
@@ -215,7 +309,6 @@ export default function FindingDetailPage() {
           RETOUR AUX FINDINGS
         </button>
 
-        {/* ── Header ── */}
         <header className="fdp-header fu1">
           <div className="fdp-finding-id">FINDING · #{finding.id} · DEVSECOPS PLATFORM</div>
           <h1 className="fdp-title">{finding.title}</h1>
@@ -249,7 +342,6 @@ export default function FindingDetailPage() {
           </div>
         </header>
 
-        {/* ── Stats grid ── */}
         <div className="fdp-stats-grid fu2">
           <div className="fdp-stat-card" style={{ '--acc-color': '#ff4757' } as React.CSSProperties}>
             <div className="fdp-stat-label">CVSS Score</div>
@@ -295,10 +387,8 @@ export default function FindingDetailPage() {
           </div>
         </div>
 
-        {/* ── Two columns ── */}
         <div className="fdp-two-col fu3">
 
-          {/* File + Description */}
           <div className="fdp-card">
             <div className="fdp-card-header">
               <div className="fdp-card-icon" style={{ background: 'rgba(0,212,255,.1)' }}>📄</div>
@@ -319,7 +409,6 @@ export default function FindingDetailPage() {
             <p className="fdp-desc-text">{finding.description ?? 'Aucune description disponible.'}</p>
           </div>
 
-          {/* AI Risk */}
           <div className="fdp-card">
             <div className="fdp-card-header">
               <div className="fdp-card-icon" style={{ background: 'rgba(162,155,254,.1)' }}>🤖</div>
@@ -362,6 +451,116 @@ export default function FindingDetailPage() {
                 );
               })}
             </div>
+          </div>
+        </div>
+
+        {/* ── JIRA PANEL ── */}
+        <div className="jira-result-panel fu3">
+          <div className="jira-result-header">
+            <div className="jira-result-icon">🔗</div>
+            <div>
+              <div className="jira-result-title">Export vers Jira</div>
+              <div className="jira-result-subtitle">INTÉGRATION AUTOMATIQUE</div>
+            </div>
+          </div>
+
+          <div className="jira-result-content">
+            {jiraState.success && jiraState.jiraKey && jiraState.jiraUrl ? (
+              <div className="jira-success-box">
+                <div className="jira-success-icon">✓</div>
+                <div className="jira-success-text">
+                  <p>
+                    <strong>Ticket Jira créé avec succès !</strong>
+                  </p>
+                  <a
+                    href={jiraState.jiraUrl || ''}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="jira-success-link"
+                  >
+                    Ouvrir {jiraState.jiraKey} dans Jira →
+                  </a>
+                </div>
+              </div>
+            ) : jiraState.error ? (
+              <div className="jira-error-box">
+                <div className="jira-error-icon">⚠️</div>
+                <div className="jira-error-text">
+                  <p>
+                    <strong>Erreur lors de la création</strong>
+                  </p>
+                  <p className="jira-error-message">{jiraState.error}</p>
+                  <button 
+                    className="jira-retry-btn" 
+                    onClick={handleCreateJiraIssue} 
+                    disabled={jiraState.loading}
+                  >
+                    ↺ Réessayer
+                  </button>
+                </div>
+              </div>
+            ) : jiraState.loading ? (
+              <div className="jira-loading-box">
+                <div className="jira-loading-spinner" />
+                <p>Création du ticket Jira en cours...</p>
+                <p className="jira-loading-hint">Les informations du finding sont envoyées au backend</p>
+              </div>
+            ) : (
+              <div className="jira-empty-box">
+                <div className="jira-empty-icon">🎫</div>
+                <p>
+                  Cliquez sur le bouton ci-dessous pour créer automatiquement un ticket Jira avec
+                  toutes les informations du finding.
+                </p>
+              </div>
+            )}
+
+            {/* Jira Action Button */}
+            {jiraState.success && jiraState.jiraUrl && jiraState.jiraKey ? (
+              <>
+                <a
+                  href={jiraState.jiraUrl || ''}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="jira-action-btn success"
+                >
+                  <span className="jira-icon">✓</span>
+                  <span className="jira-text">Ticket Jira: {jiraState.jiraKey}</span>
+                  <span className="jira-external">↗</span>
+                </a>
+                <button
+                  onClick={handleResetJira}
+                  className="jira-action-btn secondary"
+                  style={{ marginTop: 8 }}
+                >
+                  + Nouveau ticket
+                </button>
+              </>
+            ) : (
+              <button
+                className={`jira-action-btn ${jiraState.loading ? 'loading' : jiraState.error ? 'error' : 'default'}`}
+                onClick={handleCreateJiraIssue}
+                disabled={jiraState.loading}
+                title={jiraState.error || 'Créer un ticket Jira'}
+              >
+                {jiraState.loading ? (
+                  <>
+                    <span className="jira-spinner" />
+                    <span className="jira-text">Création...</span>
+                  </>
+                ) : jiraState.error ? (
+                  <>
+                    <span className="jira-icon">⚠️</span>
+                    <span className="jira-text">{jiraState.error}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="jira-icon">🎫</span>
+                    <span className="jira-text">Créer ticket Jira</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -467,7 +666,6 @@ export default function FindingDetailPage() {
   );
 }
 
-/* ── Sub-components ────────────────────────────────────────────────── */
 
 interface LLMPanelProps {
   icon: string;

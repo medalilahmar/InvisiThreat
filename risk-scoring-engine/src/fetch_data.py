@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -15,7 +16,8 @@ from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT_DIR / ".env")
 
 BASE_URL        = os.getenv("DEFECTDOJO_URL", "").rstrip("/")
 API_TOKEN       = os.getenv("DEFECTDOJO_API_KEY", "")
@@ -24,23 +26,27 @@ TIMEOUT         = int(os.getenv("DEFECTDOJO_TIMEOUT", "30"))
 EPSS_API_URL    = "https://api.first.org/data/v1/epss"
 EPSS_BATCH_SIZE = 100
 EPSS_TIMEOUT    = 15
+EPSS_CACHE_FILE = ROOT_DIR / "data" / "epss_cache.json"
+
+CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
 
 if not BASE_URL or not API_TOKEN:
-    print("Variables DEFECTDOJO_URL et DEFECTDOJO_TOKEN requises dans .env")
+    print("Variables DEFECTDOJO_URL et DEFECTDOJO_API_KEY requises dans .env")
     sys.exit(1)
 
-Path("logs").mkdir(exist_ok=True)
+LOG_DIR = ROOT_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("logs/fetch_data.log", encoding="utf-8"),
+        logging.FileHandler(LOG_DIR / "fetch_data.log", encoding="utf-8"),
     ],
 )
 logger = logging.getLogger(__name__)
 
-RAW_DIR = Path("data/raw")
+RAW_DIR = ROOT_DIR / "data" / "raw"
 
 EXPECTED_COLS = {
     "products":    {"id", "name"},
@@ -48,6 +54,39 @@ EXPECTED_COLS = {
     "tests":       {"id", "engagement"},
     "findings":    {"id", "title", "severity"},
 }
+
+
+
+def load_epss_cache() -> dict:
+    """Charge le cache EPSS depuis le disque (CVE → {epss_score, epss_percentile})."""
+    if EPSS_CACHE_FILE.exists():
+        try:
+            with open(EPSS_CACHE_FILE, "r", encoding="utf-8") as f:
+                cache = json.load(f)
+            logger.info(f"Cache EPSS chargé : {len(cache)} entrée(s)")
+            return cache
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Cache EPSS illisible, réinitialisation : {e}")
+    return {}
+
+
+def save_epss_cache(cache: dict):
+    """Sauvegarde atomique du cache EPSS."""
+    EPSS_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, suffix=".json",
+            dir=EPSS_CACHE_FILE.parent, encoding="utf-8"
+        ) as tmp:
+            json.dump(cache, tmp, indent=2)
+            tmp_path = tmp.name
+        shutil.move(tmp_path, EPSS_CACHE_FILE)
+        logger.info(f"Cache EPSS sauvegardé : {len(cache)} entrée(s)")
+    except OSError as e:
+        logger.error(f"Impossible de sauvegarder le cache EPSS : {e}")
+        if tmp_path and Path(tmp_path).exists():
+            Path(tmp_path).unlink(missing_ok=True)
 
 
 
@@ -82,7 +121,7 @@ def fetch_all_pages(session: requests.Session, url: str, resource: str) -> list[
 
             if resp.status_code == 429:
                 wait = int(resp.headers.get("Retry-After", 10))
-                logger.warning(f"[{resource}] Rate limit — waiting {wait}s")
+                logger.warning(f"[{resource}] Rate limit — attente {wait}s")
                 time.sleep(wait)
                 continue
 
@@ -103,13 +142,13 @@ def fetch_all_pages(session: requests.Session, url: str, resource: str) -> list[
             logger.error(f"[{resource}] HTTP {e.response.status_code}: {e}")
             break
         except requests.exceptions.RequestException as e:
-            logger.error(f"[{resource}] Network error: {e}")
+            logger.error(f"[{resource}] Erreur réseau : {e}")
             break
         except Exception as e:
-            logger.error(f"[{resource}] Unexpected error: {e}")
+            logger.error(f"[{resource}] Erreur inattendue : {e}")
             break
 
-    logger.info(f"[{resource}] {len(results)} items fetched ({page - 1} page(s))")
+    logger.info(f"[{resource}] {len(results)} éléments récupérés ({page - 1} page(s))")
     return results
 
 
@@ -136,10 +175,10 @@ def build_lookup_table(
     engagements: list[dict],
     products:    list[dict],
 ) -> dict[int, dict]:
-    eng_map: dict[int, dict] = {int(e["id"]): e for e in engagements if e.get("id") is not None}
-    prod_map: dict[int, dict] = {int(p["id"]): p for p in products if p.get("id") is not None}
+    eng_map:  dict[int, dict] = {int(e["id"]): e for e in engagements if e.get("id") is not None}
+    prod_map: dict[int, dict] = {int(p["id"]): p for p in products   if p.get("id") is not None}
 
-    lookup: dict[int, dict] = {}
+    lookup:    dict[int, dict] = {}
     unresolved = 0
 
     for t in tests:
@@ -177,9 +216,9 @@ def build_lookup_table(
         }
 
     if unresolved:
-        logger.warning(f"{unresolved} test(s) without engagement_id in lookup table")
+        logger.warning(f"{unresolved} test(s) sans engagement_id dans la lookup table")
 
-    logger.info(f"Lookup table built: {len(lookup)} test_id(s) mapped")
+    logger.info(f"Lookup table construite : {len(lookup)} test_id(s) mappés")
     return lookup
 
 
@@ -208,51 +247,103 @@ def enrich_findings(findings: list[dict], lookup: dict[int, dict]) -> list[dict]
         enriched.append(row)
 
     if unresolved:
-        logger.warning(f"{unresolved} finding(s) with unresolved test_id")
+        logger.warning(f"{unresolved} finding(s) avec test_id non résolu")
 
     return enriched
 
 
 
 def _extract_cve(finding: dict) -> Optional[str]:
-    cve_direct = finding.get("cve")
-    if cve_direct and isinstance(cve_direct, str):
-        val = cve_direct.strip().upper()
-        if val.startswith("CVE-"):
-            return val
+   
+
+    def _normalize(val) -> Optional[str]:
+        """Retourne un CVE normalisé si val en contient un, sinon None."""
+        if not val:
+            return None
+        s = str(val).strip()
+        m = CVE_PATTERN.search(s)
+        return m.group(0).upper() if m else None
+
+    cve = _normalize(finding.get("cve"))
+    if cve:
+        return cve
 
     vuln_ids = finding.get("vulnerability_ids")
+
     if vuln_ids:
         if isinstance(vuln_ids, str):
-            try:
-                import ast
-                vuln_ids = ast.literal_eval(vuln_ids)
-            except Exception:
-                pass
+            stripped = vuln_ids.strip()
+            if stripped.startswith("[") or stripped.startswith("{"):
+                try:
+                    vuln_ids = json.loads(stripped)
+                except json.JSONDecodeError:
+                    cve = _normalize(stripped)
+                    if cve:
+                        return cve
+                    vuln_ids = []
+            else:
+                cve = _normalize(stripped)
+                if cve:
+                    return cve
+                vuln_ids = []
+
         if isinstance(vuln_ids, list):
             for entry in vuln_ids:
-                vid = None
                 if isinstance(entry, dict):
-                    vid = entry.get("id") or entry.get("vulnerability_id")
-                elif isinstance(entry, str):
-                    vid = entry
-                if vid and isinstance(vid, str):
-                    vid = vid.strip().upper()
-                    if vid.startswith("CVE-"):
-                        return vid
+                    for key in ("vulnerability_id", "cve", "id", "name", "value"):
+                        cve = _normalize(entry.get(key))
+                        if cve:
+                            return cve
+                    for v in entry.values():
+                        cve = _normalize(v)
+                        if cve:
+                            return cve
+                else:
+                    cve = _normalize(entry)
+                    if cve:
+                        return cve
+
+        elif isinstance(vuln_ids, dict):
+            for key in ("vulnerability_id", "cve", "id", "name", "value"):
+                cve = _normalize(vuln_ids.get(key))
+                if cve:
+                    return cve
+
+    for field in ("title", "description"):
+        cve = _normalize(finding.get(field, ""))
+        if cve:
+            return cve
 
     return None
 
 
-def batch_fetch_epss(cves: list[str]) -> dict[str, dict]:
-    cache: dict[str, dict] = {}
+# ─── EPSS BATCH + CACHE ───────────────────────────────────────────────────────
 
-    for i in range(0, len(cves), EPSS_BATCH_SIZE):
-        batch  = cves[i:i + EPSS_BATCH_SIZE]
-        params = {"cve": ",".join(batch)}
+def batch_fetch_epss(cves: list[str], cache: dict) -> dict:
+    
+    to_fetch = [c for c in cves if c not in cache]
 
+    if not to_fetch:
+        logger.info("EPSS : tous les CVE sont déjà en cache")
+        return cache
+
+    logger.info(f"EPSS : {len(to_fetch)} CVE à récupérer (cache : {len(cache)})")
+
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+
+    fetched = 0
+    for i in range(0, len(to_fetch), EPSS_BATCH_SIZE):
+        batch  = to_fetch[i : i + EPSS_BATCH_SIZE]
+        params = {"cve": ",".join(batch), "limit": EPSS_BATCH_SIZE}
         try:
-            resp = requests.get(EPSS_API_URL, params=params, timeout=EPSS_TIMEOUT)
+            resp = session.get(EPSS_API_URL, params=params, timeout=EPSS_TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
 
@@ -260,60 +351,85 @@ def batch_fetch_epss(cves: list[str]) -> dict[str, dict]:
                 cve_id = item.get("cve", "").upper()
                 if cve_id:
                     cache[cve_id] = {
-                        "epss_score":      float(item.get("epss", 0.0)),
-                        "epss_percentile": float(item.get("percentile", 0.0)),
+                        "epss_score":       float(item.get("epss",       0.0)),
+                        "epss_percentile":  float(item.get("percentile", 0.0)),
                     }
+                    fetched += 1
 
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"[EPSS] Batch {i // EPSS_BATCH_SIZE + 1} failed: {e}")
+            
+            returned_cves = {item.get("cve", "").upper() for item in data.get("data", [])}
+            for cve_id in batch:
+                if cve_id not in returned_cves:
+                    cache.setdefault(cve_id, {"epss_score": 0.0, "epss_percentile": 0.0})
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"EPSS batch {i // EPSS_BATCH_SIZE + 1} : timeout")
+        except requests.exceptions.HTTPError as e:
+            logger.warning(f"EPSS batch {i // EPSS_BATCH_SIZE + 1} : HTTP {e.response.status_code}")
         except Exception as e:
-            logger.warning(f"[EPSS] Unexpected error on batch {i // EPSS_BATCH_SIZE + 1}: {e}")
+            logger.warning(f"EPSS batch {i // EPSS_BATCH_SIZE + 1} : {e}")
 
         time.sleep(0.5)
 
-    logger.info(f"[EPSS] {len(cache)}/{len(cves)} CVE(s) scored")
+    logger.info(f"EPSS : {fetched} score(s) récupérés depuis l'API FIRST")
     return cache
 
 
+
 def enrich_findings_with_epss(findings: list[dict]) -> list[dict]:
-    cves = list({
-        _extract_cve(f)
-        for f in findings
-        if _extract_cve(f) is not None
-    })
-
-    logger.info(f"[EPSS] Fetching scores for {len(cves)} unique CVE(s)")
-    epss_cache = batch_fetch_epss(cves) if cves else {}
-
-    enriched = []
-    hits     = 0
-
-    for f in findings:
-        row = dict(f)
+   
+    cve_map: dict[int, str] = {}  
+    for idx, f in enumerate(findings):
         cve = _extract_cve(f)
+        if cve:
+            cve_map[idx] = cve
 
-        if cve and cve in epss_cache:
-            row["epss_score"]      = epss_cache[cve]["epss_score"]
-            row["epss_percentile"] = epss_cache[cve]["epss_percentile"]
-            hits += 1
+    all_cves = list(set(cve_map.values()))
+    logger.info(
+        f"EPSS : {len(cve_map)} finding(s) avec CVE "
+        f"({len(all_cves)} CVE unique(s) sur {len(findings)} findings)"
+    )
+
+    if not all_cves:
+        logger.warning("Aucun CVE détecté — vérifier les champs vulnerability_ids / cve")
+        for f in findings:
+            f.setdefault("epss_score",      0.0)
+            f.setdefault("epss_percentile", 0.0)
+        return findings
+
+    cache = load_epss_cache()
+    cache = batch_fetch_epss(all_cves, cache)
+    save_epss_cache(cache)
+
+    enriched_count = 0
+    for idx, f in enumerate(findings):
+        cve = cve_map.get(idx)
+        if cve and cve in cache:
+            entry = cache[cve]
+            f["epss_score"]      = entry["epss_score"]
+            f["epss_percentile"] = entry["epss_percentile"]
+            if entry["epss_score"] > 0:
+                enriched_count += 1
         else:
-            row["epss_score"]      = float(f.get("epss_score") or 0.0)
-            row["epss_percentile"] = float(f.get("epss_percentile") or 0.0)
+            f.setdefault("epss_score",      0.0)
+            f.setdefault("epss_percentile", 0.0)
 
-        enriched.append(row)
+    logger.info(
+        f"EPSS : {enriched_count}/{len(cve_map)} finding(s) enrichis "
+        f"avec un score > 0"
+    )
+    return findings
 
-    logger.info(f"[EPSS] {hits}/{len(findings)} finding(s) enriched with EPSS score")
-    return enriched
 
-
+# ─── VALIDATION ───────────────────────────────────────────────────────────────
 
 def validate_data(data: list[dict], resource: str) -> bool:
     if not data:
-        logger.warning(f"[{resource}] No data received")
+        logger.warning(f"[{resource}] Aucune donnée reçue")
         return False
     missing = EXPECTED_COLS.get(resource, set()) - set(data[0].keys())
     if missing:
-        logger.warning(f"[{resource}] Missing columns: {missing}")
+        logger.warning(f"[{resource}] Colonnes manquantes : {missing}")
         return False
     return True
 
@@ -331,9 +447,8 @@ def save_atomic(data: list[dict], filename: str) -> Path:
         tmp_path = tmp.name
 
     shutil.move(tmp_path, target)
-    logger.info(f"Saved: {target} ({len(df)} rows, {len(df.columns)} cols)")
+    logger.info(f"Sauvegardé : {target} ({len(df)} lignes, {len(df.columns)} cols)")
     return target
-
 
 
 def save_collection_report(stats: dict):
@@ -342,20 +457,20 @@ def save_collection_report(stats: dict):
     path   = RAW_DIR / "collection_report.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
-    logger.info(f"Collection report saved: {path}")
+    logger.info(f"Rapport de collecte sauvegardé : {path}")
 
 
 
 def main():
-    logger.info("Starting DefectDojo data collection — AI Risk Engine")
-    logger.info(f"Target: {BASE_URL}")
+    logger.info("Démarrage de la collecte DefectDojo — AI Risk Engine")
+    logger.info(f"Cible : {BASE_URL}")
 
     session = create_session()
     stats   = {"products": 0, "engagements": 0, "tests": 0, "findings": 0, "errors": []}
 
     products = fetch_products(session)
     if not validate_data(products, "products"):
-        logger.error("Invalid products data — aborting")
+        logger.error("Données produits invalides — abandon")
         sys.exit(1)
     save_atomic(products, "products.csv")
     stats["products"] = len(products)
@@ -374,7 +489,7 @@ def main():
 
     raw_findings = fetch_all_findings(session)
     if not raw_findings:
-        logger.error("No findings retrieved — aborting")
+        logger.error("Aucun finding récupéré — abandon")
         sys.exit(1)
     validate_data(raw_findings, "findings")
 
@@ -386,7 +501,11 @@ def main():
         key      = f.get("product_name") or f"product_id={f.get('product_id', '?')}"
         dist[key] = dist.get(key, 0) + 1
 
+    with_cve   = sum(1 for f in findings if _extract_cve(f))
+    with_epss  = sum(1 for f in findings if (f.get("epss_score") or 0) > 0)
     stats["findings"]                 = len(findings)
+    stats["findings_with_cve"]        = with_cve
+    stats["findings_with_epss_score"] = with_epss
     stats["distribution_by_product"]  = dist
 
     save_atomic(findings, "findings_raw.csv")
@@ -400,11 +519,12 @@ def main():
     save_collection_report(stats)
 
     logger.info(
-        f"Collection complete — "
-        f"{stats['products']} products, "
+        f"Collecte terminée — "
+        f"{stats['products']} produits, "
         f"{stats['engagements']} engagements, "
         f"{stats['tests']} tests, "
-        f"{stats['findings']} findings"
+        f"{stats['findings']} findings "
+        f"({with_cve} avec CVE, {with_epss} avec score EPSS > 0)"
     )
 
 
