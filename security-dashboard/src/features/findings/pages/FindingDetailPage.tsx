@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { findingsApi } from '../../../api/services/findings';
-import { predictionsApi, PredictionRequest } from '../../../api/services/predictions';
 import { explanationsApi, LLMExplanation, LLMRecommendation } from '../../../api/services/explanations';
 import { jiraApi } from '../../../api/services/jira';
 import type { JiraIntegrationState } from '../../../types/jira';
@@ -42,6 +41,7 @@ export default function FindingDetailPage() {
   const navigate = useNavigate();
   const findingId = parseInt(id || '0', 10);
 
+
   const [llmExplanation, setLlmExplanation]       = useState<LLMExplanation | null>(null);
   const [llmRecommendation, setLlmRecommendation] = useState<LLMRecommendation | null>(null);
   const [explanationLoading, setExplanationLoading]       = useState(false);
@@ -49,6 +49,7 @@ export default function FindingDetailPage() {
   const [explanationError, setExplanationError]       = useState<string | null>(null);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [showShap, setShowShap] = useState(false);
 
   const [jiraState, setJiraState] = useState<JiraIntegrationState>({
     loading: false, error: null, success: false, jiraKey: null, jiraUrl: null,
@@ -75,23 +76,24 @@ export default function FindingDetailPage() {
     enabled: !!findingId,
   });
 
-  const findingsForBatch: PredictionRequest[] = finding ? [{
-    severity: finding.severity,
-    cvss_score: finding.cvss_score || 0,
-    title: finding.title,
-    tags: finding.tags,
-    days_open: finding.age_days || 0,
-    finding_id: finding.id,
-    engagement_id: finding.engagement_id ?? undefined,
-  }] : [];
-
-  const { data: scoreResult } = useQuery({
-    queryKey: ['score', findingId],
-    queryFn: () => predictionsApi.predictBatch(findingsForBatch).then(res => res.data),
-    enabled: !!finding,
-  });
-
-  const aiScore = scoreResult?.results[0];
+    const aiScore = finding
+    ? {
+        risk_class:    finding.risk_class ?? undefined,
+        risk_level:    finding.risk_level ?? undefined,
+        confidence:    finding.ai_confidence ?? undefined,
+        continuous:          finding.ai_risk_score_cont ?? undefined,
+        modelBase:           finding.model_base_score ?? undefined,
+        businessNudge:       finding.business_nudge ?? undefined,
+        shapFeatures:        finding.shap_features ?? [],
+        probabilities: {
+          Low:      (finding as any).ai_probabilities?.Low      ?? 0,
+          Medium:   (finding as any).ai_probabilities?.Medium   ?? 0,
+          High:     (finding as any).ai_probabilities?.High     ?? 0,
+          Critical: (finding as any).ai_probabilities?.Critical ?? 0,
+        },
+        context_score: finding.context_score ?? undefined,
+      }
+    : null;
 
   const buildLLMPayload = () => ({
     finding_id: finding!.id,
@@ -103,7 +105,7 @@ export default function FindingDetailPage() {
     cwe: (finding as any)?.cwe ?? '',
     file_path: finding!.file_path ?? '',
     tags: finding!.tags ?? [],
-    risk_level: aiScore?.risk_level ?? '',
+    risk_level: aiScore?.risk_level ?? finding?.risk_level ?? '',
   });
 
   const handleExplanation = async () => {
@@ -169,8 +171,8 @@ export default function FindingDetailPage() {
       line: (finding as any).line,
       tags: finding.tags ?? [],
       risk_level: aiScore?.risk_level ?? 'UNKNOWN',
-      ai_score: aiScore?.risk_class,
-      ai_confidence: aiScore?.confidence,
+      ai_score: aiScore?.risk_class ?? undefined,
+      ai_confidence: aiScore?.confidence ?? undefined,
       engagement_id: finding.engagement_id,
       product_name: finding.product_name,
     };
@@ -205,7 +207,7 @@ export default function FindingDetailPage() {
 
   const getRiskMessage = () => {
     const rc = aiScore?.risk_class;
-    if (rc === undefined) return 'Analyse IA en cours...';
+    if (rc === null || rc === undefined) return 'Analyse IA en cours...';
     if (rc >= 3) return 'Priorité absolue · 24h';
     if (rc >= 2) return 'Correction sous 7 jours';
     return 'Surveillance planifiée';
@@ -272,7 +274,9 @@ export default function FindingDetailPage() {
               </span>
               <span className="fdp-ai-badge">
                 <span className="fdp-ai-dot" />
-                Score IA {aiScore?.risk_class ?? '?'}/4 · {(aiScore?.risk_level || 'N/A').toUpperCase()}
+                Score IA {aiScore?.continuous?.toFixed(1) ?? (aiScore?.risk_class ?? '?')}/{aiScore?.continuous != null ? '10' : '4'}
+                {' · '}
+                {(aiScore?.risk_level || 'N/A').toUpperCase()}
               </span>
               {finding.has_cve && (
                 <span className="fdp-sev-badge sev-cve">CVE</span>
@@ -377,9 +381,9 @@ export default function FindingDetailPage() {
               </div>
 
               <p className="fdp-risk-text">
-                {aiScore?.risk_class !== undefined && aiScore.risk_class >= 3
+                {aiScore?.risk_class != null && aiScore?.risk_class >= 3
                   ? '⚠️ Risque ÉLEVÉ — traitement en priorité absolue requis.'
-                  : aiScore?.risk_class !== undefined && aiScore.risk_class >= 2
+                  : aiScore?.risk_class != null && aiScore?.risk_class >= 2
                   ? '📌 Risque MODÉRÉ — correction recommandée rapidement.'
                   : 'ℹ️ Risque FAIBLE — à surveiller lors des prochaines maintenances.'}
                 {aiScore?.context_score && aiScore.context_score > 5 &&
@@ -388,23 +392,82 @@ export default function FindingDetailPage() {
 
               <div className="fdp-risk-classes-label">DISTRIBUTION DES CLASSES</div>
               <div className="fdp-risk-score-row">
-                {(['low','medium','high','critical'] as const).map((level, i) => {
-                  const colors   = ['#00e87a','#f5a623','#ff6b35','#ff3b5c'];
-                  const fallback = [0.02,0.04,0.06,0.88][i];
-                  const val      = scoreResult?.results[0]?.probabilities?.[level] ?? fallback;
-                  const active   = level === aiScore?.risk_level?.toLowerCase();
+                {(['Low', 'Medium', 'High', 'Critical'] as const).map((level, i) => {
+                  const colors   = ['#00e87a', '#f5a623', '#ff6b35', '#ff3b5c'];
+                  const fallback = [0.02, 0.04, 0.06, 0.88][i];
+
+                  const val = aiScore?.probabilities?.[level] ?? fallback;
+
+                  const active = level.toLowerCase() === aiScore?.risk_level?.toLowerCase();
+
                   return (
-                    <div key={level} className={`fdp-risk-score-box${active ? ' active' : ''}`}
-                      style={{ '--rc': colors[i] } as React.CSSProperties}>
+                    <div 
+                      key={level} 
+                      className={`fdp-risk-score-box${active ? ' active' : ''}`}
+                      style={{ '--rc': colors[i] } as React.CSSProperties}
+                    >
                       <div className="fdp-risk-score-num" style={{ color: colors[i] }}>
                         {typeof val === 'number' ? val.toFixed(2) : '—'}
                       </div>
-                      <div className="fdp-risk-score-name">{level.toUpperCase().slice(0,3)}</div>
+                      <div className="fdp-risk-score-name">{level.toUpperCase().slice(0, 3)}</div>
                       {active && <div className="fdp-risk-score-active-bar" style={{ background: colors[i] }} />}
-                    </div>
-                  );
+                    </div>                    
+                );
                 })}
               </div>
+                <button
+                          className="fdp-shap-toggle-btn"
+                          onClick={() => setShowShap(!showShap)}
+                          style={{
+                            marginTop: 16,
+                            background: 'rgba(180,142,255,.08)',
+                            border: '1px solid rgba(180,142,255,.2)',
+                            borderRadius: 6,
+                            padding: '6px 14px',
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            color: '#b48eff',
+                            width: '100%',
+                          }}
+                        >
+                          {showShap ? 'Masquer les détails SHAP' : 'Afficher les détails SHAP'}
+                        </button>
+
+                        {/* ── CONTENU SHAP ─────────────────────────────────────────────── */}
+                        {showShap && (aiScore?.shapFeatures?.length ?? 0) > 0 && (
+                          <div className="fdp-shap-container" style={{ marginTop: 12 }}>
+                            <div className="fdp-risk-classes-label" style={{ marginBottom: 8 }}>
+                              TOP FEATURES (SHAP)
+                            </div>
+                            <div className="fdp-shap-list">
+                              {aiScore?.shapFeatures.map((feat: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className="fdp-shap-item"
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    padding: '5px 0',
+                                    borderBottom: '1px solid rgba(255,255,255,.05)',
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  <span style={{ color: feat.direction === '+' ? '#00e87a' : '#ff3b5c', fontWeight: 600 }}>
+                                    {feat.direction}
+                                  </span>
+                                  <span style={{ flex: 1, marginLeft: 8, color: '#ccc' }}>{feat.feature}</span>
+                                  <span style={{ color: '#f5a623', fontWeight: 500 }}>{feat.shap_value.toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {showShap && (!aiScore?.shapFeatures || aiScore.shapFeatures.length === 0) && (
+                          <p style={{ fontSize: 12, color: '#888', marginTop: 12 }}>
+                            Aucune explication SHAP disponible actuellement.
+                          </p>
+                  )}
+
             </div>
 
             <JiraPanel

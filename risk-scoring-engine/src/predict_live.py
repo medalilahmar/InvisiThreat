@@ -109,6 +109,7 @@ TRAIN_EXCLUDED_COLS = {
 
 @dataclass
 class PredictionResult:
+    # Champs sans valeur par défaut
     finding_id: int
     title: str
     severity: str
@@ -121,7 +122,10 @@ class PredictionResult:
     ai_prediction_timestamp: str
     model_version: str
     tags: List[str]
+
     probabilities: Dict[str, float] = field(default_factory=dict)
+    model_base_score: float = 0.0
+    business_nudge: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -684,68 +688,26 @@ class RiskPredictor:
         proba: np.ndarray,
         row: pd.Series,
         n_classes: int,
-    ) -> float:
-        """
-        Compute ai_risk_score faithful to the trained model.
-
-        Principle:
-        ──────────
-        The model's predict_proba() is the primary source of truth — it encodes
-        everything the model learned from FEATURE_COLS during training.
-
-        1. Model expected score (base):
-           Weighted average of CLASS_SCORE_ANCHORS by the predicted probabilities.
-           This gives a continuous score that respects the model's confidence
-           distribution across all 4 classes.
-           → Score is rich and varies even within a single class because it
-             captures how much probability mass spills into adjacent classes.
-
-        2. Business nudge (secondary):
-           A small adjustment (±BUSINESS_NUDGE_MAX = ±0.8 pts) computed from
-           CVSS, EPSS and context_score.  Its only role is intra-class
-           discrimination — breaking ties between findings that the model scored
-           identically.
-           → Bounded tightly so it can NEVER change a finding's effective class
-             (e.g. it cannot push a 7.0 "high" into "critical" territory).
-
-        What is explicitly NOT done:
-        ────────────────────────────
-        - risk_score / score_composite_raw are NEVER read (data leakage).
-        - The formula does not replace the model; it derives from it.
-        - Business signals are post-hoc only; they do not dominate.
-        """
+    ) -> Tuple[float, float, float]:          # <-- retourne (final, base, nudge)
         anchors = CLASS_SCORE_ANCHORS[:n_classes]
-
-        # 1. Model base score: E[score] = Σ proba[i] × anchor[i]
-        #    This naturally produces a continuous distribution.
-        #    A confident "high" prediction → score ≈ 7.0
-        #    A borderline high/critical split → score ≈ 7.8
-        #    A borderline medium/high split   → score ≈ 5.5
         model_score = float(np.dot(proba, anchors))
 
-        # 2. Business nudge: small contextual adjustment
-        #    All inputs are already in [0, 1] (or [0, 5] for context_score)
         cvss_norm = float(row.get("cvss_score_norm", 0.0))
         epss      = float(row.get("epss_score", 0.0))
-        context   = float(row.get("context_score", 0.0))   # [0, 5]
-
-        # Normalise context to [0, 1]
+        context   = float(row.get("context_score", 0.0))
         context_norm = context / 5.0
 
-        # Compute nudge in [-1, 1] via a zero-centred formula:
-        # signals above 0.5 push up, below push down
         nudge_raw = (
             0.40 * (cvss_norm - 0.5) +
             0.40 * (min(epss * 2.0, 1.0) - 0.5) +
             0.20 * (context_norm - 0.5)
         )
-        # Scale nudge to ±BUSINESS_NUDGE_MAX
         nudge = nudge_raw * BUSINESS_NUDGE_MAX * 2.0
         nudge = float(np.clip(nudge, -BUSINESS_NUDGE_MAX, BUSINESS_NUDGE_MAX))
 
         ai_score = model_score + nudge
         ai_score = round(float(np.clip(ai_score, 0.0, 10.0)), 2)
-        return ai_score
+        return ai_score, round(model_score, 4), round(nudge, 4)
 
     # ── Batch entry points ────────────────────────────────────────────────────
 
@@ -824,7 +786,7 @@ class RiskPredictor:
             row        = X.iloc[idx]
             confidence = float(np.max(proba))
 
-            ai_score   = self._compute_ai_score(encoded, proba, row, n_classes)
+            ai_score, model_base, nudge_val = self._compute_ai_score(encoded, proba, row, n_classes)
             risk_level = self._class_labels.get(encoded, "unknown")
 
             proba_dict = {
@@ -848,6 +810,8 @@ class RiskPredictor:
                     title=str(finding.get("title", f"Finding {idx}")),
                     severity=str(finding.get("severity", "")).lower(),
                     ai_risk_score=ai_score,
+                    model_base_score=model_base,
+                    business_nudge=nudge_val,
                     ai_risk_level=risk_level,
                     ai_confidence=round(confidence, 4),
                     context_score=round(context, 2),
@@ -971,6 +935,9 @@ class ResultPublisher:
                 "ai_confidence":  r.ai_confidence,
                 "context_score":  r.context_score,
                 "probabilities":  r.probabilities,
+                "shap_top_features":     r.shap_top_features,
+                "model_base_score":  r.model_base_score,     
+                "business_nudge":    r.business_nudge,       
                 "updated_at":     datetime.now(timezone.utc).isoformat(),
             }
 

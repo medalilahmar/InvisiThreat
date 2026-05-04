@@ -24,4 +24,15 @@ export interface Finding {
 
   ai_risk_class?: number | null;
   ai_risk_level?: string | null;
+
+
+  ai_risk_score_cont?: number | null;
+  model_base_score?:   number | null;
+  business_nudge?:     number | null;
+  shap_features?:      Array<{
+    feature:    string;
+    value:      number;
+    shap_value: number;
+    direction:  string;
+  }> | null;
 }

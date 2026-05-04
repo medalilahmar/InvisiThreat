@@ -12,9 +12,9 @@ export function Navbar() {
       </Link>
 
       <ul className="navbar-links">
+        <li><Link to="/dashboard">Dashboard</Link></li>
         <li><Link to="/products">Produits</Link></li>
-        <li><Link to="/engagements">Engagements</Link></li>
-        <li><Link to="/findings">Findings</Link></li>
+        <li><Link to="/engagements">Engagements</Link></li>  
         <li><Link to="/model-stats">Modèle</Link></li>
       </ul>
 
