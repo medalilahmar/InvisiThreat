@@ -53,6 +53,7 @@ def _cache_key(finding: dict, mode: str) -> str:
         "cvss_score": finding.get("cvss_score", 0),
         "description": (finding.get("description", "") or "")[:200],
         "file_path": finding.get("file_path", ""),
+        "line":        finding.get("line", ""),
         "cve": finding.get("cve", ""),
         "cwe": finding.get("cwe", ""),
         "tags": sorted(finding.get("tags", [])),
@@ -196,6 +197,75 @@ Example output format:
 
 Now write the JSON for the vulnerability described above:"""
 
+
+
+
+def _build_solution_prompt(finding: dict) -> str:
+    title      = finding.get("title", "Unknown")
+    severity   = finding.get("severity", "medium")
+    cvss       = finding.get("cvss_score", 0)
+    desc       = (finding.get("description", "") or "")[:400]
+    mitigation = (finding.get("mitigation", "") or "")[:300]
+    fp         = finding.get("file_path", "") or finding.get("sast_source_file_path", "")
+    line       = finding.get("line") or finding.get("sast_source_line", "")
+    cve        = finding.get("cve", "") or "N/A"
+    cwe        = finding.get("cwe", "") or "N/A"
+    component  = finding.get("component_name", "") or ""
+    comp_ver   = finding.get("component_version", "") or ""
+    sast_src   = finding.get("sast_source_object", "") or ""
+    sast_sink  = finding.get("sast_sink_object", "") or ""
+    is_static  = str(finding.get("static_finding", "")).lower() in ("true", "1", "yes")
+
+    context_block = ""
+    if is_static and fp:
+        context_block = f"- Affected file: {fp}" + (f" (line {line})" if line else "")
+    elif component:
+        context_block = f"- Vulnerable component: {component} {comp_ver}".strip()
+    if sast_src:
+        context_block += f"\n- Source object: {sast_src}"
+    if sast_sink:
+        context_block += f"\n- Sink object: {sast_sink}"
+
+    return f"""You are a senior application security engineer providing an exact code fix for a vulnerability.
+Your goal is to produce a minimal, precise, and immediately applicable code correction.
+Be specific — do NOT write generic advice. Write actual code.
+
+Vulnerability details:
+- Title: {title}
+- Severity: {severity} | CVSS Score: {cvss}
+- CVE: {cve} | CWE: {cwe}
+{context_block}
+- Description: {desc}
+- Mitigation hint: {mitigation}
+
+Respond with a single JSON object using EXACTLY these keys:
+
+"vulnerable_snippet"
+  The exact vulnerable code pattern (2 to 5 lines). Real code, not a description.
+
+"fixed_snippet"
+  The corrected version of the same code (2 to 5 lines). Minimal changes only.
+  Do NOT rewrite the entire file — only fix the vulnerable part.
+
+"explanation"
+  2 to 3 sentences. Explain exactly what was changed and why it fixes the vulnerability.
+  Be specific about the security property that was added or restored.
+
+"confidence"
+  A float between 0.0 and 1.0 representing your confidence in this fix.
+  Use 0.90+ if file_path and line are available. Use 0.65-0.75 for generic pattern fixes.
+
+Output only the raw JSON object. No markdown fences, no text before or after.
+
+Example output format:
+{{
+  "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+  "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))",
+  "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+  "confidence": 0.92
+}}
+
+Now write the JSON for the vulnerability described above:"""
 
 # ---------------------------------------------------------------------------
 # Appel Gemini API
@@ -349,7 +419,7 @@ def explain_finding(
     use_cache: bool = True,
     mode: str = "explanation",
 ) -> dict:
-    if mode not in ("explanation", "recommendation"):
+    if mode not in ("explanation", "recommendation" , "solution"):
         mode = "explanation"
 
     cache_key = _cache_key(finding, mode)
@@ -393,7 +463,7 @@ def explain_finding(
                 else "Month — This lower severity finding should be tracked in the backlog and resolved in an upcoming release cycle."
             ),
         }
-    else:
+    elif mode == "recommendation":
         prompt = _build_recommendation_prompt(finding)
         fallback = {
             "title": f"Remediation Plan for: {finding.get('title', 'Unknown Vulnerability')}",
@@ -417,6 +487,27 @@ def explain_finding(
                 "Include this vulnerability type in the next developer security awareness training and enforce a mandatory security checklist during code reviews."
             ),
         }
+    elif mode == "solution":
+        prompt = _build_solution_prompt(finding)
+        fallback = {
+            "vulnerable_snippet": (
+                f"# Vulnerable pattern for: {finding.get('title', 'unknown')}\n"
+                "# Could not retrieve exact code — check file_path and static_finding fields."
+            ),
+            "fixed_snippet": (
+                "# Apply the mitigation described in the finding.\n"
+                f"# Refer to: {(finding.get('mitigation', '') or 'OWASP guidelines')[:200]}"
+            ),
+            "explanation": (
+                f"This is a {finding.get('severity', 'unknown')} severity vulnerability "
+                f"({finding.get('title', 'unknown')}). "
+                "Automatic code fix could not be generated — the file path or static finding "
+                "information may be missing. Please apply the mitigation manually."
+            ),
+            "confidence": 0.40,
+        }
+
+        
 
     logger.info(f"🤖 Calling Gemini [{mode}] — {finding.get('title', '?')}")
     raw = _call_gemini(prompt)

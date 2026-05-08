@@ -1,11 +1,24 @@
 name: DevSecOps Pipeline - InvisiThreat
 
 on:
-   #push:
-   #  branches: [ main, develop ]
-   #pull_request:
-   #  branches: [ main, develop ]
-   workflow_dispatch:
+  #push:
+  #  branches: [ main, develop ]
+  #pull_request:
+  #  branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Déployer les containers après les scans ?"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+      force_retrain:
+        description: "Réentraîner le modèle ML après déploiement ?"
+        required: false
+        default: "false"
+        type: choice
+        options: ["true", "false"]
 
 env:
   APP_NAME: InvisiThreat
@@ -15,11 +28,25 @@ env:
   FAIL_ON_NEW_CRITICAL: "true"
   FAIL_ON_NEW_HIGH: "false"
 
+# ─────────────────────────────────────────────────────────────────
+#  JOB 1 : SECURITY  (SAST + SCA + DAST + DefectDojo)
+# ─────────────────────────────────────────────────────────────────
 jobs:
   security:
     name: SAST + SCA + DAST + DefectDojo
     runs-on: self-hosted
     timeout-minutes: 120
+
+    outputs:
+      engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+      engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+      product_id:      ${{ steps.dd_setup.outputs.product_id }}
+      env_tag:         ${{ steps.dd_setup.outputs.env_tag }}
+      start_date:      ${{ steps.dd_setup.outputs.start_date }}
+      end_date:        ${{ steps.dd_setup.outputs.end_date }}
+      new_critical:    ${{ steps.security_gate.outputs.new_critical }}
+      new_high:        ${{ steps.security_gate.outputs.new_high }}
+      gate_passed:     ${{ steps.security_gate.outputs.gate_passed }}
 
     steps:
 
@@ -74,19 +101,18 @@ jobs:
           npm install --no-audit --no-fund
         fi
 
-   
     - name: DefectDojo — Setup
       id: dd_setup
       uses: ./.github/actions/dd-setup
       with:
-        dd_url:    ${{ env.DD_URL }}
+        dd_url:     ${{ env.DD_URL }}
         dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        app_name:  ${{ env.APP_NAME }}
-        branch:    ${{ github.ref_name }}
-        run_id:    ${{ github.run_id }}
-        sha:       ${{ github.sha }}
-        repo_url:  ${{ github.server_url }}/${{ github.repository }}
-      
+        app_name:   ${{ env.APP_NAME }}
+        branch:     ${{ github.ref_name }}
+        run_id:     ${{ github.run_id }}
+        sha:        ${{ github.sha }}
+        repo_url:   ${{ github.server_url }}/${{ github.repository }}
+
     - name: DefectDojo — Snapshot AVANT import
       id: dd_snapshot
       env:
@@ -111,7 +137,7 @@ jobs:
         echo "before_critical=$BEFORE_CRIT" >> "$GITHUB_OUTPUT"
         echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
 
-    
+    # ── SAST ──────────────────────────────────────────────────────
     - name: SAST — Semgrep
       working-directory: ${{ env.APP_DIR }}
       continue-on-error: true
@@ -130,7 +156,7 @@ jobs:
         COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
         echo "Semgrep terminé — $COUNT résultat(s)"
 
-    
+    # ── SCA ───────────────────────────────────────────────────────
     - name: SCA — Snyk test
       working-directory: ${{ env.APP_DIR }}
       continue-on-error: true
@@ -154,7 +180,7 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: npx snyk monitor || true
 
-    
+    # ── DAST ──────────────────────────────────────────────────────
     - name: DAST — Démarrer Juice Shop
       working-directory: ${{ env.APP_DIR }}
       run: |
@@ -181,7 +207,7 @@ jobs:
         target_url:        ${{ env.TARGET_URL }}
         app_dir:           ${{ env.APP_DIR }}
         full_scan_timeout: "30"
-      
+
     - name: DAST — Arrêter Juice Shop
       if: always()
       working-directory: ${{ env.APP_DIR }}
@@ -194,7 +220,7 @@ jobs:
         fi
         pkill -f "node.*juice-shop" 2>/dev/null || true
 
-   
+    # ── UPLOAD RAPPORTS ───────────────────────────────────────────
     - name: Upload des rapports
       if: always()
       uses: actions/upload-artifact@v4
@@ -208,7 +234,7 @@ jobs:
         retention-days: 30
         if-no-files-found: warn
 
-    
+    # ── IMPORT DEFECTDOJO ─────────────────────────────────────────
     - name: DefectDojo — Import Semgrep
       if: always()
       uses: ./.github/actions/dd-import
@@ -275,10 +301,10 @@ jobs:
         run_id:          ${{ github.run_id }}
         tags: "${{ steps.zap.outputs.detected_tags }},fullscan,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
 
- 
+    # ── TAGGING ───────────────────────────────────────────────────
     - name: DefectDojo — Tagging intelligent des findings
       if: always()
-      continue-on-error: true   
+      continue-on-error: true
       env:
         DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
       run: |
@@ -294,8 +320,9 @@ jobs:
 
         echo "Tagging terminé"
 
-
+    # ── SECURITY GATE ─────────────────────────────────────────────
     - name: Rapport final et Security Gate
+      id: security_gate
       if: always()
       env:
         DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
@@ -320,6 +347,10 @@ jobs:
         NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
         [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
         [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
+
+        # Exposer les compteurs pour le job deploy
+        echo "new_critical=$NEW_CRIT" >> "$GITHUB_OUTPUT"
+        echo "new_high=$NEW_HIGH"     >> "$GITHUB_OUTPUT"
 
         echo ""
         echo "========================================================"
@@ -355,11 +386,14 @@ jobs:
         [ "${{ env.FAIL_ON_NEW_HIGH }}" = "true" ]     && [ "$NEW_HIGH" -gt 0 ] && \
           { echo "SECURITY GATE ECHEC : $NEW_HIGH nouveau(x) High !"; FAILED=true; }
 
-        [ "$FAILED" = "true" ] && exit 1
+        if [ "$FAILED" = "true" ]; then
+          echo "gate_passed=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        echo "gate_passed=true" >> "$GITHUB_OUTPUT"
         echo "Security Gate : OK"
 
-
-    - name: Résumé pipeline
+    - name: Résumé pipeline sécurité
       if: always()
       run: |
         echo "========================================================"
@@ -375,3 +409,37 @@ jobs:
         echo "  Run ID     : ${{ github.run_id }}"
         echo "  Lien       : ${{ env.DD_URL }}/engagements/${{ steps.dd_setup.outputs.engagement_id }}/finding/"
         echo "========================================================"
+
+
+# ─────────────────────────────────────────────────────────────────
+#  JOB 2 : DEPLOY  (composite action — .github/actions/deploy)
+#  Se lance uniquement si :
+#    - Le security gate est passé (job security succeeded)
+#    - L'input deploy != "false"
+#    - La branche est main ou develop
+# ─────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy Docker Containers
+    runs-on: self-hosted
+    needs: security
+    if: |
+      needs.security.result == 'success' &&
+      (github.event.inputs.deploy != 'false') &&
+      (github.ref_name == 'main' || github.ref_name == 'develop')
+    timeout-minutes: 30
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Deploy
+      uses: ./.github/actions/deploy
+      with:
+        app_name:      ${{ env.APP_NAME }}
+        engagement_id: ${{ needs.security.outputs.engagement_id }}
+        new_critical:  ${{ needs.security.outputs.new_critical }}
+        new_high:      ${{ needs.security.outputs.new_high }}
+        force_retrain: ${{ github.event.inputs.force_retrain || 'false' }}

@@ -1,0 +1,214 @@
+name: Deploy Docker Containers
+description: "Build, deploy et health-check des containers Docker InvisiThreat"
+
+inputs:
+  app_name:
+    description: "Nom de l'application"
+    required: true
+  engagement_id:
+    description: "ID de l'engagement DefectDojo"
+    required: false
+    default: ""
+  new_critical:
+    description: "Nombre de nouveaux findings Critical"
+    required: false
+    default: "0"
+  new_high:
+    description: "Nombre de nouveaux findings High"
+    required: false
+    default: "0"
+  force_retrain:
+    description: "Réentraîner le modèle ML après déploiement ?"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+
+    # ── Vérifications préalables ──────────────────────────────────
+    - name: Vérifier Docker et Docker Compose
+      shell: bash
+      run: |
+        echo "=== VÉRIFICATION ENVIRONNEMENT ==="
+        docker --version
+        docker compose version
+        echo "Espace disque disponible :"
+        df -h /
+
+    - name: Vérifier la présence du .env
+      shell: bash
+      run: |
+        if [ ! -f ".env" ]; then
+          echo "ERREUR : fichier .env introuvable à la racine du projet"
+          echo "Créer le .env depuis .env.example et remplir les valeurs"
+          exit 1
+        fi
+        DD_URL_VAL=$(grep "^DEFECTDOJO_URL=" .env | cut -d= -f2)
+        if [ -z "$DD_URL_VAL" ] || echo "$DD_URL_VAL" | grep -q "CHANGE_ME"; then
+          echo "ERREUR : DEFECTDOJO_URL non configuré dans .env"
+          exit 1
+        fi
+        echo "OK — .env présent et DEFECTDOJO_URL configuré : $DD_URL_VAL"
+
+    - name: Vérifier la présence du modèle ML
+      shell: bash
+      run: |
+        MODEL_PATH="risk-scoring-engine/models/pipeline_latest.pkl"
+        if [ -f "$MODEL_PATH" ]; then
+          SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+          echo "OK — Modèle ML présent ($SIZE)"
+        else
+          echo "WARN — Modèle ML absent : l'API démarrera en mode dégradé"
+        fi
+
+    # ── Build des images ──────────────────────────────────────────
+    - name: Build — image dashboard (React)
+      shell: bash
+      run: |
+        echo "=== BUILD DASHBOARD ==="
+        docker compose build --no-cache dashboard
+        echo "Image dashboard buildée"
+
+    - name: Build — image api (FastAPI + ML)
+      shell: bash
+      run: |
+        echo "=== BUILD API ==="
+        docker compose build --no-cache api
+        echo "Image api buildée"
+
+    # ── Initialiser les volumes ───────────────────────────────────
+    - name: Initialiser les volumes Docker (modèle + données)
+      shell: bash
+      run: |
+        echo "=== INITIALISATION VOLUMES ==="
+        docker run --rm \
+          -v invisithreat_models_data:/target_models \
+          -v "$(pwd)/risk-scoring-engine/models:/source_models:ro" \
+          alpine sh -c "cp -r /source_models/. /target_models/ 2>/dev/null || true; ls /target_models/"
+
+        docker run --rm \
+          -v invisithreat_scores_cache:/target_data \
+          -v "$(pwd)/risk-scoring-engine/data:/source_data:ro" \
+          alpine sh -c "cp -r /source_data/. /target_data/ 2>/dev/null || true; echo 'Data volume prêt'"
+
+        echo "Volumes initialisés"
+
+    # ── Déploiement ───────────────────────────────────────────────
+    - name: Arrêter les anciens containers
+      shell: bash
+      run: |
+        echo "=== ARRÊT ANCIENS CONTAINERS ==="
+        docker compose down --remove-orphans || true
+        echo "Anciens containers arrêtés"
+
+    - name: Démarrer les containers
+      shell: bash
+      run: |
+        echo "=== DÉMARRAGE DES CONTAINERS ==="
+        docker compose up -d nginx dashboard api
+        echo "Containers démarrés"
+
+    # ── Health checks ─────────────────────────────────────────────
+    - name: Health check — API FastAPI
+      shell: bash
+      run: |
+        echo "=== HEALTH CHECK API ==="
+        MAX=20
+        for i in $(seq 1 $MAX); do
+          STATUS=$(curl -sf http://localhost/api/health \
+            -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "API opérationnelle (tentative $i) — HTTP $STATUS"
+            break
+          fi
+          echo "Attente API... $i/$MAX (HTTP $STATUS)"
+          sleep 10
+          [ "$i" -eq "$MAX" ] && { echo "ERREUR : API non disponible après ${MAX} tentatives"; exit 1; }
+        done
+
+    - name: Health check — Dashboard React
+      shell: bash
+      run: |
+        echo "=== HEALTH CHECK DASHBOARD ==="
+        MAX=10
+        for i in $(seq 1 $MAX); do
+          STATUS=$(curl -sf http://localhost/ \
+            -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "Dashboard opérationnel (tentative $i) — HTTP $STATUS"
+            break
+          fi
+          echo "Attente dashboard... $i/$MAX (HTTP $STATUS)"
+          sleep 5
+          [ "$i" -eq "$MAX" ] && { echo "ERREUR : Dashboard non disponible"; exit 1; }
+        done
+
+    - name: Vérifier la connectivité API → DefectDojo
+      shell: bash
+      run: |
+        echo "=== TEST CONNECTIVITÉ API → DEFECTDOJO ==="
+        HEALTH=$(curl -sf http://localhost/api/health 2>/dev/null || echo '{}')
+        echo "Réponse health : $HEALTH"
+        MODEL_READY=$(echo "$HEALTH" | jq -r '.model_loaded // false' 2>/dev/null || echo "unknown")
+        echo "Modèle ML chargé : $MODEL_READY"
+
+    # ── ML : scoring post-déploiement ────────────────────────────
+    - name: ML — Scoring IA des nouveaux findings
+      if: ${{ inputs.engagement_id != '' }}
+      shell: bash
+      run: |
+        echo "=== SCORING IA POST-DÉPLOIEMENT ==="
+        EID="${{ inputs.engagement_id }}"
+        sleep 15
+
+        RESULT=$(curl -sf -X POST \
+          "http://localhost/api/model/reload" \
+          -H "Content-Type: application/json" \
+          2>/dev/null || echo '{"error":"reload failed"}')
+        echo "Reload modèle : $RESULT"
+
+        CACHE=$(curl -sf -X POST \
+          "http://localhost/api/cache/invalidate?prefix=findings" \
+          2>/dev/null || echo '{"error":"cache invalidation failed"}')
+        echo "Cache invalidé : $CACHE"
+
+        echo "Scoring IA terminé pour engagement $EID"
+
+    - name: ML — Réentraînement du modèle (si demandé)
+      if: ${{ inputs.force_retrain == 'true' }}
+      shell: bash
+      run: |
+        echo "=== RÉENTRAÎNEMENT ML DEMANDÉ ==="
+        docker compose exec -T api python main.py fetch
+        docker compose exec -T api python main.py preprocess
+        docker compose exec -T api python main.py train
+
+        curl -sf -X POST http://localhost/api/model/reload || true
+        curl -sf -X POST "http://localhost/api/cache/invalidate?prefix=findings" || true
+
+        echo "Réentraînement terminé"
+
+    # ── Résumé déploiement ────────────────────────────────────────
+    - name: Résumé du déploiement
+      shell: bash
+      run: |
+        echo ""
+        echo "========================================================"
+        echo "  DÉPLOIEMENT DOCKER — ${{ inputs.app_name }}"
+        echo "========================================================"
+        echo ""
+        echo "  CONTAINERS :"
+        docker compose ps
+        echo ""
+        echo "  URLS :"
+        echo "    Dashboard  : http://localhost"
+        echo "    API health : http://localhost/api/health"
+        echo "    API docs   : http://localhost/api/docs"
+        echo "    API metrics: http://localhost/api/metrics"
+        echo ""
+        echo "  SECURITY GATE :"
+        echo "    Nouveaux Critical : ${{ inputs.new_critical }}"
+        echo "    Nouveaux High     : ${{ inputs.new_high }}"
+        echo "    Engagement ID     : ${{ inputs.engagement_id }}"
+        echo "========================================================"

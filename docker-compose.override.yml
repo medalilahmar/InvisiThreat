@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+
+  api:
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./risk-scoring-engine/src:/app/src:ro
+      - ./risk-scoring-engine/models:/app/models
+      - ./risk-scoring-engine/data:/app/data
+      - ./risk-scoring-engine/logs:/app/logs
+    environment:
+      API_RELOAD: "true"
+    command: uvicorn src.api:app --host 0.0.0.0 --port 8081 --reload
+
+  defectdojo:
+    ports:
+      - "8080:8080"
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  dashboard:
+    build:
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./security-dashboard/src:/app/src
+    command: npm run dev -- --host 0.0.0.0

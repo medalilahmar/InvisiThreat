@@ -1,4 +1,3 @@
-// src/components/ui/ParticleCanvas.tsx
 import { useEffect, useRef } from 'react';
 
 type NodeType = 'critical' | 'high' | 'normal';
@@ -102,5 +101,5 @@ export function ParticleCanvas() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="particle-canvas" />;
+  return <canvas ref={canvasRef} className="particle-canvas" style={{ pointerEvents: 'none' }}/>;
 }

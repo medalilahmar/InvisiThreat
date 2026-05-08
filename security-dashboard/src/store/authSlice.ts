@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, AuthUser } from '../auth/types/auth';
+import type { AuthState, AuthUser } from '../auth/types/auth.types';
 
 const USER_KEY = 'invithreat_user';
 

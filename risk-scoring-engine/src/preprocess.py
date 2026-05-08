@@ -91,7 +91,13 @@ EXCLUDE_FROM_ML = [
 
 KEEP_COLS = FEATURE_COLS + [
     "id", "title", "product_id", "engagement_id",
-    "product_name", "engagement_name", "file_path", "line", "description",
+    "product_name", "engagement_name",
+    "repo_url", "branch",
+    "file_path", "line", "description", "mitigation",
+    "sast_source_file_path", "sast_source_line",
+    "sast_source_object", "sast_sink_object",
+    "component_name", "component_version",
+    "static_finding",
     "is_false_positive", "is_active", "is_mitigated", "out_of_scope",
     "severity", "severity_num",
     "cvss_severity_gap", "severity_x_active", "cvss_x_severity", "severity_x_urgent",
@@ -558,17 +564,29 @@ def _fill_product_name(data: pd.DataFrame, products: pd.DataFrame,
 
 def _fill_engagement_name(data: pd.DataFrame, engagements: pd.DataFrame) -> None:
     data["engagement_name"] = ""
+    data["repo_url"]        = ""
+    data["branch"]          = ""
+
     if "id" not in engagements.columns or "name" not in engagements.columns:
         return
-    eng_lookup = (
-        engagements[["id", "name"]]
-        .assign(eid_str=lambda d: _normalize_id_series(d["id"]))
-        .drop_duplicates("eid_str").set_index("eid_str")["name"]
-    )
-    data["engagement_name"] = (
-        _normalize_id_series(data["engagement_id"])
-        .map(eng_lookup).fillna("").values
-    )
+
+    eng_norm = engagements.copy()
+    eng_norm["eid_str"] = _normalize_id_series(eng_norm["id"])
+    eng_norm = eng_norm.drop_duplicates("eid_str").set_index("eid_str")
+
+    data_eid = _normalize_id_series(data["engagement_id"])
+
+    data["engagement_name"] = data_eid.map(eng_norm["name"]).fillna("").values
+
+    if "source_code_management_uri" in eng_norm.columns:
+        data["repo_url"] = data_eid.map(
+            eng_norm["source_code_management_uri"]
+        ).fillna("").values
+
+    if "branch_tag" in eng_norm.columns:
+        data["branch"] = data_eid.map(
+            eng_norm["branch_tag"]
+        ).fillna("").values
 
 
 # ─── PIPELINE PRINCIPAL ───────────────────────────────────────────────────────
