@@ -80,26 +80,57 @@ jobs:
         fi
 
     - name: Cache des dépendances Node
-      uses: actions/cache@v4
       id: node-cache
-      with:
-        path: |
-          juice-shop/node_modules
-          juice-shop/frontend/node_modules
-        key: ${{ runner.os }}-invisithreat-${{ hashFiles('juice-shop/package.json', 'juice-shop/frontend/package.json') }}
-        restore-keys: |
-          ${{ runner.os }}-invisithreat-
-      env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 10
+      working-directory: ${{ env.APP_DIR }}
+      run: |
+        CACHE_DIR="/opt/invisithreat-cache"
+        mkdir -p "$CACHE_DIR"
+
+        # Hash plus fiable (inclut les deux dossiers)
+        PKG_HASH=$(find . -name "package.json" -o -name "package-lock.json" | sort | xargs cat | md5sum | cut -d' ' -f1)
+
+        HASH_FILE="$CACHE_DIR/.pkg_hash"
+
+        if [ -d "$CACHE_DIR/node_modules" ] && \
+           [ -d "$CACHE_DIR/frontend_node_modules" ] && \
+           [ -f "$HASH_FILE" ] && \
+           [ "$(cat $HASH_FILE)" = "$PKG_HASH" ]; then
+
+          echo "=== ✅ CACHE HIT — Restauration ==="
+          cp -r "$CACHE_DIR/node_modules"          ./node_modules || true
+          cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules || true
+          echo "cache_hit=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "=== ❌ CACHE MISS ==="
+          echo "cache_hit=false"    >> "$GITHUB_OUTPUT"
+          echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Installer les dépendances Node
       working-directory: ${{ env.APP_DIR }}
+      if: steps.node-cache.outputs.cache_hit != 'true'
       run: |
-        if [ ! -d "node_modules" ] || [ ! -d "frontend/node_modules" ] || \
-           [ -z "$(ls -A node_modules 2>/dev/null)" ] || \
-           [ -z "$(ls -A frontend/node_modules 2>/dev/null)" ]; then
-          npm install --no-audit --no-fund
+        echo "=== Installation des dépendances Node ==="
+        
+        # Installation principale
+        npm install --no-audit --no-fund
+
+        # Installation frontend (si dossier existe)
+        if [ -d "frontend" ]; then
+          echo "=== Installation frontend ==="
+          cd frontend && npm install --no-audit --no-fund && cd ..
         fi
+
+        echo "=== Sauvegarde du cache ==="
+        CACHE_DIR="/opt/invisithreat-cache"
+        PKG_HASH="${{ steps.node-cache.outputs.pkg_hash }}"
+
+        rm -rf "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
+        cp -r node_modules          "$CACHE_DIR/node_modules"
+        cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
+        echo "$PKG_HASH" > "$CACHE_DIR/.pkg_hash"
+
+        echo "=== ✅ Cache sauvegardé avec succès ==="
 
     - name: DefectDojo — Setup
       id: dd_setup
