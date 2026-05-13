@@ -1419,3 +1419,43 @@ img, svg { display: block; max-width: 100%; }
   .fdp-tech-grid { grid-template-columns: 1fr; }
   .fdp-risk-score-row { grid-template-columns: 1fr; }
 }
+
+/* Wrapper pour SolutionAndAutofix */
+.fdp-solution-wrapper {
+  margin: 1.5rem 0;
+  width: 100%;
+  clear: both;
+}
+
+.fdp-solution-wrapper .fdp-card {
+  margin: 0; /* Supprime la marge interne du composant */
+  background: rgba(12, 20, 35, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+/* Amélioration des pre dans SolutionAndAutofix */
+.fdp-solution-wrapper pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.fdp-solution-wrapper pre::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.fdp-solution-wrapper pre::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+}
+
+.fdp-solution-wrapper pre::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+
+.fdp-solution-wrapper pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.35);
+}

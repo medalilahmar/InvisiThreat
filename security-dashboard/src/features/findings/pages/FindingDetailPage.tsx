@@ -87,10 +87,10 @@ export default function FindingDetailPage() {
         businessNudge:       finding.business_nudge ?? undefined,
         shapFeatures:        finding.shap_features ?? [],
         probabilities: {
-          Low:      (finding as any).ai_probabilities?.Low      ?? 0,
-          Medium:   (finding as any).ai_probabilities?.Medium   ?? 0,
-          High:     (finding as any).ai_probabilities?.High     ?? 0,
-          Critical: (finding as any).ai_probabilities?.Critical ?? 0,
+          Low:      (finding as any).ai_probabilities?.Low      ?? undefined,
+          Medium:   (finding as any).ai_probabilities?.Medium   ?? undefined,
+          High:     (finding as any).ai_probabilities?.High     ?? undefined,
+          Critical: (finding as any).ai_probabilities?.Critical ?? undefined,
         },
         context_score: finding.context_score ?? undefined,
       }
@@ -573,7 +573,11 @@ export default function FindingDetailPage() {
           </LLMPanel>
 
         </div>
-        <SolutionAndAutofix findingId={finding.id} />
+        <div className="fdp-solution-wrapper fu4">
+          <SolutionAndAutofix findingId={finding.id} />
+        </div>
+      
+        
 
 
         <div className="fdp-card fu5">

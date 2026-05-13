@@ -21,12 +21,15 @@ inputs:
     description: "Réentraîner le modèle ML après déploiement ?"
     required: false
     default: "false"
+  defectdojo_url:                                  
+    description: "URL de DefectDojo"
+    required: false
+    default: "http://localhost:8080"
 
 runs:
   using: composite
   steps:
 
-    # ── Vérifications préalables ──────────────────────────────────
     - name: Vérifier Docker et Docker Compose
       shell: bash
       run: |
@@ -36,20 +39,17 @@ runs:
         echo "Espace disque disponible :"
         df -h /
 
-    - name: Vérifier la présence du .env
+    - name: Vérifier la configuration DefectDojo
       shell: bash
       run: |
-        if [ ! -f ".env" ]; then
-          echo "ERREUR : fichier .env introuvable à la racine du projet"
-          echo "Créer le .env depuis .env.example et remplir les valeurs"
+        echo "=== VÉRIFICATION DEFECTDOJO ==="
+        if [ -z "$DEFECTDOJO_URL" ]; then
+          echo "ERREUR : DEFECTDOJO_URL non défini"
           exit 1
         fi
-        DD_URL_VAL=$(grep "^DEFECTDOJO_URL=" .env | cut -d= -f2)
-        if [ -z "$DD_URL_VAL" ] || echo "$DD_URL_VAL" | grep -q "CHANGE_ME"; then
-          echo "ERREUR : DEFECTDOJO_URL non configuré dans .env"
-          exit 1
-        fi
-        echo "OK — .env présent et DEFECTDOJO_URL configuré : $DD_URL_VAL"
+        echo "OK — DEFECTDOJO_URL configuré : $DEFECTDOJO_URL"
+      env:
+        DEFECTDOJO_URL: ${{ inputs.defectdojo_url }}
 
     - name: Vérifier la présence du modèle ML
       shell: bash
