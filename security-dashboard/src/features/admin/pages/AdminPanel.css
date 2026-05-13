@@ -1,0 +1,216 @@
+.admin-container {
+    padding: 2rem;
+    background: #0a0a0f;
+    min-height: 100vh;
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+/* Stats */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.8rem;
+}
+
+.stat-card {
+    background: rgba(23, 28, 45, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    border-left: 4px solid;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin-top: 0.4rem;
+    color: #f1f5f9;
+}
+
+/* Roles */
+.roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.role-card {
+    background: rgba(23, 28, 45, 0.8);
+    border: 1px solid rgba(103, 232, 249, 0.15);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.role-name {
+    font-size: 0.75rem;
+    color: #67e8f9;
+    text-transform: uppercase;
+}
+
+.role-count {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+/* Filtres */
+.filters-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.admin-input, .admin-select {
+    padding: 10px 14px;
+    background: rgba(23, 28, 45, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+}
+
+.admin-input:focus, .admin-select:focus {
+    outline: none;
+    border-color: #67e8f9;
+    box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.15);
+}
+
+/* Table */
+.table-container {
+    background: rgba(23, 28, 45, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th {
+    background: rgba(15, 20, 35, 0.9);
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-table td {
+    padding: 14px 16px;
+    border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.admin-table tr:hover {
+    background: rgba(103, 232, 249, 0.08);
+}
+
+.username { font-weight: 600; }
+.date { font-size: 0.8rem; color: #64748b; }
+.email { color: #cbd5e1; }
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.status-badge.active { background: rgba(74, 222, 128, 0.15); color: #86efac; }
+.status-badge.pending { background: rgba(234, 179, 8, 0.15); color: #fde047; }
+.status-badge.blocked { background: rgba(248, 113, 113, 0.15); color: #fca5a5; }
+
+/* Boutons */
+.btn-primary, .btn-secondary, .btn-outline, .btn-small {
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.btn-primary { background: #6366f1; color: white; border: none; }
+.btn-secondary { background: #0ea5e9; color: white; border: none; }
+.btn-outline { background: transparent; border: 1px solid rgba(148, 163, 184, 0.4); color: #e2e8f0; }
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 6px;
+}
+
+.success { background: #22c55e; }
+.danger { background: #ef4444; }
+.warning { background: #eab308; }
+.info { background: #6366f1; }
+.delete { background: #475569; }
+
+.link-btn {
+    background: none;
+    border: none;
+    color: #67e8f9;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 2px 0;
+}
+
+/* Autres */
+.admin-notification {
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.4);
+    color: #86efac;
+    padding: 12px 18px;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+}
+
+.no-results {
+    padding: 4rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 1.1rem;
+}
+
+.admin-loading {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a0f;
+    color: #67e8f9;
+    font-size: 1.2rem;
+}

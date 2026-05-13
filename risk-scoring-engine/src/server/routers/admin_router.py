@@ -43,7 +43,10 @@ def list_users(
             "status": u.status,
             "is_active": u.is_active,
             "created_at": str(u.created_at) if u.created_at else None,
-            "projects": [{"id": p.id, "name": p.name} for p in u.projects]
+            "projects": [{"id": p.id, "name": p.name} for p in u.projects],
+            "last_login": str(u.last_login) if u.last_login else None,
+            "locked_until": str(u.locked_until) if u.locked_until else None,
+            "failed_login_attempts": u.failed_login_attempts
         }
         for u in users
     ]
@@ -101,8 +104,11 @@ def search_users(
                 "role": u.role,
                 "status": u.status,
                 "created_at": str(u.created_at) if u.created_at else None,
+                "locked_until": str(u.locked_until) if u.locked_until else None,
+                "failed_login_attempts": u.failed_login_attempts,
                 "projects": [{"id": p.id, "name": p.name} for p in u.projects],
                 "projects_count": len(u.projects)
+
             }
             for u in users
         ]
@@ -311,7 +317,7 @@ def sync_projects(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin)
 ):
-    from api import local_data_loader
+    from api_simple  import local_data_loader
     if not local_data_loader or not local_data_loader.is_ready:
         raise HTTPException(503, "Le loader de données n'est pas disponible")
     existing_ids = {p.id for p in db.query(Project).all()}
@@ -322,3 +328,20 @@ def sync_projects(
             added.append({"id": prod_id, "name": prod_data['name']})
     db.commit()
     return {"synced": len(added), "new_projects": added}
+
+
+
+@router.put("/users/{user_id}/unlock")
+def unlock_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin)
+):
+    """Déverrouille un compte temporairement bloqué après 5 échecs de connexion."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "Utilisateur introuvable")
+    user.locked_until = None
+    user.failed_login_attempts = 0
+    db.commit()
+    return {"message": f"Compte de '{user.username}' déverrouillé"}

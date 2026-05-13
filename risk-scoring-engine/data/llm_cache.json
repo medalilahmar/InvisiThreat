@@ -72,5 +72,98 @@
     "prevention": "Always use a secure and updated version of jws.",
     "from_cache": false,
     "_fallback": false
+  },
+  "b31722854dbf210781b7cd002c651e5c": {
+    "title": "Fix Arbitrary Code Injection in marsdb",
+    "recommendations": [
+      "Update to the latest version of marsdb.",
+      "Ensure all developers are aware about the potential risks and follow best practices for preventing injection attacks.",
+      "Implement input validation checks on user inputs that could potentially be used in code execution.",
+      "Use parameterized queries or prepared statements whenever possible, especially when dealing with user-supplied data.",
+      "Audit all usage of `eval()` function and replace it with a safer alternative like an expression parser library."
+    ],
+    "references": [
+      "https://cheatsheetseries.owasp.org/cheatsheets/Arbitrary_Code_Injection_Prevention_Cheat_Sheet.html",
+      "https://cwe.mitre.org/data/definitions/93.html"
+    ],
+    "verification": "Manually test all endpoints that use user-supplied data for potential injection attacks and confirm they are properly sanitized.",
+    "prevention": "Implement a comprehensive code review process to identify and prevent the usage of potentially dangerous functions like `eval()`.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "ed231d1999fc22c69eb9b72f90418850": {
+    "summary": "The Arbitrary Code Injection vulnerability exists in the marsdb package, specifically within the DocumentMatcher class. This allows an attacker to inject arbitrary JavaScript code into the application's context.",
+    "impact": "An attacker can exploit this vulnerability by running malicious scripts that could lead to data breaches or even full account takeovers if an admin account is compromised. The impact of this vulnerability ranges from session hijacking to data exfiltration, and it affects all authenticated users.",
+    "root_cause": "The issue lies in the marsdb package's handling of user-supplied input. It uses innerHTML instead of textContent for rendering user profile data, which allows HTML tags and script elements to be interpreted by the browser, leading to arbitrary code injection.",
+    "exploitation_difficulty": "Easy — An attacker only needs to save a malicious script in their profile field; no special tools or authentication bypass is required.",
+    "priority_note": "Immediate — This vulnerability is actively exploited in the wild and requires no authentication. Leaving it unpatched even for 24 hours significantly increases the risk of a breach.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "a800aba7e3cea04fe3e169778be138ae": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user<｜begin▁of▁sentence｜>,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "3197eaa6002920ba72eb12a6aa74edac": {
+    "summary": "A low severity Denial of Service (DoS) vulnerability exists in Mobile-Security-Framework-MobSF@0.0.0, specifically in the numpy package version 1.21.5. The issue is caused by improper handling of certain input data during calculations.",
+    "impact": "An attacker can trigger a Denial of Service (DoS) condition by providing maliciously crafted input to the vulnerable function. This could lead to application crashes or slowdowns, impacting the availability and performance of the system.",
+    "root_cause": "The root cause of this vulnerability lies in numpy's handling of certain types of input data during calculations. Specifically, it fails to properly handle NaN (Not a Number) values when performing operations that involve floating-point arithmetic. This can lead to incorrect results and potential crashes.",
+    "exploitation_difficulty": "Easy — The exploit involves providing maliciously crafted input data to the vulnerable function, which is straightforward due to numpy's handling of NaN values during calculations.",
+    "priority_note": "Immediate — This vulnerability can lead to a Denial of Service (DoS) condition in the system. It requires immediate attention and patching.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "e646d6eedd8197bfd453d8d431c7a604": {
+    "vulnerable_snippet": "key = hashlib.md5(str(finding.severity + '|' + finding.title + '|' + finding.description).encode('utf-8')).hexdigest()",
+    "fixed_snippet": "key = hashlib.sha256(str(finding.severity + '|' + finding.title + '|' + finding.description).encode('utf-8')).hexdigest()",
+    "explanation": "The original code was using MD5 as a hashing algorithm which is insecure due to its collision resistance. The fix uses SHA256 instead, which provides better security and efficiency.",
+    "confidence": 0.9,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "c3b5b145b4962aa6f2947c3a20ecc801": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user<｜begin▁of▁sentence｜>,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "ab56ea892cf51b51c4bfd2dc77396223": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "1bd21b55317678fb95bd2f505b43f1e2": {
+    "summary": "The vulnerable package 'vm2' is susceptible to improper control over dynamically-managed code resources. This issue allows an attacker to execute untrusted JavaScript code in a controlled environment, potentially leading to data loss or unauthorized access.",
+    "impact": "An attacker can exploit this vulnerability by uploading malicious scripts that will be executed within the sandboxed environment of 'vm2'. This could lead to data loss, unauthorized access, and potential system compromise. The impact is particularly high if an admin account or other sensitive information is compromised.",
+    "root_cause": "'vm2' package uses a feature where it can run untrusted code with whitelisted Node's built-in modules. However, the issue lies in its handling of user input and dynamic code execution. The developer did not properly sanitize user inputs before rendering them into the HTML DOM.",
+    "exploitation_difficulty": "Easy — An attacker can exploit this vulnerability by simply uploading a malicious script to be executed within the sandboxed environment of 'vm2'. No special tools or authentication bypass is required for exploitation.",
+    "priority_note": "Immediate — This vulnerability is actively exploited in the wild and requires no authentication. Leaving it unpatched even for 24 hours significantly increases the risk of a breach.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "f0bf794a213b9be14073fccbe089341e": {
+    "vulnerable_snippet": "console.log('Hello World')",
+    "fixed_snippet": "",
+    "explanation": "The console.log function is used to log information to the console, which can be a potential security risk in production environments. In this case, it was removed.",
+    "confidence": 0.65,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "edc12d937caf13b67f0c709a5851502b": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user<｜begin▁of▁sentence｜>,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
   }
 }

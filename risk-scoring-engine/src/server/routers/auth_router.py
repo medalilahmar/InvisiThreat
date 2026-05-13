@@ -5,10 +5,14 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 from database.connection import get_db
-from database.models import User
+from database.models import User , NotificationType , Notification
 from auth.security import get_current_user, verify_password, get_password_hash, create_access_token
+from notifications.service import notify_new_user , create_notification
+from datetime import datetime, timedelta, timezone
+ 
 
-router = APIRouter(prefix="/auth", tags=["🔐 Authentification"])
+
+router = APIRouter(prefix="/auth", tags=[" Authentification"])
 
 # ─── Schémas ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +46,16 @@ def user_to_dict(user: User) -> dict:
         "status":   user.status,
         "created_at": str(user.created_at) if user.created_at else None,
         "projects": [{"id": p.id, "name": p.name} for p in user.projects],
+        # ── Nouveaux champs exposés au frontend ──────────────────────────────
+        "last_login":             str(user.last_login) if user.last_login else None,
+        "locked_until":           str(user.locked_until) if user.locked_until else None,
+        "failed_login_attempts":  user.failed_login_attempts,
+        # ── Profil ───────────────────────────────────────────────────────────
+        "job_title":              user.job_title,
+        "department":             user.department,
+        "phone":                  user.phone,
+        "avatar_url":             user.avatar_url,
+
     }
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -63,6 +77,10 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.commit()
+    try:
+        notify_new_user(db=db, user=user)
+    except Exception as e:
+        print(f"[NOTIF] Erreur notification : {e}")
     return {
         "message": "Compte créé avec succès. En attente de validation par l'administrateur.",
         "status": "pending",
@@ -74,15 +92,104 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    """Login — vérifie identifiants ET statut du compte."""
+    """Login avec verrouillage après 5 échecs + notifications admin."""
     user = db.query(User).filter(User.username == form_data.username).first()
+    now = datetime.now(timezone.utc)
 
+    # 1. Compte déjà verrouillé temporairement ?
+    if user and user.locked_until:
+        locked_until = user.locked_until
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+
+        if locked_until > now:
+            wait_minutes = int((locked_until - now).total_seconds() // 60)
+
+            # Anti-spam : notifier seulement si aucune notif dans les 5 dernières minutes
+            last_notif = (
+                db.query(Notification)
+                .filter(Notification.related_user_id == user.id)
+                .order_by(Notification.created_at.desc())
+                .first()
+            )
+            last_notif_dt = last_notif.created_at if last_notif else None
+            if last_notif_dt and last_notif_dt.tzinfo is None:
+                last_notif_dt = last_notif_dt.replace(tzinfo=timezone.utc)
+
+            should_notify = (
+                not last_notif_dt or
+                (now - last_notif_dt).total_seconds() > 300
+            )
+
+            if should_notify:
+                try:
+                    create_notification(
+                        db=db,
+                        type=NotificationType.user_blocked,
+                        title=f"Tentative connexion compte verrouillé : @{user.username}",
+                        message=f"{user.username} a essayé de se connecter. Compte verrouillé encore {wait_minutes} min.",
+                        related_user_id=user.id
+                    )
+                except Exception as e:
+                    print(f"[NOTIF] Erreur notification : {e}")
+
+            raise HTTPException(
+                status_code=423,
+                detail=f"Compte verrouillé. Réessayez dans {wait_minutes} minutes."
+            )
+
+    # 2. Identifiants incorrects → on incrémente les échecs
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(400, "Nom d'utilisateur ou mot de passe incorrect")
+        if user:
+            user.failed_login_attempts += 1
+
+            if user.failed_login_attempts >= 5:
+                user.locked_until = now + timedelta(minutes=30)
+                user.failed_login_attempts = 0
+                db.commit()
+                try:
+                    create_notification(
+                        db=db,
+                        type=NotificationType.login_failed,
+                        title=f"Verrouillage : @{user.username}",
+                        message=(
+                            f"5 échecs consécutifs. Compte verrouillé "
+                            f"jusqu'à {user.locked_until.strftime('%H:%M')} UTC."
+                        ),
+                        related_user_id=user.id
+                    )
+                except Exception as e:
+                    print(f"[NOTIF] Erreur notification : {e}")
+
+                raise HTTPException(
+                    status_code=423,
+                    detail="Compte verrouillé après 5 échecs. Réessayez dans 30 minutes."
+                )
+
+            db.commit()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Nom d'utilisateur ou mot de passe incorrect"
+        )
+
+    # 3. Vérification du statut (pending / blocked)
     if user.status == "pending":
-        raise HTTPException(403, "Votre compte est en attente de validation par l'administrateur")
+        raise HTTPException(
+            status_code=403,
+            detail="Votre compte est en attente de validation par l'administrateur"
+        )
     if user.status == "blocked":
-        raise HTTPException(403, "Votre compte a été bloqué. Contactez l'administrateur.")
+        raise HTTPException(
+            status_code=403,
+            detail="Votre compte a été bloqué. Contactez l'administrateur."
+        )
+
+    # 4. Succès → réinitialiser les échecs et le verrouillage
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = now
+    db.commit()
 
     token = create_access_token(data={
         "sub":      str(user.id),

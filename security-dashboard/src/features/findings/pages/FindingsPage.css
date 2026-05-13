@@ -6,7 +6,7 @@
 .fp-page {
   position: relative;
   z-index: 10;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 48px 32px 80px;
 }
@@ -624,7 +624,7 @@
 /* ── Page layout ── */
 .fp-page {
   position: relative; z-index: 10;
-  max-width: 1200px; margin: 0 auto;
+  max-width: 1350px; margin: 0 auto;
   padding: 48px 32px 80px;
 }
 
@@ -778,4 +778,189 @@
   .fp-stats-row { grid-template-columns: repeat(2,1fr); }
   .fp-toolbar { flex-direction: column; align-items: stretch; }
   .fp-search-wrap { width: 100%; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   AJOUTS : Pagination + Export buttons
+   Coller à la FIN de FindingsPage.css
+   ───────────────────────────────────────────────────────────── */
+
+/* ── Export buttons ── */
+.fp-export-group {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fp-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.fp-export-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.fp-export-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+/* Excel — vert émeraude */
+.fp-export-excel {
+  color: #2ed573;
+  background: rgba(46, 213, 115, 0.07);
+  border-color: rgba(46, 213, 115, 0.25);
+}
+.fp-export-excel:not(:disabled):hover {
+  background: rgba(46, 213, 115, 0.16);
+  border-color: rgba(46, 213, 115, 0.5);
+  box-shadow: 0 0 14px rgba(46, 213, 115, 0.15);
+}
+.fp-export-excel.fp-export-loading {
+  background: rgba(46, 213, 115, 0.12);
+  border-color: rgba(46, 213, 115, 0.35);
+}
+
+/* PDF — rouge/orange */
+.fp-export-pdf {
+  color: #ff6b35;
+  background: rgba(255, 107, 53, 0.07);
+  border-color: rgba(255, 107, 53, 0.25);
+}
+.fp-export-pdf:not(:disabled):hover {
+  background: rgba(255, 107, 53, 0.16);
+  border-color: rgba(255, 107, 53, 0.5);
+  box-shadow: 0 0 14px rgba(255, 107, 53, 0.15);
+}
+.fp-export-pdf.fp-export-loading {
+  background: rgba(255, 107, 53, 0.12);
+  border-color: rgba(255, 107, 53, 0.35);
+}
+
+/* Spinner pendant l'export */
+.fp-export-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: fp-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes fp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Pagination ── */
+.fp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 18px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+
+.fp-page-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0;
+}
+
+.fp-page-btn:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
+}
+
+.fp-page-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.fp-page-btn.fp-page-num.active {
+  background: rgba(0, 212, 255, 0.12);
+  border-color: rgba(0, 212, 255, 0.4);
+  color: #00d4ff;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.12);
+}
+
+.fp-page-ellipsis {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.2);
+  min-width: 24px;
+  text-align: center;
+  user-select: none;
+}
+
+.fp-page-info {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.08em;
+  margin-left: 12px;
+}
+
+.fp-page-info strong {
+  color: rgba(0, 212, 255, 0.7);
+}
+
+/* ── Responsive export + pagination ── */
+@media (max-width: 768px) {
+  .fp-export-group {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .fp-export-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .fp-pagination {
+    padding: 14px 16px;
+    gap: 3px;
+  }
+  .fp-page-btn {
+    min-width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+  .fp-page-info {
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+    margin-top: 8px;
+  }
 }

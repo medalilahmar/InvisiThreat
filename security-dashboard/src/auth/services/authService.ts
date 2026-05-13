@@ -1,9 +1,12 @@
 import axios from 'axios';
-import { LoginRequest, RegisterRequest, AuthUser, TokenResponse } from '../types/auth.types';
+import {
+  LoginRequest, RegisterRequest,
+  AuthUser, TokenResponse, LoginError
+} from '../types/auth.types';
 
 const BASE_URL = 'http://localhost:8081';
 
-// ─── LocalStorage ─────────────────────────────────────────────────────────────
+// ─── LocalStorage (inchangé) ──────────────────────────────────────────────────
 
 export const saveToken    = (t: string)   => localStorage.setItem('token', t);
 export const getToken     = ()            => localStorage.getItem('token');
@@ -18,28 +21,75 @@ export const clearStorage = () => {
   localStorage.removeItem('user');
 };
 
-// ─── Auth headers ─────────────────────────────────────────────────────────────
+// ─── Auth headers (inchangé) ──────────────────────────────────────────────────
 
 const authHeaders = () => ({
   Authorization: `Bearer ${getToken()}`,
 });
 
-// ─── Endpoints ────────────────────────────────────────────────────────────────
+// ─── Helper : extraire les minutes depuis le message backend ──────────────────
+
+const extractMinutes = (detail: string): number | undefined => {
+  const match = detail.match(/(\d+)\s*minute/i);
+  return match ? parseInt(match[1], 10) : undefined;
+};
+
+// ─── Login avec gestion structurée des erreurs 423/403 ───────────────────────
 
 export const login = async (data: LoginRequest): Promise<TokenResponse> => {
-  const params = new URLSearchParams();
-  params.append('username', data.username);
-  params.append('password', data.password);
+  try {
+    const params = new URLSearchParams();
+    params.append('username', data.username);
+    params.append('password', data.password);
 
-  const res = await axios.post(`${BASE_URL}/auth/login`, params, {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
+    const res = await axios.post(`${BASE_URL}/auth/login`, params, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
 
-  const result: TokenResponse = res.data;
-  saveToken(result.access_token);
-  saveUser(result.user);
-  return result;
+    const result: TokenResponse = res.data;
+    saveToken(result.access_token);  // ← localStorage, inchangé
+    saveUser(result.user);           // ← localStorage, inchangé
+    return result;
+
+  } catch (err: unknown) {
+    if (!axios.isAxiosError(err)) {
+      throw { code: 'UNKNOWN', message: 'Erreur réseau inattendue' } as LoginError;
+    }
+
+    const status = err.response?.status;
+    const detail = err.response?.data?.detail ?? '';
+
+    if (status === 423) {
+      throw {
+        code: 'ACCOUNT_LOCKED',
+        message: detail || 'Compte verrouillé. Réessayez plus tard.',
+        minutesLeft: extractMinutes(detail),
+      } as LoginError;
+    }
+
+    if (status === 403) {
+      const isPending = detail.toLowerCase().includes('attente');
+      throw {
+        code: isPending ? 'ACCOUNT_PENDING' : 'ACCOUNT_BLOCKED',
+        message: detail,
+      } as LoginError;
+    }
+
+    if (status === 400) {
+      throw {
+        code: 'INVALID_CREDENTIALS',
+        message: detail || 'Nom d\'utilisateur ou mot de passe incorrect',
+      } as LoginError;
+    }
+
+    throw {
+      code: 'UNKNOWN',
+      message: detail || 'Une erreur est survenue. Veuillez réessayer.',
+    } as LoginError;
+  }
 };
+
+// ─── Autres endpoints (inchangés) ─────────────────────────────────────────────
 
 export const register = async (data: RegisterRequest) => {
   const res = await axios.post(`${BASE_URL}/auth/register`, data);
@@ -62,7 +112,10 @@ export const logout = async () => {
   clearStorage();
 };
 
-export const changePassword = async (current_password: string, new_password: string) => {
+export const changePassword = async (
+  current_password: string,
+  new_password: string
+) => {
   const res = await axios.put(
     `${BASE_URL}/auth/change-password`,
     { current_password, new_password },
@@ -71,7 +124,6 @@ export const changePassword = async (current_password: string, new_password: str
   return res.data;
 };
 
-// ← AJOUT : mise à jour du profil (email et/ou username)
 export const updateProfile = async (data: {
   username?: string;
   email?: string;
@@ -81,7 +133,6 @@ export const updateProfile = async (data: {
     data,
     { headers: authHeaders() }
   );
-  // On met à jour le user sauvegardé immédiatement
   saveUser(res.data);
   return res.data;
 };

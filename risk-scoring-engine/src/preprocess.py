@@ -622,8 +622,8 @@ def preprocess_findings(
             _fill_product_name(data, products, mask)
     else:
         _fill_product_name(data, products, pd.Series(True, index=data.index))
-    if "engagement_name" not in data.columns or data["engagement_name"].isna().all():
-        _fill_engagement_name(data, engagements)
+        
+    _fill_engagement_name(data, engagements)
 
     logger.info("Etape 3/11 : features temporelles (age_days, days_to_fix)")
     data = build_date_features(data)

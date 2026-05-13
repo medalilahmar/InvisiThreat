@@ -36,6 +36,40 @@ export interface LLMExplanationRequest {
   risk_level?: string;
 }
 
+
+export interface LLMSolution {
+  finding_id: number;
+  vulnerable_snippet: string | null;
+  fixed_snippet: string | null;
+  explanation: string;
+  confidence: number;
+  file_path?: string | null;
+  line?: number | null;
+  has_file: boolean;
+  from_cache?: boolean;
+}
+
+export interface AutoFixResponse {
+  pr_url: string;
+  pr_number: number;
+  branch_name: string;
+  status: string;
+}
+
+export interface AutoFixCapability {
+  finding_id: number;
+  can_autofix: boolean;
+  reason: string;
+  missing_fields: string[];
+  requirements: {
+    is_static: boolean;
+    has_file_path: boolean;
+    has_line: boolean;
+    has_repo_url: boolean;
+    has_github_token: boolean;
+  };
+}
+
 async function withRetry<T>(
   fn: () => Promise<T>,
   retries = 2,
@@ -70,3 +104,15 @@ export const explanationsApi = {
   health: () =>
     apiClient.get<{ status: string; models: string[]; current: string }>('/llm/health'),
 };
+
+
+export const getSolution = (findingId: number) =>
+  withRetry(() => llmClient.get<LLMSolution>(`/defectdojo/findings/${findingId}/solution`));
+
+
+export const checkAutofixCapability = (findingId: number) =>
+  withRetry(() => apiClient.get<AutoFixCapability>(`/defectdojo/findings/${findingId}/can-autofix`));
+
+
+export const applyAutofix = (findingId: number) =>
+  withRetry(() => apiClient.post<AutoFixResponse>(`/defectdojo/findings/${findingId}/autofix`));

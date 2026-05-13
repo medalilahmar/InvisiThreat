@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, AuthUser } from '../auth/types/auth.types';
+import type { AuthSliceState, AuthUser } from '../auth/types/auth.types';
 
 const USER_KEY = 'invithreat_user';
 
@@ -12,11 +12,13 @@ const loadPersistedUser = (): AuthUser | null => {
   }
 };
 
-const initialState: AuthState = {
+const initialState: AuthSliceState = {
   isAuthenticated: !!loadPersistedUser(),
-  user: loadPersistedUser(),
-  loading: false,
-  error: null,
+  user:            loadPersistedUser(),
+  token:           null,
+  isLoading:       false,
+  loading:         false,
+  error:           null,
 };
 
 const authSlice = createSlice({
@@ -24,25 +26,30 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     loginStart(state) {
-      state.loading = true;
-      state.error = null;
+      state.loading   = true;
+      state.isLoading = true;
+      state.error     = null;
     },
     loginSuccess(state, action: PayloadAction<AuthUser>) {
       state.isAuthenticated = true;
-      state.user = action.payload;
-      state.loading = false;
-      state.error = null;
+      state.user      = action.payload;
+      state.loading   = false;
+      state.isLoading = false;
+      state.error     = null;
       sessionStorage.setItem(USER_KEY, JSON.stringify(action.payload));
     },
     loginFailure(state, action: PayloadAction<string>) {
-      state.loading = false;
-      state.error = action.payload;
+      state.loading   = false;
+      state.isLoading = false;
+      state.error     = action.payload;
     },
     logout(state) {
       state.isAuthenticated = false;
-      state.user = null;
-      state.loading = false;
-      state.error = null;
+      state.user      = null;
+      state.token     = null;
+      state.loading   = false;
+      state.isLoading = false;
+      state.error     = null;
       sessionStorage.removeItem(USER_KEY);
     },
     clearError(state) {

@@ -43,6 +43,8 @@ from database.models import Project, User
 from auth.security import get_accessible_product_ids, get_current_user
 from server.routers.auth_router import router as auth_router
 from server.routers.admin_router import router as admin_router
+from server.routers.notifications_router import router as notifications_router
+
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 Path("logs").mkdir(exist_ok=True)
@@ -83,7 +85,7 @@ app.include_router(jira.router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(analytics_router)
-
+app.include_router(notifications_router)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Middleware

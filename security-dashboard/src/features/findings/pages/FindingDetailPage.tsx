@@ -5,6 +5,7 @@ import { findingsApi } from '../../../api/services/findings';
 import { explanationsApi, LLMExplanation, LLMRecommendation } from '../../../api/services/explanations';
 import { jiraApi } from '../../../api/services/jira';
 import type { JiraIntegrationState } from '../../../types/jira';
+import { SolutionAndAutofix } from '../components/SolutionAndAutofix';
 
 import './FindingDetailPage.css';
 
@@ -572,6 +573,8 @@ export default function FindingDetailPage() {
           </LLMPanel>
 
         </div>
+        <SolutionAndAutofix findingId={finding.id} />
+
 
         <div className="fdp-card fu5">
           <div className="fdp-card-header">

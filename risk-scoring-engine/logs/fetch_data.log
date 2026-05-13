@@ -518,3 +518,46 @@
 2026-04-22 23:48:12,665 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_automation_hub.csv (458 lignes, 93 cols)
 2026-04-22 23:48:12,667 [INFO] Rapport de collecte sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\collection_report.json
 2026-04-22 23:48:12,667 [INFO] Collecte terminée — 5 produits, 13 engagements, 37 tests, 1905 findings (537 avec CVE, 530 avec score EPSS > 0)
+2026-05-11 16:07:42,106 [INFO] Démarrage de la collecte DefectDojo — AI Risk Engine
+2026-05-11 16:07:42,107 [INFO] Cible : http://192.168.11.170:8080
+2026-05-11 16:07:42,227 [INFO] [products] 5 éléments récupérés (1 page(s))
+2026-05-11 16:07:42,240 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\products.csv (5 lignes, 29 cols)
+2026-05-11 16:07:42,305 [INFO] [engagements] 13 éléments récupérés (1 page(s))
+2026-05-11 16:07:42,310 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\engagements.csv (13 lignes, 39 cols)
+2026-05-11 16:07:42,443 [INFO] [tests] 40 éléments récupérés (1 page(s))
+2026-05-11 16:07:42,447 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\tests.csv (40 lignes, 23 cols)
+2026-05-11 16:07:42,448 [INFO] Lookup table construite : 40 test_id(s) mappés
+2026-05-11 16:07:59,276 [INFO] [findings_all] 2007 éléments récupérés (21 page(s))
+2026-05-11 16:07:59,289 [INFO] EPSS : 537 finding(s) avec CVE (107 CVE unique(s) sur 2007 findings)
+2026-05-11 16:07:59,304 [INFO] Cache EPSS chargé : 107 entrée(s)
+2026-05-11 16:07:59,304 [INFO] EPSS : tous les CVE sont déjà en cache
+2026-05-11 16:07:59,307 [INFO] Cache EPSS sauvegardé : 107 entrée(s)
+2026-05-11 16:07:59,308 [INFO] EPSS : 530/537 finding(s) enrichis avec un score > 0
+2026-05-11 16:07:59,510 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_raw.csv (2007 lignes, 93 cols)
+2026-05-11 16:07:59,629 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_InvisiThreat.csv (853 lignes, 93 cols)
+2026-05-11 16:07:59,701 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_Laboratoire_d_Analyse_SAST.csv (594 lignes, 93 cols)
+2026-05-11 16:07:59,754 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_automation_hub.csv (560 lignes, 93 cols)
+2026-05-11 16:07:59,755 [INFO] Rapport de collecte sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\collection_report.json
+2026-05-11 16:07:59,756 [INFO] Collecte terminée — 5 produits, 13 engagements, 40 tests, 2007 findings (537 avec CVE, 530 avec score EPSS > 0)
+2026-05-11 16:55:00,244 [INFO] Démarrage de la collecte DefectDojo — AI Risk Engine
+2026-05-11 16:55:00,245 [INFO] Cible : http://192.168.11.170:8080
+2026-05-11 16:55:01,066 [INFO] [products] 5 éléments récupérés (1 page(s))
+2026-05-11 16:55:01,086 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\products.csv (5 lignes, 29 cols)
+2026-05-11 16:55:01,411 [INFO] [engagements] 13 éléments récupérés (1 page(s))
+2026-05-11 16:55:01,416 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\engagements.csv (13 lignes, 39 cols)
+2026-05-11 16:55:01,897 [INFO] [tests] 43 éléments récupérés (1 page(s))
+2026-05-11 16:55:01,901 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\tests.csv (43 lignes, 23 cols)
+2026-05-11 16:55:01,902 [INFO] Lookup table construite : 43 test_id(s) mappés
+2026-05-11 16:55:19,116 [INFO] [findings_all] 2100 éléments récupérés (21 page(s))
+2026-05-11 16:55:19,140 [INFO] EPSS : 549 finding(s) avec CVE (113 CVE unique(s) sur 2100 findings)
+2026-05-11 16:55:19,279 [INFO] Cache EPSS chargé : 107 entrée(s)
+2026-05-11 16:55:19,279 [INFO] EPSS : 6 CVE à récupérer (cache : 107)
+2026-05-11 16:55:21,537 [INFO] EPSS : 6 score(s) récupérés depuis l'API FIRST
+2026-05-11 16:55:21,541 [INFO] Cache EPSS sauvegardé : 113 entrée(s)
+2026-05-11 16:55:21,542 [INFO] EPSS : 542/549 finding(s) enrichis avec un score > 0
+2026-05-11 16:55:21,696 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_raw.csv (2100 lignes, 93 cols)
+2026-05-11 16:55:21,816 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_InvisiThreat.csv (853 lignes, 93 cols)
+2026-05-11 16:55:21,887 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_Laboratoire_d_Analyse_SAST.csv (594 lignes, 93 cols)
+2026-05-11 16:55:21,946 [INFO] Sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\findings_automation_hub.csv (653 lignes, 93 cols)
+2026-05-11 16:55:21,948 [INFO] Rapport de collecte sauvegardé : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\raw\collection_report.json
+2026-05-11 16:55:21,948 [INFO] Collecte terminée — 5 produits, 13 engagements, 43 tests, 2100 findings (549 avec CVE, 542 avec score EPSS > 0)

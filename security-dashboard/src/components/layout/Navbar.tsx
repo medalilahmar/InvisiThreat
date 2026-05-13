@@ -1,17 +1,14 @@
 import { Link } from 'react-router-dom';
 import Logo from '../../assets/invilogo.png';
 import { LogoutButton } from '../../auth/components/LogoutButton';
+import NotificationBell from './NotificationBell';
 import './Navbar.css';
-
 
 interface NavbarProps {
   isAdmin?: boolean;
 }
 
 export function Navbar({ isAdmin = false }: NavbarProps) {
-
-  
-
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-logo">
@@ -22,21 +19,19 @@ export function Navbar({ isAdmin = false }: NavbarProps) {
       <ul className="navbar-links">
         <li><Link to="/dashboard">Dashboard</Link></li>
         <li><Link to="/products">Produits</Link></li>
-        <li><Link to="/analytics"> Analytics</Link></li>
-        <li><Link to="/engagements">Engagements</Link></li>  
+        <li><Link to="/analytics">Analytics</Link></li>
+        <li><Link to="/engagements">Engagements</Link></li>
         <li><Link to="/model-stats">Modèle</Link></li>
-        <li><Link to="/profile">profil</Link></li>
+        <li><Link to="/profile">Profil</Link></li>
         {isAdmin && (
           <li>
-            <Link to="/admin" className="admin-link">
-              Admin
-            </Link>
+            <Link to="/admin" className="admin-link">Admin</Link>
           </li>
         )}
-
       </ul>
 
       <div className="navbar-actions">
+        <NotificationBell />
         <LogoutButton />
       </div>
     </nav>
