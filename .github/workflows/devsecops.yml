@@ -86,23 +86,18 @@ jobs:
         CACHE_DIR="${RUNNER_TEMP}/invisithreat-cache"
         mkdir -p "$CACHE_DIR"
 
-        # Hash plus fiable
-        PKG_HASH=$(find . -name "package*.json" | sort | xargs cat | sha256sum | cut -d' ' -f1)
+        # Hash stable
+        PKG_HASH=$(find . -name "package*.json" -exec cat {} + | sha256sum | cut -d' ' -f1)
+        echo "📊 Hash calculé : $PKG_HASH"
 
-        HASH_FILE="$CACHE_DIR/.pkg_hash"
-
-        if [ -d "$CACHE_DIR/node_modules" ] && \
-           [ -d "$CACHE_DIR/frontend_node_modules" ] && \
-           [ -f "$HASH_FILE" ] && \
-           [ "$(cat $HASH_FILE)" = "$PKG_HASH" ]; then
-
+        if [ -d "$CACHE_DIR/node_modules" ] && [ -d "$CACHE_DIR/frontend_node_modules" ] && [ -f "$CACHE_DIR/.hash" ] && [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
           echo "=== ✅ CACHE HIT — Restauration ==="
-          cp -r "$CACHE_DIR/node_modules"          ./node_modules || true
+          cp -r "$CACHE_DIR/node_modules" ./node_modules || true
           cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules || true
           echo "cache_hit=true" >> "$GITHUB_OUTPUT"
         else
           echo "=== ❌ CACHE MISS ==="
-          echo "cache_hit=false"    >> "$GITHUB_OUTPUT"
+          echo "cache_hit=false" >> "$GITHUB_OUTPUT"
           echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
         fi
 
@@ -111,24 +106,25 @@ jobs:
       if: steps.node-cache.outputs.cache_hit != 'true'
       run: |
         echo "=== Installation des dépendances Node ==="
-        
-        # Installation principale
+
         npm install --no-audit --no-fund
 
-        # Installation frontend (si dossier existe)
         if [ -d "frontend" ]; then
           echo "=== Installation frontend ==="
           cd frontend && npm install --no-audit --no-fund && cd ..
         fi
 
         echo "=== Sauvegarde du cache ==="
-        CACHE_DIR="/opt/invisithreat-cache"
+        CACHE_DIR="${RUNNER_TEMP}/invisithreat-cache"
         PKG_HASH="${{ steps.node-cache.outputs.pkg_hash }}"
 
+        # Création des dossiers avant copie
+        mkdir -p "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
+
         rm -rf "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
-        cp -r node_modules          "$CACHE_DIR/node_modules"
+        cp -r node_modules "$CACHE_DIR/node_modules" || true
         cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
-        echo "$PKG_HASH" > "$CACHE_DIR/.pkg_hash"
+        echo "$PKG_HASH" > "$CACHE_DIR/.hash"
 
         echo "=== ✅ Cache sauvegardé avec succès ==="
 
