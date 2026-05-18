@@ -14,6 +14,7 @@ import { ModelStatsPage } from '../features/model/pages/ModelStatsPage';
 import AdminPanel from '../features/admin/pages/AdminPanel';
 import ProfilePage from '../features/profile/pages/ProfilePage';
 import AnalyticsPage from '../features/analytics/pages/AnalyticsPage';
+import BlockedPage from '../auth/pages/BlockedPage';
 
 
 export const router = createBrowserRouter([
@@ -21,7 +22,9 @@ export const router = createBrowserRouter([
   { path: '/', element: <Home /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
-  { path: '/pending', element: <PendingPage /> },
+  { path: '/auth/pending', element: <PendingPage /> },
+  { path: '/auth/blocked', element: <BlockedPage /> },
+
 
   {
     element: <PageLayout />,
@@ -32,7 +35,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/products',
-        element: <ProtectedRoute><ProductsPage /></ProtectedRoute>,
+        element: <ProtectedRoute blockedRoles={['analyst']}><ProductsPage /></ProtectedRoute>,
       },
       {
         path: '/model-stats',
@@ -40,15 +43,15 @@ export const router = createBrowserRouter([
       },
       {
         path: '/engagements',
-        element: <ProtectedRoute><EngagementsPage /></ProtectedRoute>,
+        element: <ProtectedRoute  blockedRoles={['analyst']}><EngagementsPage /></ProtectedRoute>,
       },
       {
         path: '/findings',
-        element: <ProtectedRoute><FindingsPage /></ProtectedRoute>,
+        element: <ProtectedRoute blockedRoles={['analyst']} ><FindingsPage /></ProtectedRoute>,
       },
       {
         path: '/findings/:id',
-        element: <ProtectedRoute><FindingDetailPage /></ProtectedRoute>,
+        element: <ProtectedRoute blockedRoles={['analyst']}><FindingDetailPage /></ProtectedRoute>,
       },
       {
         path: '/profile',

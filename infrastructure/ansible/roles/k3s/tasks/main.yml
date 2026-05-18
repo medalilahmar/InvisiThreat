@@ -1,0 +1,97 @@
+---
+- name: Vérifier si k3s est déjà installé
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Installer k3s (Kubernetes certifié CNCF - distribution légère)
+  shell: curl -sfL https://get.k3s.io | sh -
+  environment:
+    INSTALL_K3S_EXEC: "--disable=traefik --write-kubeconfig-mode=644"
+  when: not k3s_binary.stat.exists
+  become: true
+
+- name: Attendre que k3s soit démarré
+  systemd:
+    name: k3s
+    state: started
+    enabled: true          # was 'yes'
+  become: true
+
+- name: Attendre que le nœud soit prêt
+  command: k3s kubectl wait --for=condition=Ready node --all --timeout=120s
+  become: true
+  register: node_ready
+  retries: 5
+  delay: 10
+  until: node_ready.rc == 0
+
+- name: Créer le répertoire .kube pour l'utilisateur
+  file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Copier le kubeconfig k3s pour l'utilisateur
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+    remote_src: true       # was 'yes'
+  become: true
+
+- name: Créer les répertoires hostPath pour les PVC
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - /data/invisithreat/models
+    - /data/invisithreat/data/processed
+    - /data/invisithreat/data/raw
+    - /data/invisithreat/postgres
+  become: true
+
+- name: Vérifier que kubectl fonctionne
+  command: kubectl get nodes
+  become: false            # already correct
+  register: kubectl_check
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Afficher les nœuds du cluster
+  debug:
+    msg: "{{ kubectl_check.stdout }}"
+
+- name: Configurer le registre Docker local insecure dans k3s
+  copy:
+    content: |
+      mirrors:
+        "localhost:5000":
+          endpoint:
+            - "http://localhost:5000"
+      configs:
+        "localhost:5000":
+          tls:
+            insecure_skip_verify: true
+    dest: /etc/rancher/k3s/registries.yaml
+    mode: '0644'
+  become: true
+  notify: restart k3s
+
+- name: S'assurer que le registre Docker local est lancé
+  docker_container:
+    name: local-registry
+    image: registry:2
+    state: started
+    restart_policy: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - /opt/registry-data:/var/lib/registry
+  become: true

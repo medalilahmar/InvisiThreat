@@ -21,7 +21,7 @@ const SEV_COLORS: Record<string, string> = {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#13131a', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+    <div style={{ background: 'var(--bg3)', border: '1px solid ${card.color}33', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
       {label && <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>{label}</p>}
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.color || '#fff', margin: '2px 0' }}>
@@ -112,7 +112,7 @@ export default function AnalyticsPage() {
           { label: 'CVSS Moyen',   value: summary.avg_cvss,          color: '#8b5cf6', icon: '📊', decimal: true },
         ].map((card, i) => (
           <div key={i} style={{
-            background: '#13131a',
+            background: 'var(--bg3)',
             border: `0.5px solid ${card.color}33`,
             borderRadius: 12, padding: '14px 12px',
             textAlign: 'center',
@@ -319,7 +319,7 @@ export default function AnalyticsPage() {
                   { label: 'Low',      value: productData.low,            color: '#2ed573' },
                   { label: 'Score',    value: productData.risk_score,     color: productData.risk_score > 70 ? '#ff4757' : '#ffd32a', suffix: '/100' },
                 ].map((k, i) => (
-                  <div key={i} style={{ background: '#13131a', border: `0.5px solid ${k.color}33`, borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div key={i} style={{ background: 'var(--bg3)', border: `0.5px solid ${k.color}33`, borderRadius: 10, padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}{k.suffix || ''}</div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{k.label}</div>
                   </div>
@@ -466,14 +466,14 @@ function EmptyState({ msg }: { msg: string }) {
 
 const pageStyle: React.CSSProperties = {
   minHeight: '100vh',
-  background: '#0a0a0f',
+  background: 'var(--bg)',
   padding: '2rem',
-  color: '#fff',
+  color: 'var(--text)',
 };
 
 const card: React.CSSProperties = {
-  background: '#13131a',
-  border: '0.5px solid rgba(255,255,255,0.08)',
+  background: 'var(--bg3)',
+  border: '1px solid var(--border)',
   borderRadius: 16,
   padding: '1.5rem',
 };

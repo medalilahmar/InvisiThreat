@@ -13,10 +13,10 @@ interface RiskEntry { name: string; value: number; color: string; }
 
 const RISK_COLORS: Record<RiskLevel, string> = {
   Critical: 'var(--accent2)',
-  High:     'var(--orange)',
-  Medium:   'var(--accent3)',
-  Low:      'var(--green)',
-  Info:     'var(--purple)',
+  High: 'var(--orange)',
+  Medium: 'var(--accent3)',
+  Low: 'var(--green)',
+  Info: 'var(--purple)',
 };
 
 const RISK_ORDER: RiskLevel[] = ['Critical', 'High', 'Medium', 'Low', 'Info'];
@@ -55,8 +55,8 @@ function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
   const pct = Math.min((score / max) * 100, 100);
   const color = score >= 9 ? 'var(--accent2)'
     : score >= 7 ? 'var(--orange)'
-    : score >= 4 ? 'var(--accent3)'
-    : 'var(--green)';
+      : score >= 4 ? 'var(--accent3)'
+        : 'var(--green)';
   return (
     <div className="score-pill">
       <span className="score-val" style={{ color }}>{score.toFixed(1)}</span>
@@ -167,11 +167,11 @@ export default function DashboardPage() {
   const { productSummaries, stats, isLoading, error } = useDashboardData();
 
   /* Filters & Sort */
-  const [search, setSearch]           = useState('');
-  const [riskFilter, setRiskFilter]   = useState<string | null>(null);
-  const [sortKey, setSortKey]         = useState<string>('totalFindings');
-  const [sortDir, setSortDir]         = useState<'asc' | 'desc'>('desc');
-  const [activeTab, setActiveTab]     = useState<'overview' | 'products' | 'timeline'>('overview');
+  const [search, setSearch] = useState('');
+  const [riskFilter, setRiskFilter] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<string>('totalFindings');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'timeline'>('overview');
 
   /* Alert threshold: if (critical+high)/total > 15% */
   const urgentRatio = stats
@@ -303,11 +303,11 @@ export default function DashboardPage() {
       {/* ── KPI Cards ──────────────────────────────────────────────────── */}
       <div className="stats-grid fu2">
         {[
-          { value: stats.totalFindings,                          label: 'Findings totaux',   color: 'var(--accent)',  icon: '🔍' },
-          { value: stats.totalCritical,                          label: 'Critiques',          color: 'var(--accent2)', icon: '🚨' },
-          { value: stats.totalHigh,                              label: 'High',               color: 'var(--orange)',  icon: '⚠' },
-          { value: stats.totalCritical + stats.totalHigh,        label: 'Urgents (C+H)',      color: '#ff3366',        icon: '🔥' },
-          { value: stats.totalProducts,                          label: 'Produits',           color: 'var(--purple)',  icon: '📦' },
+          { value: stats.totalFindings, label: 'Findings totaux', color: 'var(--accent)', icon: '🔍' },
+          { value: stats.totalCritical, label: 'Critiques', color: 'var(--accent2)', icon: '🚨' },
+          { value: stats.totalHigh, label: 'High', color: 'var(--orange)', icon: '⚠' },
+          { value: stats.totalCritical + stats.totalHigh, label: 'Urgents (C+H)', color: 'var(--accent2)', icon: '🔥' },
+          { value: stats.totalProducts, label: 'Produits', color: 'var(--purple)', icon: '📦' },
         ].map((card, i) => (
           <div
             key={i}
@@ -400,25 +400,25 @@ export default function DashboardPage() {
                   layout="vertical"
                   margin={{ left: 10, right: 20, top: 8, bottom: 8 }}
                 >
-                  <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis type="number" tick={{ fill: 'var(--dimmed)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis
                     type="category"
                     dataKey="name"
                     width={110}
-                    tick={{ fill: 'rgba(255,255,255,0.55)', fontSize: 11 }}
+                    tick={{ fill: 'var(--muted)', fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 14) + '…' : v}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="critical" stackId="a" fill="var(--accent2)" name="Critique" barSize={14} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="high"     stackId="a" fill="var(--orange)"  name="High"     barSize={14} />
-                  <Bar dataKey="medium"   stackId="a" fill="var(--accent3)" name="Medium"   barSize={14} />
-                  <Bar dataKey="low"      stackId="a" fill="var(--green)"   name="Low"      barSize={14} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="high" stackId="a" fill="var(--orange)" name="High" barSize={14} />
+                  <Bar dataKey="medium" stackId="a" fill="var(--accent3)" name="Medium" barSize={14} />
+                  <Bar dataKey="low" stackId="a" fill="var(--green)" name="Low" barSize={14} radius={[0, 4, 4, 0]} />
                   <Legend
                     iconType="square"
                     iconSize={8}
-                    wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}
+                    wrapperStyle={{ fontSize: 11, color: 'var(--dimmed)' }}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -477,11 +477,11 @@ export default function DashboardPage() {
                   <th>Produit</th>
                   {[
                     { key: 'totalFindings', label: 'Total' },
-                    { key: 'critical',      label: 'Critique' },
-                    { key: 'high',          label: 'High' },
-                    { key: 'medium',        label: 'Medium' },
-                    { key: 'low',           label: 'Low' },
-                    { key: 'avgRiskScore',  label: 'Score CVSS' },
+                    { key: 'critical', label: 'Critique' },
+                    { key: 'high', label: 'High' },
+                    { key: 'medium', label: 'Medium' },
+                    { key: 'low', label: 'Low' },
+                    { key: 'avgRiskScore', label: 'Score CVSS' },
                     { key: 'priorityScore', label: 'Priorité' },
                   ].map(({ key, label }) => (
                     <th
@@ -517,7 +517,7 @@ export default function DashboardPage() {
                             style={{
                               background: product.critical > 0 ? 'var(--accent2)'
                                 : product.high > 0 ? 'var(--orange)'
-                                : 'var(--green)',
+                                  : 'var(--green)',
                             }}
                           />
                           <span>{product.name}</span>
@@ -577,24 +577,24 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={320}>
             <LineChart
               data={[
-                { name: 'Jan', critical: 8,  high: 14 },
+                { name: 'Jan', critical: 8, high: 14 },
                 { name: 'Fév', critical: 12, high: 18 },
-                { name: 'Mar', critical: 6,  high: 22 },
-                { name: 'Avr', critical: 15, high: 9  },
+                { name: 'Mar', critical: 6, high: 22 },
+                { name: 'Avr', critical: 15, high: 9 },
                 { name: 'Mai', critical: 10, high: 25 },
-                { name: 'Jun', critical: 7,  high: 13 },
+                { name: 'Jun', critical: 7, high: 13 },
               ]}
               margin={{ left: 0, right: 16, top: 12, bottom: 8 }}
             >
-              <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="name"
-                tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
+                tick={{ fill: 'var(--dimmed)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
+                tick={{ fill: 'var(--dimmed)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -602,7 +602,7 @@ export default function DashboardPage() {
               <Legend
                 iconType="circle"
                 iconSize={8}
-                wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}
+                wrapperStyle={{ fontSize: 11, color: 'var(--dimmed)' }}
               />
               <Line
                 type="monotone"

@@ -1,106 +1,118 @@
-/* ─── Navbar Principale ───────────────────────────────────────────────────── */
 .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1.8rem;
-    background: rgba(23, 28, 45, 0.95);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-    backdrop-filter: blur(16px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    position: sticky;
-    top: 0;
-    z-index: 1100;
-    height: 68px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.8rem;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  height: 68px;
 }
 
-/* ─── Liens de navigation ─────────────────────────────────────────────────── */
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.navbar-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.navbar-logo-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.navbar-logo-text span {
+  color: var(--accent);
+}
+
 .navbar-links {
-    display: flex;
-    align-items: center;
-    gap: 2.2rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  list-style: none;
 }
 
 .navbar-links a {
-    position: relative;
-    color: #cbd5e1;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.95rem;
-    font-weight: 500;
-    text-decoration: none;
-    padding: 6px 0;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 6px 0;
+  transition: color 0.25s ease;
 }
 
 .navbar-links a:hover {
-    color: #67e8f9;
-    text-shadow: 0 0 8px rgba(103, 232, 249, 0.4);
+  color: var(--accent);
 }
 
-/* Effet de soulignement neon */
 .navbar-links a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: linear-gradient(to right, #00d4ff, #67e8f9);
-    box-shadow: 0 0 6px rgba(103, 232, 249, 0.6);
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent);
+  transition: width 0.3s ease;
 }
 
 .navbar-links a:hover::after {
-    width: 100%;
+  width: 100%;
 }
 
-/* ─── Zone Actions (Notifications + Logout) ───────────────────────────────── */
+.admin-link {
+  color: var(--accent2) !important;
+}
+
 .navbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
-/* ─── Bouton Logout ───────────────────────────────────────────────────────── */
 .logout-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    padding: 8px 16px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #fda4af;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent2);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .logout-button:hover {
-    background: rgba(255, 80, 80, 0.12);
-    border-color: #fb7185;
-    color: #ff8a8a;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(251, 113, 133, 0.25),
-                0 0 0 3px rgba(251, 113, 133, 0.1);
+  background: rgba(255, 71, 87, 0.12);
+  border-color: var(--accent2);
+  transform: translateY(-2px);
 }
 
-.logout-button:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 12px rgba(251, 113, 133, 0.2);
-}
-
-/* Optionnel : Icône dans le bouton logout */
 .logout-button svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentColor;
-    transition: all 0.2s ease;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  transition: transform 0.2s ease;
 }
 
 .logout-button:hover svg {
-    transform: rotate(15deg);
+  transform: rotate(15deg);
 }

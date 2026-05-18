@@ -8,6 +8,7 @@ import csv, io
 from database.connection import get_db
 from database.models import User, Project
 from auth.security import require_admin, get_password_hash, get_current_user
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/admin", tags=["👑 Administration"])
 
@@ -19,9 +20,25 @@ class UserCreate(BaseModel):
     password: str
     role: str = "developer"
 
+# À remplacer lignes 22-24
 class UserUpdate(BaseModel):
+    # Identité & rôles
     role: Optional[str] = None
     status: Optional[str] = None
+    
+    # ✅ Profil personnel
+    job_title: Optional[str] = None
+    department: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+    
+    # ✅ Intégrations
+    github_username: Optional[str] = None
+    jira_email: Optional[str] = None
+    
+    # ✅ Préférences
+    notify_on_new_finding: Optional[bool] = None
+    notify_on_pr_merged: Optional[bool] = None
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
@@ -46,7 +63,11 @@ def list_users(
             "projects": [{"id": p.id, "name": p.name} for p in u.projects],
             "last_login": str(u.last_login) if u.last_login else None,
             "locked_until": str(u.locked_until) if u.locked_until else None,
-            "failed_login_attempts": u.failed_login_attempts
+            "failed_login_attempts": u.failed_login_attempts,
+            "avatar_url": u.avatar_url,
+            "job_title": u.job_title,
+            "department": u.department,
+
         }
         for u in users
     ]
@@ -63,6 +84,9 @@ def list_pending_users(
             "username": u.username,
             "email": u.email,
             "role": u.role,
+            "job_title": u.job_title,
+            "department": u.department,
+            "phone": u.phone,
             "created_at": str(u.created_at) if u.created_at else None
         }
         for u in users
@@ -107,7 +131,12 @@ def search_users(
                 "locked_until": str(u.locked_until) if u.locked_until else None,
                 "failed_login_attempts": u.failed_login_attempts,
                 "projects": [{"id": p.id, "name": p.name} for p in u.projects],
-                "projects_count": len(u.projects)
+                "projects_count": len(u.projects),
+                "job_title": u.job_title,
+                "department": u.department,
+                "phone": u.phone,
+                "avatar_url": u.avatar_url,
+                "updated_at": str(u.updated_at) if u.updated_at else None,
 
             }
             for u in users
@@ -122,11 +151,16 @@ def export_users_csv(
     users = db.query(User).all()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["id", "username", "email", "role", "status", "created_at", "projects"])
+    writer.writerow([
+        "id", "username", "email", "role", "status", 
+        "created_at", "job_title", "department", "phone",
+        "projects"
+    ])
     for u in users:
         writer.writerow([
             u.id, u.username, u.email, u.role, u.status,
             str(u.created_at) if u.created_at else "",
+            u.job_title or "", u.department or "", u.phone or "",
             "|".join(p.name for p in u.projects)
         ])
     output.seek(0)
@@ -197,6 +231,8 @@ def approve_user(
     if user.status == "active":
         raise HTTPException(400, "Utilisateur déjà actif")
     user.status = "active"
+    user.locked_until = None          
+    user.failed_login_attempts = 0  
     db.commit()
     return {"message": f"Utilisateur '{user.username}' approuvé avec succès"}
 
@@ -225,6 +261,8 @@ def unblock_user(
     if not user:
         raise HTTPException(404, "Utilisateur introuvable")
     user.status = "active"
+    user.locked_until = None          # ← ajouter
+    user.failed_login_attempts = 0    # ← ajouter
     db.commit()
     return {"message": f"Utilisateur '{user.username}' débloqué"}
 
@@ -251,9 +289,34 @@ def update_user(
         user.role = body.role
     if body.status:
         user.status = body.status
-
+    
+    if body.job_title is not None:
+        user.job_title = body.job_title
+    if body.department is not None:
+        user.department = body.department
+    if body.phone is not None:
+        user.phone = body.phone
+    if body.avatar_url is not None:
+        user.avatar_url = body.avatar_url
+    
+    if body.github_username is not None:
+        user.github_username = body.github_username
+    if body.jira_email is not None:
+        user.jira_email = body.jira_email
+    
+    if body.notify_on_new_finding is not None:
+        user.notify_on_new_finding = body.notify_on_new_finding
+    if body.notify_on_pr_merged is not None:
+        user.notify_on_pr_merged = body.notify_on_pr_merged
+    
+    user.updated_at = datetime.now(timezone.utc)
+    
     db.commit()
-    return {"message": "Utilisateur mis à jour", "role": user.role, "status": user.status}
+    return {
+        "message": "Utilisateur mis à jour avec succès",
+        "role": user.role,
+        "status": user.status
+    }
 
 @router.post("/users/{user_id}/projects")
 def assign_projects(
@@ -279,6 +342,7 @@ def assign_projects(
         "projects": [{"id": p.id, "name": p.name} for p in projects]
     }
 
+
 @router.post("/users/{user_id}/reset-password")
 def reset_user_password(
     user_id: int,
@@ -286,14 +350,29 @@ def reset_user_password(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin)
 ):
+    """Réinitialiser le mot de passe d'un utilisateur (admin uniquement)."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "Utilisateur introuvable")
+    
     if len(body.new_password) < 8:
         raise HTTPException(400, "Mot de passe trop court (min 8 caractères)")
+    
     user.hashed_password = get_password_hash(body.new_password)
+    
+    user.password_changed_at = datetime.now(timezone.utc)
+    
+    user.failed_login_attempts = 0
+    
+    user.locked_until = None
+    
     db.commit()
-    return {"message": "Mot de passe réinitialisé avec succès"}
+    
+    return {
+        "message": "Mot de passe réinitialisé avec succès",
+        "user_id": user.id,
+        "username": user.username
+    }
 
 @router.delete("/users/{user_id}")
 def delete_user(

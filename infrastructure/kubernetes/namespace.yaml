@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: invisithreat
+  labels:
+    app.kubernetes.io/name: invisithreat
+    managed-by: github-actions

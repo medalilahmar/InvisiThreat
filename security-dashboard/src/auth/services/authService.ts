@@ -127,6 +127,19 @@ export const changePassword = async (
 export const updateProfile = async (data: {
   username?: string;
   email?: string;
+  
+  job_title?: string | null;
+  department?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  
+  github_username?: string | null;
+  github_token?: string | null;
+  jira_email?: string | null;
+  jira_token?: string | null;
+  
+  notify_on_new_finding?: boolean;
+  notify_on_pr_merged?: boolean;
 }): Promise<AuthUser> => {
   const res = await axios.put(
     `${BASE_URL}/auth/me`,

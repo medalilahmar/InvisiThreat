@@ -1,0 +1,182 @@
+/* ─── Keyframes ──────────────────────────────────────────── */
+@keyframes pp-fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 224, 102, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(255, 224, 102, 0); }
+}
+
+@keyframes pp-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pp-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ─── Root ───────────────────────────────────────────────── */
+.pp-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 1.5rem;
+  font-family: var(--font-body);
+  position: relative;
+  overflow: hidden;
+}
+
+.pp-bg-glow {
+  position: absolute;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 224, 102, 0.06) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+/* ─── Card ───────────────────────────────────────────────── */
+.pp-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 40px 40px;
+  text-align: center;
+  animation: pp-fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overflow: hidden;
+}
+
+.pp-card-top-line {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent3), transparent);
+}
+
+/* ─── Icône ──────────────────────────────────────────────── */
+.pp-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: rgba(255, 224, 102, 0.08);
+  border: 1px solid rgba(255, 224, 102, 0.20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 28px;
+  animation: pp-pulse 2.5s ease-in-out infinite;
+}
+
+.pp-icon {
+  font-size: 32px;
+  display: block;
+  animation: pp-spin 4s linear infinite;
+}
+
+/* ─── Titre ──────────────────────────────────────────────── */
+.pp-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+
+/* ─── Description ────────────────────────────────────────── */
+.pp-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0 0 28px;
+}
+
+/* ─── Info box ───────────────────────────────────────────── */
+.pp-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(196, 181, 253, 0.07);
+  border: 1px solid rgba(196, 181, 253, 0.18);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--purple);
+  line-height: 1.6;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.pp-info-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ─── Status ─────────────────────────────────────────────── */
+.pp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dimmed);
+  margin-bottom: 32px;
+}
+
+.pp-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent3);
+  box-shadow: 0 0 8px var(--accent3);
+  animation: pp-blink 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Lien retour ────────────────────────────────────────── */
+.pp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(29, 233, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.pp-back:hover {
+  background: rgba(29, 233, 255, 0.10);
+  border-color: var(--border2);
+  transform: translateY(-1px);
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .pp-card {
+    padding: 36px 24px 32px;
+  }
+
+  .pp-title { font-size: 20px; }
+}

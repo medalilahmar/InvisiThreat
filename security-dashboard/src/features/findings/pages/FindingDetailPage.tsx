@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../../auth/hooks/useAuth';
 import { findingsApi } from '../../../api/services/findings';
 import { explanationsApi, LLMExplanation, LLMRecommendation } from '../../../api/services/explanations';
 import { jiraApi } from '../../../api/services/jira';
 import type { JiraIntegrationState } from '../../../types/jira';
 import { SolutionAndAutofix } from '../components/SolutionAndAutofix';
+
 
 import './FindingDetailPage.css';
 
@@ -41,6 +43,7 @@ export default function FindingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const findingId = parseInt(id || '0', 10);
+  const { user } = useAuth();
 
 
   const [llmExplanation, setLlmExplanation]       = useState<LLMExplanation | null>(null);
@@ -52,9 +55,13 @@ export default function FindingDetailPage() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [showShap, setShowShap] = useState(false);
 
+  const canCreateJiraTicket = user?.role === 'manager';
+
   const [jiraState, setJiraState] = useState<JiraIntegrationState>({
     loading: false, error: null, success: false, jiraKey: null, jiraUrl: null,
   });
+
+  
 
   useEffect(() => {
     if (!findingId) return;
@@ -475,6 +482,7 @@ export default function FindingDetailPage() {
               jiraState={jiraState}
               onCreateIssue={handleCreateJiraIssue}
               onReset={handleResetJira}
+              canCreateTicket={canCreateJiraTicket}  
             />
           </div>
         </div>
@@ -668,9 +676,10 @@ interface JiraPanelProps {
   jiraState: JiraIntegrationState;
   onCreateIssue: () => void;
   onReset: () => void;
+  canCreateTicket?: boolean;
 }
 
-function JiraPanel({ jiraState, onCreateIssue, onReset }: JiraPanelProps) {
+function JiraPanel({ jiraState, onCreateIssue, onReset, canCreateTicket = false }: JiraPanelProps) {
   return (
     <div className="fdp-jira-panel">
       <div className="fdp-jira-header">
@@ -690,7 +699,17 @@ function JiraPanel({ jiraState, onCreateIssue, onReset }: JiraPanelProps) {
       </div>
 
       <div className="fdp-jira-body">
-        {jiraState.success && jiraState.jiraKey && jiraState.jiraUrl ? (
+        {/* ← MESSAGE SI PAS MANAGER ET PAS DE TICKET CRÉÉ */}
+        {!canCreateTicket && !jiraState.success ? (
+          <div className="fdp-jira-restricted">
+            <div className="fdp-jira-restricted-icon">🔒</div>
+            <div className="fdp-jira-restricted-text">
+              <strong>Accès réservé aux Managers</strong><br />
+              Seuls les managers peuvent créer des tickets Jira. Contactez votre manager pour créer un ticket pour ce finding.
+            </div>
+          </div>
+        ) : jiraState.success && jiraState.jiraKey && jiraState.jiraUrl ? (
+          // Si ticket déjà créé
           <div className="fdp-jira-success">
             <div className="fdp-jira-ticket-display">
               <div className="fdp-jira-ticket-key">{jiraState.jiraKey}</div>
@@ -703,25 +722,35 @@ function JiraPanel({ jiraState, onCreateIssue, onReset }: JiraPanelProps) {
                 </svg>
                 Ouvrir dans Jira
               </a>
-              <button className="fdp-jira-btn secondary" onClick={onReset}>+ Nouveau</button>
+              {canCreateTicket && (
+                <button className="fdp-jira-btn secondary" onClick={onReset}>+ Nouveau</button>
+              )}
             </div>
           </div>
         ) : jiraState.error ? (
+          // Si erreur
           <div className="fdp-jira-error-state">
             <div className="fdp-jira-error-msg">{jiraState.error}</div>
-            <button className="fdp-jira-btn primary" onClick={onCreateIssue} disabled={jiraState.loading}>
-              ↺ Réessayer
-            </button>
+            {canCreateTicket && (
+              <button className="fdp-jira-btn primary" onClick={onCreateIssue} disabled={jiraState.loading}>
+                ↺ Réessayer
+              </button>
+            )}
           </div>
         ) : jiraState.loading ? (
+          // Si en cours de création
           <div className="fdp-jira-loading-state">
             <div className="fdp-jira-spinner" />
             <span>Création en cours...</span>
           </div>
         ) : (
+          // État initial - afficher le bouton pour les managers
           <div className="fdp-jira-idle">
             <p className="fdp-jira-hint">Exportez ce finding directement vers votre board Jira en un clic.</p>
-            <button className="fdp-jira-btn primary full" onClick={onCreateIssue}>
+            <button 
+              className="fdp-jira-btn primary full" 
+              onClick={onCreateIssue}
+            >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11.53 2.195a.694.694 0 00-.98 0L5.83 6.913a.694.694 0 000 .981l4.72 4.718a.694.694 0 00.98 0l4.72-4.718a.694.694 0 000-.981L11.53 2.195zm0 9.198a.694.694 0 00-.98 0L5.83 16.11a.694.694 0 000 .982l4.72 4.718a.694.694 0 00.98 0l4.72-4.718a.694.694 0 000-.982l-4.72-4.717z" />
               </svg>

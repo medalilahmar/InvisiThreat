@@ -20,14 +20,31 @@ class RegisterRequest(BaseModel):
     username: str
     email: EmailStr
     password: str
+    job_title: Optional[str] = None
+    department: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
 class UpdateProfileRequest(BaseModel):
-    email:    Optional[EmailStr] = None
-    username: Optional[str]      = None  # ← AJOUT
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
+    
+    job_title: Optional[str] = None
+    department: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+    
+    github_username: Optional[str] = None
+    github_token: Optional[str] = None
+    jira_email: Optional[str] = None
+    jira_token: Optional[str] = None
+    
+    notify_on_new_finding: Optional[bool] = None
+    notify_on_pr_merged: Optional[bool] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -37,25 +54,34 @@ class TokenResponse(BaseModel):
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def user_to_dict(user: User) -> dict:
-    """Sérialise un User en dict — utilisé partout pour cohérence."""
     return {
-        "id":       user.id,
+        "id": user.id,
         "username": user.username,
-        "email":    user.email,
-        "role":     user.role,
-        "status":   user.status,
+        "email": user.email,
+        "role": user.role,
+        "status": user.status,
+        "is_active": user.is_active,
+        
         "created_at": str(user.created_at) if user.created_at else None,
+        "updated_at": str(user.updated_at) if user.updated_at else None,
+        "last_login": str(user.last_login) if user.last_login else None,
+        "password_changed_at": str(user.password_changed_at) if user.password_changed_at else None,
+        
+        "failed_login_attempts": user.failed_login_attempts,
+        "locked_until": str(user.locked_until) if user.locked_until else None,
+        
+        "job_title": user.job_title,
+        "department": user.department,
+        "phone": user.phone,
+        "avatar_url": user.avatar_url,
+        
+        "github_username": user.github_username,
+        "jira_email": user.jira_email,
+        
+        "notify_on_new_finding": user.notify_on_new_finding,
+        "notify_on_pr_merged": user.notify_on_pr_merged,
+        
         "projects": [{"id": p.id, "name": p.name} for p in user.projects],
-        # ── Nouveaux champs exposés au frontend ──────────────────────────────
-        "last_login":             str(user.last_login) if user.last_login else None,
-        "locked_until":           str(user.locked_until) if user.locked_until else None,
-        "failed_login_attempts":  user.failed_login_attempts,
-        # ── Profil ───────────────────────────────────────────────────────────
-        "job_title":              user.job_title,
-        "department":             user.department,
-        "phone":                  user.phone,
-        "avatar_url":             user.avatar_url,
-
     }
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -74,6 +100,10 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         hashed_password=get_password_hash(body.password),
         role="developer",
         status="pending",
+        job_title=body.job_title,
+        department=body.department,
+        phone=body.phone,
+        avatar_url=body.avatar_url,
     )
     db.add(user)
     db.commit()
@@ -211,35 +241,50 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.put("/me")
-def update_profile(
-    body: UpdateProfileRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Modifier son propre profil (email et/ou username)."""
+def update_profile(body: UpdateProfileRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Identité
     if body.email:
-        existing = db.query(User).filter(
-            User.email == body.email,
-            User.id != current_user.id
-        ).first()
+        existing = db.query(User).filter(User.email == body.email, User.id != current_user.id).first()
         if existing:
             raise HTTPException(400, "Cet email est déjà utilisé")
         current_user.email = body.email
-
+    
     if body.username:
         if len(body.username.strip()) < 3:
             raise HTTPException(400, "Le nom d'utilisateur doit contenir au moins 3 caractères")
-        existing = db.query(User).filter(
-            User.username == body.username,
-            User.id != current_user.id
-        ).first()
+        existing = db.query(User).filter(User.username == body.username, User.id != current_user.id).first()
         if existing:
             raise HTTPException(400, "Ce nom d'utilisateur est déjà pris")
         current_user.username = body.username
-
+    
+    if body.job_title is not None:
+        current_user.job_title = body.job_title
+    if body.department is not None:
+        current_user.department = body.department
+    if body.phone is not None:
+        current_user.phone = body.phone
+    if body.avatar_url is not None:
+        current_user.avatar_url = body.avatar_url
+    
+    if body.github_username is not None:
+        current_user.github_username = body.github_username
+    if body.github_token is not None:
+        current_user.github_token = body.github_token  # TODO: chiffrer
+    if body.jira_email is not None:
+        current_user.jira_email = body.jira_email
+    if body.jira_token is not None:
+        current_user.jira_token = body.jira_token  # TODO: chiffrer
+    
+    if body.notify_on_new_finding is not None:
+        current_user.notify_on_new_finding = body.notify_on_new_finding
+    if body.notify_on_pr_merged is not None:
+        current_user.notify_on_pr_merged = body.notify_on_pr_merged
+    
+    current_user.updated_at = datetime.now(timezone.utc)
+    
     db.commit()
     db.refresh(current_user)
-    return user_to_dict(current_user)  # ← retourne le user complet mis à jour
+    return user_to_dict(current_user)
 
 
 @router.put("/change-password")
@@ -257,6 +302,7 @@ def change_password(
         raise HTTPException(400, "Le nouveau mot de passe doit être différent de l'ancien")
 
     current_user.hashed_password = get_password_hash(body.new_password)
+    current_user.password_changed_at = datetime.now(timezone.utc)  # ✅ NOUVEAU
     db.commit()
     return {"message": "Mot de passe changé avec succès"}
 

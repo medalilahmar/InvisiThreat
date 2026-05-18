@@ -1,6 +1,6 @@
 {
   "version": "9.0",
-  "timestamp": "2026-05-11T20:26:42.442440",
+  "timestamp": "2026-05-14T10:59:04.304012",
   "label_strategy": "severity_defectdojo_v9 : severity_num -> MERGE_MAP -> 4 classes. Aucune correction heuristique. L'intelligence = modele ML (LightGBM).",
   "class_names": {
     "0": "Low",
@@ -8,35 +8,35 @@
     "2": "High",
     "3": "Critical"
   },
-  "n_rows_total": 2100,
-  "n_rows_training": 2099,
+  "n_rows_total": 2267,
+  "n_rows_training": 2266,
   "n_rows_excluded": 1,
   "n_cols": 59,
   "n_features_ml": 22,
   "leakage_status": "CLEAN",
   "correlations": {
-    "severity_num_vs_risk_class": 0.9763,
-    "cvss_score_vs_risk_class": 0.3012,
-    "epss_score_vs_risk_class": 0.214,
-    "delay_norm_vs_risk_class": 0.2114,
-    "cvss_vs_epss_redundancy": 0.2468
+    "severity_num_vs_risk_class": 0.9774,
+    "cvss_score_vs_risk_class": 0.3524,
+    "epss_score_vs_risk_class": 0.2197,
+    "delay_norm_vs_risk_class": 0.21,
+    "cvss_vs_epss_redundancy": 0.2384
   },
   "risk_class_dist": {
-    "0.0": 298,
-    "1.0": 1255,
-    "2.0": 530,
-    "3.0": 16
+    "0.0": 311,
+    "1.0": 1333,
+    "2.0": 591,
+    "3.0": 31
   },
   "signal_coverage": {
-    "days_to_fix_count": 2100,
+    "days_to_fix_count": 2267,
     "days_to_fix_pct": 100.0,
-    "epss_positive_count": 542,
-    "has_cve_count": 549
+    "epss_positive_count": 636,
+    "has_cve_count": 656
   },
   "delay_norm_stats": {
-    "count": 2100.0,
-    "mean": 0.9054,
-    "std": 0.2802,
+    "count": 2267.0,
+    "mean": 0.9124,
+    "std": 0.2708,
     "min": 0.0759,
     "25%": 1.0,
     "50%": 1.0,
@@ -44,7 +44,7 @@
     "max": 1.0
   },
   "product_fp_rate_laplace": {
-    "min": 0.0012,
+    "min": 0.001,
     "max": 0.0031
   },
   "sample_weight_generated": true,

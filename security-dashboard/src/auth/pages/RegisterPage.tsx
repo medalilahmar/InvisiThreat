@@ -1,117 +1,284 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/authService';
+import './RegisterPage.css';
 
 export default function RegisterPage() {
-  const navigate  = useNavigate();
-  const [form,    setForm]    = useState({ username: '', email: '', password: '', confirm: '' });
-  const [error,   setError]   = useState('');
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [step, setStep] = useState<1 | 2>(1);
 
+  const [form, setForm] = useState({
+    username:   '',
+    email:      '',
+    password:   '',
+    confirm:    '',
+    job_title:  '',
+    department: '',
+    phone:      '',
+    avatar_url: '',
+  });
+
+  const [error,       setError]       = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [showPass,    setShowPass]    = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const set = (field: string) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm(f => ({ ...f, [field]: e.target.value }));
+
+  /* ── Étape 1 → 2 ── */
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!form.username.trim()) { setError('Username is required'); return; }
+    if (!form.email.trim())    { setError('Email is required'); return; }
+    if (form.password.length < 8) { setError('Password too short — minimum 8 characters'); return; }
+    if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
+    setStep(2);
+  };
+
+  /* ── Submit final ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (form.password !== form.confirm) {
-      setError('Les mots de passe ne correspondent pas');
-      return;
-    }
-    if (form.password.length < 8) {
-      setError('Mot de passe trop court — minimum 8 caractères');
-      return;
-    }
     setLoading(true);
     try {
-      await register({ username: form.username, email: form.email, password: form.password });
+      await register({
+        username:   form.username,
+        email:      form.email,
+        password:   form.password,
+        job_title:  form.job_title  || undefined,
+        department: form.department || undefined,
+        phone:      form.phone      || undefined,
+        avatar_url: form.avatar_url || undefined,
+      });
       navigate('/pending');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erreur lors de la création du compte');
+      setError(err.response?.data?.detail || 'Error creating account');
     } finally {
       setLoading(false);
     }
   };
 
-  const fields = [
-    { key: 'username', label: "Nom d'utilisateur", type: 'text',     placeholder: 'john_doe' },
-    { key: 'email',    label: 'Adresse email',      type: 'email',    placeholder: 'john@company.com' },
-    { key: 'password', label: 'Mot de passe',        type: 'password', placeholder: 'Min 8 caractères' },
-    { key: 'confirm',  label: 'Confirmer',            type: 'password', placeholder: '••••••••' },
-  ] as const;
-
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      background: '#0a0a0f', padding: '1rem'
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 420,
-        background: '#13131a',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        borderRadius: 16, padding: '2rem'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🛡️</div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 500, color: '#fff' }}>Créer un compte</h1>
-          <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>
-            InvisiThreat Platform
+    <div className="rp-root">
+
+      {/* ── Panel gauche — Branding ── */}
+      <div className="rp-left">
+        <div className="rp-bg-glow" />
+        <div className="rp-left-content">
+
+          <div className="rp-brand-mark">🛡️</div>
+          <h1 className="rp-brand-name">Invisi<span>Threat</span></h1>
+          <p className="rp-brand-desc">
+            Join the InvisiThreat platform. Your account will be reviewed
+            by an administrator before you can access the SOC dashboard.
           </p>
-        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {fields.map(f => (
-            <div key={f.key}>
-              <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
-                {f.label}
-              </label>
-              <input
-                type={f.type}
-                value={form[f.key]}
-                onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                placeholder={f.placeholder}
-                required
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  padding: '10px 14px', borderRadius: 8,
-                  background: '#1e1e2e',
-                  border: '0.5px solid rgba(255,255,255,0.12)',
-                  color: '#fff', fontSize: 14, outline: 'none'
-                }}
-              />
+          <div className="rp-steps">
+            <div className={`rp-step ${step >= 1 ? 'rp-step--active' : ''}`}>
+              <div className="rp-step-num">
+                {step > 1 ? <span className="rp-step-check">✓</span> : '01'}
+              </div>
+              <div className="rp-step-info">
+                <span className="rp-step-title">Account credentials</span>
+                <span className="rp-step-desc">Username, email & password</span>
+              </div>
             </div>
-          ))}
 
-          {error && (
-            <div style={{
-              background: 'rgba(220,38,38,0.12)',
-              border: '0.5px solid rgba(220,38,38,0.4)',
-              color: '#f87171', borderRadius: 8,
-              padding: '10px 14px', fontSize: 13
-            }}>
-              ⚠️ {error}
+            <div className={`rp-step-line ${step > 1 ? 'rp-step-line--done' : ''}`} />
+
+            <div className={`rp-step ${step >= 2 ? 'rp-step--active' : 'rp-step--dim'}`}>
+              <div className="rp-step-num">02</div>
+              <div className="rp-step-info">
+                <span className="rp-step-title">Professional profile</span>
+                <span className="rp-step-desc">Optional details</span>
+              </div>
+            </div>
+
+            <div className="rp-step-line" />
+
+            <div className="rp-step rp-step--dim">
+              <div className="rp-step-num">03</div>
+              <div className="rp-step-info">
+                <span className="rp-step-title">Admin approval</span>
+                <span className="rp-step-desc">Access granted after review</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── Panel droit — Formulaire ── */}
+      <div className="rp-right">
+        <div className="rp-form-wrap">
+
+          {/* Progress bar */}
+          <div className="rp-progress">
+            <div className="rp-progress-track">
+              <div className="rp-progress-fill" style={{ width: step === 1 ? '50%' : '100%' }} />
+            </div>
+            <span className="rp-progress-label">Step {step} of 2</span>
+          </div>
+
+          {/* ══ ÉTAPE 1 ══ */}
+          {step === 1 && (
+            <div className="rp-panel rp-panel--enter">
+
+              <div className="rp-form-header">
+                <h2 className="rp-form-title">Account credentials</h2>
+                <p className="rp-form-subtitle">Create your login details to get started</p>
+              </div>
+
+              <form className="rp-form" onSubmit={handleNext}>
+
+                <div className="rp-field">
+                  <label className="rp-label" htmlFor="rp-username">Username *</label>
+                  <input id="rp-username" className="rp-input" type="text"
+                    value={form.username} onChange={set('username')}
+                    placeholder="john_doe" required autoFocus autoComplete="username" />
+                </div>
+
+                <div className="rp-field">
+                  <label className="rp-label" htmlFor="rp-email">Email address *</label>
+                  <input id="rp-email" className="rp-input" type="email"
+                    value={form.email} onChange={set('email')}
+                    placeholder="john@company.com" required autoComplete="email" />
+                </div>
+
+                <div className="rp-field">
+                  <label className="rp-label" htmlFor="rp-password">Password *</label>
+                  <div className="rp-input-wrap">
+                    <input id="rp-password" className="rp-input"
+                      type={showPass ? 'text' : 'password'}
+                      value={form.password} onChange={set('password')}
+                      placeholder="Min 8 characters" required autoComplete="new-password" />
+                    <button type="button" className="rp-eye-btn"
+                      onClick={() => setShowPass(p => !p)} tabIndex={-1}>
+                      {showPass ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rp-field">
+                  <label className="rp-label" htmlFor="rp-confirm">Confirm password *</label>
+                  <div className="rp-input-wrap">
+                    <input id="rp-confirm" className="rp-input"
+                      type={showConfirm ? 'text' : 'password'}
+                      value={form.confirm} onChange={set('confirm')}
+                      placeholder="••••••••••••" required autoComplete="new-password" />
+                    <button type="button" className="rp-eye-btn"
+                      onClick={() => setShowConfirm(p => !p)} tabIndex={-1}>
+                      {showConfirm ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rp-error">
+                    <span className="rp-error-icon">⚠</span>
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <button type="submit" className="rp-btn">Continue →</button>
+
+              </form>
+
+              <p className="rp-footer-text">
+                Already have an account?{' '}
+                <Link to="/login" className="rp-footer-link">Sign in →</Link>
+              </p>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%', padding: '11px',
-              background: loading ? 'rgba(16,185,129,0.4)' : '#10b981',
-              color: '#fff', border: 'none', borderRadius: 8,
-              fontSize: 14, fontWeight: 500,
-              cursor: loading ? 'not-allowed' : 'pointer', marginTop: 4
-            }}
-          >
-            {loading ? 'Création...' : 'Créer mon compte'}
-          </button>
-        </form>
+          {/* ══ ÉTAPE 2 ══ */}
+          {step === 2 && (
+            <div className="rp-panel rp-panel--enter">
 
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13, marginTop: '1.5rem' }}>
-          Déjà un compte ?{' '}
-          <Link to="/login" style={{ color: '#818cf8', textDecoration: 'none' }}>
-            Se connecter
-          </Link>
-        </p>
+              <div className="rp-form-header">
+                <h2 className="rp-form-title">Professional profile</h2>
+                <p className="rp-form-subtitle">
+                  Optional — helps your admin assign you to the right projects
+                </p>
+              </div>
+
+              <form className="rp-form" onSubmit={handleSubmit}>
+
+                <div className="rp-field-row">
+                  <div className="rp-field">
+                    <label className="rp-label" htmlFor="rp-job">Job title</label>
+                    <input id="rp-job" className="rp-input" type="text"
+                      value={form.job_title} onChange={set('job_title')}
+                      placeholder="Security Engineer" autoFocus />
+                  </div>
+                  <div className="rp-field">
+                    <label className="rp-label" htmlFor="rp-dept">Department</label>
+                    <input id="rp-dept" className="rp-input" type="text"
+                      value={form.department} onChange={set('department')}
+                      placeholder="DevSecOps" />
+                  </div>
+                </div>
+
+                <div className="rp-field-row">
+                  <div className="rp-field">
+                    <label className="rp-label" htmlFor="rp-phone">Phone</label>
+                    <input id="rp-phone" className="rp-input" type="tel"
+                      value={form.phone} onChange={set('phone')}
+                      placeholder="+33 6 12 34 56 78" />
+                  </div>
+                  <div className="rp-field">
+                    <label className="rp-label" htmlFor="rp-avatar">Avatar URL</label>
+                    <input id="rp-avatar" className="rp-input" type="url"
+                      value={form.avatar_url} onChange={set('avatar_url')}
+                      placeholder="https://..." />
+                  </div>
+                </div>
+
+                {/* Récap */}
+                <div className="rp-recap">
+                  <div className="rp-recap-title">Account summary</div>
+                  <div className="rp-recap-row">
+                    <span className="rp-recap-key">Username</span>
+                    <span className="rp-recap-val">{form.username}</span>
+                  </div>
+                  <div className="rp-recap-row">
+                    <span className="rp-recap-key">Email</span>
+                    <span className="rp-recap-val">{form.email}</span>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rp-error">
+                    <span className="rp-error-icon">⚠</span>
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="rp-btn-row">
+                  <button type="button" className="rp-btn-back"
+                    onClick={() => { setStep(1); setError(''); }}>
+                    ← Back
+                  </button>
+                  <button type="submit" className="rp-btn rp-btn--flex" disabled={loading}>
+                    {loading
+                      ? <><span className="rp-spinner" /> Creating…</>
+                      : 'Create account →'}
+                  </button>
+                </div>
+
+              </form>
+
+              <p className="rp-footer-text">
+                Already have an account?{' '}
+                <Link to="/login" className="rp-footer-link">Sign in →</Link>
+              </p>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );

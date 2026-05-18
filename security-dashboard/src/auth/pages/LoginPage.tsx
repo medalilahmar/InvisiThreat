@@ -1,137 +1,194 @@
 import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { login as doLogin } from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
+import { LoginError } from '../types/auth.types';
+import './LoginPage.css';
 
 export default function LoginPage() {
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || '/dashboard';
+  const { login } = useAuth();
 
-  const [form,    setForm]    = useState({ username: '', password: '' });
-  const [error,   setError]   = useState('');
-  const [loading, setLoading] = useState(false);
+  const [form,         setForm]         = useState({ username: '', password: '' });
+  const [error,        setError]        = useState('');
+  const [loading,      setLoading]      = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      const { user, access_token } = await doLogin(form);
-      console.log('✅ Token reçu :', access_token.slice(0, 20) + '...');
-      console.log('✅ User reçu :', user);
-      console.log('✅ Role :', user.role);
+      const result = await doLogin(form);
 
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
+      // ── Login réussi ───────────────────────────────────────────────────
+      login(result.user, result.access_token);
 
-      // Vérification immédiate
-      console.log('✅ localStorage token :', localStorage.getItem('token')?.slice(0, 20) + '...');
+      if (result.user.status === 'pending') {
+        window.location.href = '/auth/pending';
+        return;
+      }
+      if (result.user.status === 'blocked') {
+        window.location.href = '/auth/blocked';
+        return;
+      }
 
-      window.location.href = user.role === 'admin' ? '/admin' : from;
+      window.location.href = result.user.role === 'admin' ? '/admin' : from;
 
     } catch (err: any) {
-      console.error('❌ Erreur login :', err);
-      setError(err.response?.data?.detail || 'Identifiants incorrects');
+      // ── Lire le LoginError structuré depuis authService ───────────────
+      const code:    string = err?.code    ?? 'UNKNOWN';
+      const message: string = err?.message ?? 'An error occurred';
+
+      if (code === 'ACCOUNT_LOCKED') {
+        const minutes = err?.minutesLeft ?? 30;
+        setError(`🔒 Account locked. Try again in ${minutes} minutes.`);
+
+      } else if (code === 'ACCOUNT_PENDING') {
+        window.location.href = '/auth/pending';
+        return;
+
+      } else if (code === 'ACCOUNT_BLOCKED') {
+        window.location.href = '/auth/blocked';
+        return;
+
+      } else if (code === 'INVALID_CREDENTIALS') {
+        setError('Invalid username or password');
+
+      } else {
+        setError(message || 'An error occurred. Please try again.');
+      }
+
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      background: '#0a0a0f', padding: '1rem'
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 420,
-        background: '#13131a',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        borderRadius: 16, padding: '2rem'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🛡️</div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 500, color: '#fff' }}>
-            InvisiThreat
+    <div className="lp-root">
+
+      {/* ── Panel gauche — Branding ── */}
+      <div className="lp-left">
+        <div className="lp-left-noise" />
+        <div className="lp-left-glow" />
+
+        <div className="lp-left-content">
+          <div className="lp-brand-mark">
+            <span className="lp-brand-icon">🛡️</span>
+          </div>
+
+          <h1 className="lp-brand-name">
+            Invisi<span>Threat</span>
           </h1>
-          <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>
-            Security Intelligence Platform
+          <p className="lp-brand-desc">
+            Security Intelligence Platform for modern SOC teams. Monitor,
+            analyze and respond to threats in real time.
           </p>
+
+          <div className="lp-stats">
+            <div className="lp-stat">
+              <span className="lp-stat-value">99.9%</span>
+              <span className="lp-stat-label">Uptime</span>
+            </div>
+            <div className="lp-stat-divider" />
+            <div className="lp-stat">
+              <span className="lp-stat-value">24/7</span>
+              <span className="lp-stat-label">Monitoring</span>
+            </div>
+            <div className="lp-stat-divider" />
+            <div className="lp-stat">
+              <span className="lp-stat-value">TLS 1.3</span>
+              <span className="lp-stat-label">Encrypted</span>
+            </div>
+          </div>
+
+          <div className="lp-system-status">
+            <span className="lp-status-dot" />
+            All systems operational
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
-              Nom d'utilisateur
-            </label>
-            <input
-              type="text"
-              value={form.username}
-              onChange={e => setForm({ ...form, username: e.target.value })}
-              placeholder="votre_username"
-              required
-              autoFocus
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                padding: '10px 14px', borderRadius: 8,
-                background: '#1e1e2e',
-                border: '0.5px solid rgba(255,255,255,0.12)',
-                color: '#fff', fontSize: 14, outline: 'none'
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={e => setForm({ ...form, password: e.target.value })}
-              placeholder="••••••••"
-              required
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                padding: '10px 14px', borderRadius: 8,
-                background: '#1e1e2e',
-                border: '0.5px solid rgba(255,255,255,0.12)',
-                color: '#fff', fontSize: 14, outline: 'none'
-              }}
-            />
-          </div>
-
-          {error && (
-            <div style={{
-              background: 'rgba(220,38,38,0.12)',
-              border: '0.5px solid rgba(220,38,38,0.4)',
-              color: '#f87171', borderRadius: 8,
-              padding: '10px 14px', fontSize: 13
-            }}>
-              ⚠️ {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%', padding: '11px',
-              background: loading ? 'rgba(99,102,241,0.5)' : '#6366f1',
-              color: '#fff', border: 'none', borderRadius: 8,
-              fontSize: 14, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: 4
-            }}
-          >
-            {loading ? 'Connexion...' : 'Se connecter'}
-          </button>
-        </form>
-
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13, marginTop: '1.5rem' }}>
-          Pas encore de compte ?{' '}
-          <Link to="/register" style={{ color: '#818cf8', textDecoration: 'none' }}>
-            Créer un compte
-          </Link>
-        </p>
+        <div className="lp-left-version">v2.4.1 · SOC Command Center</div>
       </div>
+
+      {/* ── Panel droit — Formulaire ── */}
+      <div className="lp-right">
+        <div className="lp-form-wrap">
+
+          <div className="lp-form-header">
+            <h2 className="lp-form-title">Welcome back</h2>
+            <p className="lp-form-subtitle">Sign in to your account to continue</p>
+          </div>
+
+          <form className="lp-form" onSubmit={handleSubmit}>
+
+            <div className="lp-field">
+              <label className="lp-label" htmlFor="username">Username</label>
+              <input
+                id="username"
+                className="lp-input"
+                type="text"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="Enter your username"
+                required
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
+
+            <div className="lp-field">
+              <div className="lp-label-row">
+                <label className="lp-label" htmlFor="password">Password</label>
+              </div>
+              <div className="lp-input-wrap">
+                <input
+                  id="password"
+                  className="lp-input"
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="••••••••••••"
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="lp-eye-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="lp-error">
+                <span className="lp-error-icon">⚠</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button type="submit" className="lp-btn" disabled={loading}>
+              {loading ? (
+                <><span className="lp-spinner" /> Authenticating…</>
+              ) : (
+                'Sign in'
+              )}
+            </button>
+
+          </form>
+
+          <p className="lp-footer-text">
+            Don't have an account?{' '}
+            <Link to="/register" className="lp-footer-link">Create access →</Link>
+          </p>
+
+        </div>
+      </div>
+
     </div>
   );
 }

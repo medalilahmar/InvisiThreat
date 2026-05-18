@@ -16,6 +16,10 @@ interface AuthContextType extends AuthState {
   isManager:   boolean;
   isAnalyst:   boolean;
   isDeveloper: boolean;
+  isActive:   boolean;
+  isPending:  boolean;
+  isBlocked:  boolean;
+  isLocked:   boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -25,7 +29,8 @@ export function useAuthProvider(): AuthContextType {
     user:            getSavedUser(),
     token:           getToken(),
     isAuthenticated: !!getToken() && !!getSavedUser(),
-    isLoading:       !!getToken(), 
+    isLoading:       !!getToken(),
+     
   });
 
   useEffect(() => {
@@ -91,6 +96,11 @@ export function useAuthProvider(): AuthContextType {
     isManager:   state.user?.role === 'manager',
     isAnalyst:   state.user?.role === 'analyst',
     isDeveloper: state.user?.role === 'developer',
+    isActive:    state.user?.status === 'active',
+    isPending:  state.user?.status === 'pending',
+    isBlocked:  state.user?.status === 'blocked',
+    isLocked:   !!(state.user?.locked_until &&
+                  new Date(state.user.locked_until) > new Date()),
   };
 }
 

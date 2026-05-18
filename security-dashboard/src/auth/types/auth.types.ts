@@ -16,20 +16,21 @@ export interface AuthUser {
   department?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
+  is_active?: boolean;
+  updated_at?: string;
+  password_changed_at?: string;
+  github_username?: string | null;
+  jira_email?: string | null;
+  notify_on_new_finding?: boolean;
+  notify_on_pr_merged?: boolean;
 }
 
-// ── Utilisé par useAuth.ts (hook React) ──────────────────────────────────────
 export interface AuthState {
   user:            AuthUser | null;
   token:           string | null;
   isAuthenticated: boolean;
   isLoading:       boolean;
-}
-
-// ── Utilisé par le Redux slice ────────────────────────────────────────────────
-export interface AuthSliceState extends AuthState {
-  loading: boolean;
-  error:   string | null;
+  
 }
 
 export interface LoginRequest {
@@ -39,8 +40,12 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   username: string;
-  email:    string;
+  email: string;
   password: string;
+  job_title?: string;
+  department?: string;
+  phone?: string;
+  avatar_url?: string;
 }
 
 export interface TokenResponse {
@@ -57,7 +62,7 @@ export type LoginErrorCode =
   | 'UNKNOWN';
 
 export interface LoginError {
-  code:        LoginErrorCode;
-  message:     string;
+  code:         LoginErrorCode;
+  message:      string;
   minutesLeft?: number;
 }

@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-scoring-engine
+  namespace: invisithreat
+  labels:
+    app: risk-scoring-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: risk-scoring-engine
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: risk-scoring-engine
+    spec:
+      containers:
+        - name: api
+          image: localhost:5000/invisithreat/risk-scoring-engine:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: invisithreat-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: postgres-password
+            - name: DATABASE_URL
+              value: "postgresql://invisithreat:$(POSTGRES_PASSWORD)@postgres-svc:5432/invisithreat"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: secret-key
+            - name: DEFECTDOJO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: defectdojo-api-key
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: gemini-api-key
+            - name: JIRA_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: jira-api-token
+            - name: JIRA_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: jira-email
+            - name: JIRA_SERVER
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: jira-server
+            - name: API_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: invisithreat-secrets
+                  key: api-admin-token
+          volumeMounts:
+            - name: models-storage
+              mountPath: /app/models
+            - name: data-storage
+              mountPath: /app/data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1.5Gi"
+              cpu: "800m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: models-storage
+          persistentVolumeClaim:
+            claimName: pvc-models
+        - name: data-storage
+          persistentVolumeClaim:
+            claimName: pvc-data

@@ -6,7 +6,7 @@
   min-height: 100vh;
 }
 
-/* ─── Quick Stats ──────────────────────��──────────────────────────────────────── */
+/* ─── Quick Stats ─────────────────────────────────────────────────────────────── */
 .quick-stats {
   display: flex;
   align-items: center;
@@ -45,7 +45,7 @@
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--dimmed);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -53,7 +53,7 @@
 .quick-stat-divider {
   width: 1px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border);
 }
 
 /* ─── Features Grid (Products Grid) ──────────────────────────────────────────── */
@@ -86,7 +86,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--card-color, #00d4ff), transparent);
+  background: linear-gradient(90deg, transparent, var(--card-color, var(--accent)), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -104,7 +104,7 @@
 
 /* ─── Product Card Specific ──────────────────────────────────────────────────── */
 .product-card {
-  background: linear-gradient(135deg, rgba(11, 15, 22, 0.6), rgba(11, 15, 22, 0.4));
+  background: var(--bg2);
   border: 1px solid rgba(0, 212, 255, 0.12);
   cursor: pointer;
   text-decoration: none;
@@ -160,10 +160,10 @@
 }
 
 .product-card:hover {
-  background: linear-gradient(135deg, rgba(11, 15, 22, 0.85), rgba(11, 15, 22, 0.7));
+  background: var(--bg3);
   border-color: rgba(0, 212, 255, 0.3);
   transform: translateY(-12px);
-  box-shadow: 
+  box-shadow:
     0 30px 80px rgba(0, 212, 255, 0.15),
     inset 0 1px 1px rgba(0, 212, 255, 0.1);
 }
@@ -201,7 +201,7 @@
   display: inline-block;
 }
 
-/* ─── Feature Card Icon ────────────────────────────────────────────────────��─── */
+/* ─── Feature Card Icon ──────────────────────────────────────────────────────── */
 .feature-card-icon {
   width: 52px;
   height: 52px;
@@ -250,7 +250,7 @@
 .feature-card-desc {
   font-family: 'DM Sans', sans-serif;
   font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--dimmed);
   line-height: 1.7;
   margin-bottom: 16px;
   flex-grow: 1;
@@ -282,7 +282,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--dimmed);
   text-transform: uppercase;
 }
 
@@ -298,7 +298,7 @@
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  border: 1px solid var(--border);
   position: relative;
 }
 
@@ -328,7 +328,7 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 14px;
-  border-top: 1px solid rgba(0, 212, 255, 0.1);
+  border-top: 1px solid var(--border);
   position: relative;
   z-index: 1;
 }
@@ -347,13 +347,13 @@
 }
 
 .meta-text {
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--dimmed);
   letter-spacing: 0.05em;
   transition: color 0.3s ease;
 }
 
 .product-card:hover .meta-text {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
 }
 
 /* ─── Card Arrow ─────────────────────────────────────────────────────────────── */
@@ -516,7 +516,7 @@
   line-height: 1.6;
 }
 
-/* ─── Responsive Design ────────────────────────────────────────────────────────── */
+/* ─── Responsive Design ──────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .products-section {
     padding: 100px 36px 80px;

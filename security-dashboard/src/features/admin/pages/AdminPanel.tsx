@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiClient } from '../../../api/client';
+import './AdminPanel.css';
 
-interface Project {
-  id: number;
-  name: string;
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Project { id: number; name: string; }
 
 interface User {
   id: number;
@@ -14,6 +14,12 @@ interface User {
   status: string;
   projects: Project[];
   created_at?: string;
+  last_login?: string | null;
+  avatar_url?: string | null;
+  locked_until?: string | null;
+  failed_login_attempts?: number;
+  job_title?: string | null;
+  department?: string | null;
 }
 
 interface Stats {
@@ -27,30 +33,117 @@ interface Stats {
   projects: { total: number };
 }
 
+// ── Helper : extraire message d'erreur API ────────────────────────────────────
+
+function extractError(err: any): string {
+  const detail = err?.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    return detail.map((e: any) => {
+      const field = e.loc?.slice(1).join('.') || '';
+      return field ? `${field}: ${e.msg}` : e.msg;
+    }).join(' · ');
+  }
+  if (typeof detail === 'string') return detail;
+  return err?.message || 'Une erreur est survenue';
+}
+
+// ── Helper : est-ce que le compte est verrouillé ? ────────────────────────────
+
+function isLocked(user: User): boolean {
+  return !!(user.locked_until && new Date(user.locked_until) > new Date());
+}
+
+function minutesLeft(user: User): number {
+  if (!user.locked_until) return 0;
+  return Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 60000);
+}
+
+// ── Helper : formater date ────────────────────────────────────────────────────
+
+function fmt(iso?: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// ── Export CSV via apiClient (token dans header, pas dans l'URL) ──────────────
+
+async function downloadCSV() {
+  const res = await apiClient.get('/admin/users/export', { responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([res.data]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'users_export.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPOSANT PRINCIPAL
+// ═════════════════════════════════════════════════════════════════════════════
+
+function UserAvatar({ user }: { user: User }) {
+  const [imgError, setImgError] = useState(false);
+  const initials = user.username.slice(0, 2).toUpperCase();
+  const colors: Record<string, string> = {
+    admin:     'linear-gradient(135deg, #ef4444, #dc2626)',
+    manager:   'linear-gradient(135deg, #eab308, #ca8a04)',
+    analyst:   'linear-gradient(135deg, #6366f1, #4f46e5)',
+    developer: 'linear-gradient(135deg, #22c55e, #16a34a)',
+  };
+  const base = {
+    width: 36, height: 36,
+    borderRadius: '50%',
+    border: '2px solid var(--border)',
+    flexShrink: 0 as const,
+  };
+
+  if (user.avatar_url && !imgError) {
+    return (
+      <img
+        src={user.avatar_url}
+        alt={user.username}
+        style={{ ...base, objectFit: 'cover' as const }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      ...base,
+      background: colors[user.role] || colors.developer,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 13, fontWeight: 700, color: '#fff',
+    }}>
+      {initials}
+    </div>
+  );
+}
+
 export default function AdminPanel() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  // Recherche & filtres
-  const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('');
+  const [users,        setUsers]        = useState<User[]>([]);
+  const [allProjects,  setAllProjects]  = useState<Project[]>([]);
+  const [stats,        setStats]        = useState<Stats | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
+  const [search,       setSearch]       = useState('');
+  const [filterRole,   setFilterRole]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-
-  // Modales
+  const [actionMsg,    setActionMsg]    = useState<{ text: string; type: 'ok' | 'err' }>({ text: '', type: 'ok' });
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [assigning, setAssigning] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'developer' });
-  const [actionMsg, setActionMsg] = useState('');
+  const [assigning,    setAssigning]    = useState(false);
+  const [resetting,    setResetting]    = useState(false);
+  const [newPassword,  setNewPassword]  = useState('');
+  const [creating,     setCreating]     = useState(false);
+  const [newUser,      setNewUser]      = useState({
+    username: '', email: '', password: '', role: 'developer'
+  });
 
-  // ── Chargement ────────────────────────────────────────────────────────────
-
-  const fetchAll = async () => {
+  // ── Fetch ───────────────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
       const [usersRes, projectsRes, statsRes] = await Promise.all([
@@ -61,232 +154,267 @@ export default function AdminPanel() {
       setUsers(usersRes.data);
       setAllProjects(projectsRes.data);
       setStats(statsRes.data);
-    } catch (err: any) {
+    } catch {
       setError('Impossible de charger les données.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const notify = (msg: string) => {
-    setActionMsg(msg);
-    setTimeout(() => setActionMsg(''), 3000);
-  };
+  // ── Toast ───────────────────────────────────────────────────────────────────
+  const notify = useCallback((text: string, type: 'ok' | 'err' = 'ok') => {
+    setActionMsg({ text, type });
+    setTimeout(() => setActionMsg({ text: '', type: 'ok' }), 3500);
+  }, []);
 
-  // ── Filtrage local ────────────────────────────────────────────────────────
-
+  // ── Filtres ─────────────────────────────────────────────────────────────────
   const filteredUsers = users.filter(u => {
+    const q = search.toLowerCase();
     const matchSearch = !search ||
-      u.username.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
-    const matchRole = !filterRole || u.role === filterRole;
+      u.username.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q);
+    const matchRole   = !filterRole   || u.role   === filterRole;
     const matchStatus = !filterStatus || u.status === filterStatus;
     return matchSearch && matchRole && matchStatus;
   });
 
-  // ── Actions utilisateurs ──────────────────────────────────────────────────
-
+  // ── Actions ─────────────────────────────────────────────────────────────────
   const approveUser = async (id: number) => {
-    await apiClient.post(`/admin/users/${id}/approve`);
-    notify('Utilisateur approuvé ✓');
-    fetchAll();
+    try {
+      await apiClient.post(`/admin/users/${id}/approve`);
+      notify('Utilisateur approuvé ✓'); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const blockUser = async (id: number) => {
-    await apiClient.post(`/admin/users/${id}/block`);
-    notify('Utilisateur bloqué ✓');
-    fetchAll();
+    try {
+      await apiClient.post(`/admin/users/${id}/block`);
+      notify('Utilisateur bloqué ✓'); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const unblockUser = async (id: number) => {
-    await apiClient.post(`/admin/users/${id}/unblock`);
-    notify('Utilisateur débloqué ✓');
-    fetchAll();
+    try {
+      await apiClient.post(`/admin/users/${id}/unblock`);
+      notify('Utilisateur débloqué ✓'); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
+  };
+
+  const unlockUser = async (id: number) => {
+    try {
+      await apiClient.put(`/admin/users/${id}/unlock`);
+      notify('Compte déverrouillé ✓'); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const deleteUser = async (id: number, username: string) => {
     if (!confirm(`Supprimer définitivement "${username}" ?`)) return;
-    await apiClient.delete(`/admin/users/${id}`);
-    notify('Utilisateur supprimé ✓');
-    fetchAll();
+    try {
+      await apiClient.delete(`/admin/users/${id}`);
+      notify('Utilisateur supprimé ✓'); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const changeRole = async (id: number, newRole: string) => {
-    await apiClient.put(`/admin/users/${id}`, { role: newRole });
-    notify('Rôle mis à jour ✓');
-    fetchAll();
+    try {
+      await apiClient.put(`/admin/users/${id}`, { role: newRole });
+      notify('Rôle mis à jour ✓'); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const assignProjects = async (userId: number, projectIds: number[]) => {
     try {
       await apiClient.post(`/admin/users/${userId}/projects`, projectIds);
       notify('Projets assignés ✓');
-      setAssigning(false);
-      setSelectedUser(null);
-      fetchAll();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erreur lors de l\'assignation');
-    }
+      setAssigning(false); setSelectedUser(null); fetchAll();
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const resetPassword = async () => {
     if (!selectedUser) return;
-    if (newPassword.length < 8) { alert('Mot de passe trop court (min 8 caractères)'); return; }
+    if (newPassword.length < 8) { notify('Minimum 8 caractères', 'err'); return; }
     try {
-      await apiClient.post(`/admin/users/${selectedUser.id}/reset-password`, { new_password: newPassword });
+      await apiClient.post(`/admin/users/${selectedUser.id}/reset-password`, {
+        new_password: newPassword,
+      });
       notify('Mot de passe réinitialisé ✓');
-      setResetting(false);
-      setNewPassword('');
-      setSelectedUser(null);
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erreur');
-    }
+      setResetting(false); setNewPassword(''); setSelectedUser(null);
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
   const createUser = async () => {
     if (!newUser.username || !newUser.email || !newUser.password) {
-      alert('Tous les champs sont requis');
-      return;
+      notify('Tous les champs sont requis', 'err'); return;
     }
     try {
       await apiClient.post('/auth/register', {
         username: newUser.username,
-        email: newUser.email,
+        email:    newUser.email,
         password: newUser.password,
       });
-      // Approuver automatiquement et définir le rôle
-      const created = users.find(u => u.username === newUser.username);
-      if (created) {
-        await apiClient.post(`/admin/users/${created.id}/approve`);
-        await apiClient.put(`/admin/users/${created.id}`, { role: newUser.role });
-      }
       notify('Utilisateur créé ✓');
       setCreating(false);
       setNewUser({ username: '', email: '', password: '', role: 'developer' });
       fetchAll();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erreur lors de la création');
-    }
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
-  const exportCSV = () => {
-    window.open('http://localhost:8081/admin/users/export?token=' + localStorage.getItem('token'));
+  const exportCSV = async () => {
+    try {
+      await downloadCSV();
+      notify('Export CSV téléchargé ✓');
+    } catch (err) { notify(extractError(err), 'err'); }
   };
 
-  // ── Rendu ─────────────────────────────────────────────────────────────────
+  // ── Loading / Error ─────────────────────────────────────────────────────────
+  if (loading) return <div className="admin-loading">Chargement...</div>;
+  if (error)   return <div style={{ padding: '2rem', color: 'var(--accent2)' }}>{error}</div>;
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: '#fff' }}>
-      Chargement...
-    </div>
-  );
-
-  if (error) return (
-    <div style={{ padding: '2rem', color: '#f87171' }}>{error}</div>
-  );
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div style={{ padding: '2rem', background: '#0a0a0f', minHeight: '100vh', color: '#fff' }}>
+    <div className="admin-container">
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700 }}>🛡️ Administration</h1>
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="admin-header">
+        <h1>🛡️ Administration</h1>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => setCreating(true)} style={btnStyle('#6366f1')}>+ Nouvel utilisateur</button>
-          <button onClick={exportCSV} style={btnStyle('#0ea5e9')}>⬇ Export CSV</button>
-          <button onClick={fetchAll} style={btnStyle('#374151')}>↻ Actualiser</button>
+          <button onClick={() => setCreating(true)} className="btn-secondary">
+            + Nouvel utilisateur
+          </button>
+          <button onClick={exportCSV} className="btn-outline">⬇ Export CSV</button>
+          <button onClick={fetchAll}  className="btn-outline">↻ Actualiser</button>
         </div>
       </div>
 
-      {/* Notification */}
-      {actionMsg && (
-        <div style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', color: '#86efac', borderRadius: 8, padding: '10px 16px', marginBottom: '1rem' }}>
-          ✓ {actionMsg}
+      {/* ── Toast ───────────────────────────────────────────────────────────── */}
+      {actionMsg.text && (
+        <div className={`admin-notification ${actionMsg.type === 'err' ? 'admin-notification--err' : ''}`}>
+          {actionMsg.type === 'ok' ? '✓' : '⚠'} {actionMsg.text}
         </div>
       )}
 
-      {/* Stats */}
+      {/* ── Stats ───────────────────────────────────────────────────────────── */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: '2rem' }}>
-          <StatCard label="Total" value={stats.users.total} color="#3b82f6" />
-          <StatCard label="Actifs" value={stats.users.active} color="#22c55e" />
-          <StatCard label="En attente" value={stats.users.pending} color="#eab308" />
-          <StatCard label="Bloqués" value={stats.users.blocked} color="#ef4444" />
-          <StatCard label="Projets" value={stats.projects.total} color="#8b5cf6" />
-        </div>
-      )}
-
-      {/* Rôles */}
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '2rem' }}>
-          {Object.entries(stats.users.by_role).map(([role, count]) => (
-            <div key={role} style={{ background: '#13131a', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px' }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' }}>{role}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{count}</div>
+        <div className="stats-grid">
+          {[
+            { label: 'Total',      value: stats.users.total,    color: 'var(--accent)'  },
+            { label: 'Actifs',     value: stats.users.active,   color: 'var(--green)'   },
+            { label: 'En attente', value: stats.users.pending,  color: 'var(--accent3)' },
+            { label: 'Bloqués',    value: stats.users.blocked,  color: 'var(--accent2)' },
+            { label: 'Projets',    value: stats.projects.total, color: 'var(--purple)'  },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="stat-card" style={{ borderLeftColor: color }}>
+              <div className="stat-label">{label}</div>
+              <div className="stat-value" style={{ color }}>{value}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Filtres */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: '1.5rem' }}>
+      {/* ── Rôles ───────────────────────────────────────────────────────────── */}
+      {stats && (
+        <div className="roles-grid">
+          {Object.entries(stats.users.by_role).map(([role, count]) => (
+            <div key={role} className="role-card">
+              <div className="role-name">{role}</div>
+              <div className="role-count">{count as number}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Filtres ─────────────────────────────────────────────────────────── */}
+      <div className="filters-bar">
         <input
           placeholder="🔍 Rechercher..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={inputStyle}
+          className="admin-input"
         />
-        <select value={filterRole} onChange={e => setFilterRole(e.target.value)} style={selectStyle}>
+        <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
+          className="admin-select">
           <option value="">Tous les rôles</option>
           <option value="admin">Admin</option>
           <option value="manager">Manager</option>
           <option value="analyst">Analyst</option>
           <option value="developer">Developer</option>
         </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selectStyle}>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="admin-select">
           <option value="">Tous les statuts</option>
           <option value="active">Actif</option>
           <option value="pending">En attente</option>
           <option value="blocked">Bloqué</option>
         </select>
         {(search || filterRole || filterStatus) && (
-          <button onClick={() => { setSearch(''); setFilterRole(''); setFilterStatus(''); }} style={btnStyle('#374151')}>
+          <button
+            onClick={() => { setSearch(''); setFilterRole(''); setFilterStatus(''); }}
+            className="btn-outline"
+          >
             ✕ Réinitialiser
           </button>
         )}
       </div>
 
       {/* Compteur */}
-      <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginBottom: '1rem' }}>
+      <div style={{ color: 'var(--dimmed)', fontSize: 13, marginBottom: '1rem' }}>
         {filteredUsers.length} utilisateur{filteredUsers.length !== 1 ? 's' : ''} affiché{filteredUsers.length !== 1 ? 's' : ''}
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#13131a', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {/* ── Table ───────────────────────────────────────────────────────────── */}
+      <div className="table-container">
+        <table className="admin-table">
           <thead>
-            <tr style={{ background: '#1e1e2e' }}>
-              {['ID', 'Utilisateur', 'Email', 'Rôle', 'Statut', 'Projets', 'Actions'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+            <tr>
+              {['ID', 'Utilisateur', 'Email', 'Rôle', 'Statut', 'Sécurité', 'Projets', 'Actions'].map(h => (
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user, i) => (
-              <tr key={user.id} style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                <td style={tdStyle}>{user.id}</td>
-                <td style={tdStyle}>
-                  <div style={{ fontWeight: 600 }}>{user.username}</div>
-                  {user.created_at && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{new Date(user.created_at).toLocaleDateString('fr-FR')}</div>}
+            {filteredUsers.map(user => (
+              <tr key={user.id}>
+
+                {/* ID */}
+                <td style={{ color: 'var(--dimmed)', fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }}>
+                  #{user.id}
                 </td>
-                <td style={{ ...tdStyle, color: 'rgba(255,255,255,0.55)' }}>{user.email}</td>
-                <td style={tdStyle}>
+
+                {/* Utilisateur */}
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <UserAvatar user={user} />
+                    <div>
+                      <div className="username">{user.username}</div>
+                      {user.job_title && (
+                        <div className="date">{user.job_title}
+                          {user.department && ` · ${user.department}`}
+                        </div>
+                      )}
+                      {user.created_at && (
+                        <div className="date">
+                          Créé {new Date(user.created_at).toLocaleDateString('fr-FR')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </td>
+
+                {/* Email */}
+                <td className="email">{user.email}</td>
+
+                {/* Rôle */}
+                <td>
                   <select
                     value={user.role}
                     onChange={e => changeRole(user.id, e.target.value)}
-                    style={{ background: '#1e1e2e', border: '0.5px solid rgba(255,255,255,0.12)', color: '#fff', borderRadius: 6, padding: '4px 8px', fontSize: 13 }}
+                    className="admin-select"
+                    style={{ padding: '4px 8px', fontSize: 13 }}
                   >
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
@@ -294,55 +422,134 @@ export default function AdminPanel() {
                     <option value="developer">Developer</option>
                   </select>
                 </td>
-                <td style={tdStyle}>
-                  <span style={{
-                    padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                    background: user.status === 'active' ? 'rgba(34,197,94,0.15)' : user.status === 'pending' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)',
-                    color: user.status === 'active' ? '#86efac' : user.status === 'pending' ? '#fde047' : '#fca5a5'
-                  }}>
-                    {user.status === 'active' ? '● Actif' : user.status === 'pending' ? '◐ En attente' : '○ Bloqué'}
+
+                {/* Statut */}
+                <td>
+                  <span className={`status-badge ${user.status}`}>
+                    {user.status === 'active'  ? '● Actif'      :
+                     user.status === 'pending' ? '◐ En attente' : '○ Bloqué'}
                   </span>
                 </td>
-                <td style={tdStyle}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', maxWidth: 180 }}>
-                    {user.projects.length > 0 ? user.projects.map(p => p.name).join(', ') : <span style={{ color: 'rgba(255,255,255,0.25)' }}>Aucun</span>}
+
+                {/* ── Sécurité (colonne nouvelle) ── */}
+                <td>
+                  {isLocked(user) ? (
+                    <div className="security-cell security-cell--locked">
+                      <span className="security-icon">🔒</span>
+                      <div>
+                        <div className="security-label">Verrouillé</div>
+                        <div className="security-sub">{minutesLeft(user)} min restantes</div>
+                      </div>
+                    </div>
+                  ) : (user.failed_login_attempts ?? 0) > 0 ? (
+                    <div className="security-cell security-cell--warn">
+                      <span className="security-icon">⚠️</span>
+                      <div>
+                        <div className="security-label">{user.failed_login_attempts} échec(s)</div>
+                        <div className="security-sub">
+                          {fmt(user.last_login)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="security-cell security-cell--ok">
+                      <div className="security-label">Secured</div>
+                      <div className="security-sub">Last login: {fmt(user.last_login)}</div>
+                    </div>
+                  )}
+                </td>
+
+                {/* Projets */}
+                <td>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', maxWidth: 160 }}>
+                    {user.projects.length > 0
+                      ? user.projects.map(p => p.name).join(', ')
+                      : <span style={{ color: 'var(--dimmed)' }}>Aucun</span>
+                    }
                   </div>
-                  <button onClick={() => { setSelectedUser(user); setAssigning(true); }} style={{ fontSize: 11, color: '#818cf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 4 }}>
+                  <button
+                    onClick={() => { setSelectedUser(user); setAssigning(true); }}
+                    className="link-btn"
+                  >
                     ✎ Modifier
                   </button>
                 </td>
-                <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+
+                {/* Actions */}
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+
+                    {/* Approve si pending */}
                     {user.status === 'pending' && (
-                      <button onClick={() => approveUser(user.id)} style={btnSmall('#22c55e')}>Approuver</button>
+                      <button onClick={() => approveUser(user.id)}
+                        className="btn-small success" title="Approuver">
+                        ✓ Approuver
+                      </button>
                     )}
+
+                    {/* Block si active */}
                     {user.status === 'active' && (
-                      <button onClick={() => blockUser(user.id)} style={btnSmall('#ef4444')}>Bloquer</button>
+                      <button onClick={() => blockUser(user.id)}
+                        className="btn-small danger" title="Bloquer">
+                        Bloquer
+                      </button>
                     )}
+
+                    {/* Unblock si blocked */}
                     {user.status === 'blocked' && (
-                      <button onClick={() => unblockUser(user.id)} style={btnSmall('#eab308')}>Débloquer</button>
+                      <button onClick={() => unblockUser(user.id)}
+                        className="btn-small warning" title="Débloquer">
+                        Débloquer
+                      </button>
                     )}
-                    <button onClick={() => { setSelectedUser(user); setResetting(true); }} style={btnSmall('#6366f1')}>🔑</button>
-                    <button onClick={() => deleteUser(user.id, user.username)} style={btnSmall('#374151')}>🗑</button>
+
+                    {/* Unlock si verrouillé temporairement */}
+                    {isLocked(user) && (
+                      <button onClick={() => unlockUser(user.id)}
+                        className="btn-small warning" title="Déverrouiller">
+                        🔓 Déverrouiller
+                      </button>
+                    )}
+
+                    {/* Reset password */}
+                    <button
+                      onClick={() => { setSelectedUser(user); setResetting(true); }}
+                      className="btn-small info" title="Réinitialiser le mot de passe"
+                    >
+                      🔑
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => deleteUser(user.id, user.username)}
+                      className="btn-small delete" title="Supprimer"
+                    >
+                      🗑
+                    </button>
+
                   </div>
                 </td>
+
               </tr>
             ))}
           </tbody>
         </table>
+
         {filteredUsers.length === 0 && (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.25)' }}>
-            Aucun utilisateur trouvé
-          </div>
+          <div className="no-results">Aucun utilisateur trouvé</div>
         )}
       </div>
 
-      {/* Modal assignation projets */}
+      {/* ── Modal assignation projets ────────────────────────────────────────── */}
       {assigning && selectedUser && (
-        <Modal title={`Projets de ${selectedUser.username}`} onClose={() => { setAssigning(false); setSelectedUser(null); }}>
+        <Modal
+          title={`Projets de @${selectedUser.username}`}
+          onClose={() => { setAssigning(false); setSelectedUser(null); }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
             {allProjects.map(proj => (
-              <label key={proj.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '6px 0' }}>
+              <label key={proj.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '6px 0' }}>
                 <input
                   type="checkbox"
                   checked={selectedUser.projects.some(p => p.id === proj.id)}
@@ -354,52 +561,88 @@ export default function AdminPanel() {
                         ...prev,
                         projects: exists
                           ? prev.projects.filter(p => p.id !== proj.id)
-                          : [...prev.projects, proj]
+                          : [...prev.projects, proj],
                       };
                     });
                   }}
                 />
-                <span style={{ color: 'rgba(255,255,255,0.8)' }}>{proj.name}</span>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>#{proj.id}</span>
+                <span style={{ color: 'var(--text)' }}>{proj.name}</span>
+                <span style={{ fontSize: 11, color: 'var(--dimmed)' }}>#{proj.id}</span>
               </label>
             ))}
-            {allProjects.length === 0 && <p style={{ color: 'rgba(255,255,255,0.4)' }}>Aucun projet disponible</p>}
+            {allProjects.length === 0 && (
+              <p style={{ color: 'var(--dimmed)' }}>Aucun projet disponible</p>
+            )}
           </div>
-          <div style={{ marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--dimmed)' }}>
             {selectedUser.projects.length} projet(s) sélectionné(s)
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <button onClick={() => { setAssigning(false); setSelectedUser(null); }} style={btnStyle('#374151')}>Annuler</button>
-            <button onClick={() => assignProjects(selectedUser.id, selectedUser.projects.map(p => p.id))} style={btnStyle('#6366f1')}>Enregistrer</button>
+            <button onClick={() => { setAssigning(false); setSelectedUser(null); }}
+              className="btn-outline">Annuler</button>
+            <button
+              onClick={() => assignProjects(selectedUser.id, selectedUser.projects.map(p => p.id))}
+              className="btn-secondary">Enregistrer</button>
           </div>
         </Modal>
       )}
 
-      {/* Modal reset mot de passe */}
+      {/* ── Modal reset mot de passe ─────────────────────────────────────────── */}
       {resetting && selectedUser && (
-        <Modal title={`Réinitialiser le mot de passe de ${selectedUser.username}`} onClose={() => { setResetting(false); setSelectedUser(null); setNewPassword(''); }}>
+        <Modal
+          title={`Réinitialiser — @${selectedUser.username}`}
+          onClose={() => { setResetting(false); setSelectedUser(null); setNewPassword(''); }}
+        >
           <input
             type="password"
             placeholder="Nouveau mot de passe (min 8 caractères)"
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
-            style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+            className="admin-input"
+            style={{ width: '100%', boxSizing: 'border-box' }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <button onClick={() => { setResetting(false); setSelectedUser(null); setNewPassword(''); }} style={btnStyle('#374151')}>Annuler</button>
-            <button onClick={resetPassword} style={btnStyle('#6366f1')}>Réinitialiser</button>
+            <button
+              onClick={() => { setResetting(false); setSelectedUser(null); setNewPassword(''); }}
+              className="btn-outline">Annuler</button>
+            <button onClick={resetPassword} className="btn-secondary">Réinitialiser</button>
           </div>
         </Modal>
       )}
 
-      {/* Modal création utilisateur */}
+      {/* ── Modal création utilisateur ───────────────────────────────────────── */}
       {creating && (
         <Modal title="Créer un utilisateur" onClose={() => setCreating(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <input placeholder="Nom d'utilisateur" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
-            <input placeholder="Email" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
-            <input placeholder="Mot de passe" type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
-            <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} style={{ ...selectStyle, width: '100%' }}>
+            <input
+              placeholder="Nom d'utilisateur"
+              value={newUser.username}
+              onChange={e => setNewUser({ ...newUser, username: e.target.value })}
+              className="admin-input"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <input
+              placeholder="Email"
+              type="email"
+              value={newUser.email}
+              onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+              className="admin-input"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <input
+              placeholder="Mot de passe (min 8 caractères)"
+              type="password"
+              value={newUser.password}
+              onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+              className="admin-input"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <select
+              value={newUser.role}
+              onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+              className="admin-select"
+              style={{ width: '100%' }}
+            >
               <option value="developer">Developer</option>
               <option value="analyst">Analyst</option>
               <option value="manager">Manager</option>
@@ -407,44 +650,56 @@ export default function AdminPanel() {
             </select>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <button onClick={() => setCreating(false)} style={btnStyle('#374151')}>Annuler</button>
-            <button onClick={createUser} style={btnStyle('#6366f1')}>Créer</button>
+            <button onClick={() => setCreating(false)} className="btn-outline">Annuler</button>
+            <button onClick={createUser} className="btn-secondary">Créer</button>
           </div>
         </Modal>
       )}
+
     </div>
   );
 }
 
-// ── Composants utilitaires ────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function Modal({ title, children, onClose }: {
+  title: string; children: React.ReactNode; onClose: () => void;
+}) {
   return (
-    <div style={{ background: color + '22', border: `0.5px solid ${color}44`, borderRadius: 10, padding: '14px 18px' }}>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4, color: '#fff' }}>{value}</div>
-    </div>
-  );
-}
-
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-      <div style={{ background: '#13131a', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.5rem', width: 420, maxHeight: '80vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{title}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(0,0,0,0.75)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 50,
+      backdropFilter: 'blur(4px)',
+    }}>
+      <div style={{
+        background: 'var(--bg3)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: '1.5rem',
+        width: 440,
+        maxHeight: '80vh',
+        overflowY: 'auto',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: '1.2rem',
+        }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
+            {title}
+          </h2>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none',
+            color: 'var(--muted)', cursor: 'pointer', fontSize: 20,
+            width: 32, height: 32, display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            borderRadius: 8, transition: 'background 0.2s',
+          }}>✕</button>
         </div>
         {children}
       </div>
     </div>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const tdStyle: React.CSSProperties = { padding: '12px 16px', fontSize: 14, verticalAlign: 'middle' };
-const inputStyle: React.CSSProperties = { padding: '9px 14px', borderRadius: 8, background: '#1e1e2e', border: '0.5px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: 14, outline: 'none' };
-const selectStyle: React.CSSProperties = { padding: '9px 14px', borderRadius: 8, background: '#1e1e2e', border: '0.5px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: 14, outline: 'none' };
-const btnStyle = (bg: string): React.CSSProperties => ({ padding: '8px 16px', borderRadius: 8, background: bg, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500 });
-const btnSmall = (bg: string): React.CSSProperties => ({ padding: '4px 10px', borderRadius: 6, background: bg, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12 });

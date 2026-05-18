@@ -9,7 +9,6 @@ import {
 import { Notification, NotificationType } from '../../types/notification';
 import './NotificationBell.css';
 
-// ─── Config par type ──────────────────────────────────────────────────────────
 const typeConfig: Record<NotificationType, { emoji: string }> = {
   [NotificationType.NEW_USER]:         { emoji: '👤' },
   [NotificationType.LOGIN_FAILED]:     { emoji: '🔒' },
@@ -26,7 +25,6 @@ const formatDate = (iso: string) =>
 
 const POLL_INTERVAL_MS = 30_000;
 
-// ─── Icône cloche SVG ─────────────────────────────────────────────────────────
 const BellIcon = () => (
   <svg className="notif-bell__icon" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -34,9 +32,8 @@ const BellIcon = () => (
   </svg>
 );
 
-// ─── Composant ────────────────────────────────────────────────────────────────
 export default function NotificationBell() {
-  const { user } = useAuth();
+  const { isAdmin } = useAuth();
 
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -44,9 +41,6 @@ export default function NotificationBell() {
   const [loading,       setLoading]       = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isAdmin = user?.role === 'admin';
-
-  // ── Polling ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isAdmin) return;
     const fetchCount = async () => {
@@ -58,7 +52,6 @@ export default function NotificationBell() {
     return () => clearInterval(id);
   }, [isAdmin]);
 
-  // ── Fermer en cliquant à l'extérieur ──────────────────────────────────────
   useEffect(() => {
     if (!isAdmin) return;
     const handler = (e: MouseEvent) => {
@@ -70,10 +63,8 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, [isAdmin]);
 
-  // ── Pas admin → rien ──────────────────────────────────────────────────────
   if (!isAdmin) return null;
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleOpen = async () => {
     const nextOpen = !open;
     setOpen(nextOpen);
@@ -104,8 +95,6 @@ export default function NotificationBell() {
 
   return (
     <div ref={dropdownRef} className="notif-bell">
-
-      {/* ── Bouton cloche ──────────────────────────────────────────────────── */}
       <button
         onClick={handleOpen}
         title="Notifications"
@@ -119,15 +108,10 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* ── Dropdown ───────────────────────────────────────────────────────── */}
       {open && (
         <div className="notif-bell__dropdown">
-
-          {/* En-tête */}
           <div className="notif-bell__header">
-            <span className="notif-bell__header-title">
-              Notifications
-            </span>
+            <span className="notif-bell__header-title">Notifications</span>
             {unreadCount > 0 && (
               <button className="notif-bell__mark-all" onClick={handleMarkAll}>
                 Tout marquer lu
@@ -135,17 +119,13 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* Liste */}
           <div className="notif-bell__list">
-
             {loading && (
               <div className="notif-bell__loading">Chargement</div>
             )}
-
             {!loading && notifications.length === 0 && (
               <div className="notif-bell__empty">Aucune notification</div>
             )}
-
             {!loading && notifications.map(notif => {
               const cfg = typeConfig[notif.type] ?? { emoji: '📌' };
               const isUnread = !notif.is_read;
@@ -160,13 +140,11 @@ export default function NotificationBell() {
                   }`}
                 >
                   <span className="notif-bell__emoji">{cfg.emoji}</span>
-
                   <div className="notif-bell__content">
                     <div className="notif-bell__title">{notif.title}</div>
                     <div className="notif-bell__message">{notif.message}</div>
                     <div className="notif-bell__date">{formatDate(notif.created_at)}</div>
                   </div>
-
                   {isUnread && <span className="notif-bell__dot" />}
                 </div>
               );

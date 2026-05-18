@@ -1,41 +1,42 @@
 import { Link } from 'react-router-dom';
+import './PendingPage.css';
 
 export default function PendingPage() {
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      background: '#0a0a0f', padding: '1rem'
-    }}>
-      <div style={{
-        textAlign: 'center', maxWidth: 440,
-        background: '#13131a',
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        borderRadius: 16, padding: '2.5rem 2rem'
-      }}>
-        <div style={{ fontSize: 56, marginBottom: '1rem' }}>⏳</div>
-        <h2 style={{ margin: '0 0 12px', fontSize: 20, fontWeight: 500, color: '#fff' }}>
-          Compte en attente de validation
-        </h2>
-        <p style={{ margin: '0 0 1.5rem', color: 'rgba(255,255,255,0.5)', fontSize: 14, lineHeight: 1.7 }}>
-          Votre compte a bien été créé. Un administrateur doit valider
-          votre accès et vous affecter à vos projets avant que vous
-          puissiez vous connecter.
-        </p>
-        <div style={{
-          background: 'rgba(99,102,241,0.12)',
-          border: '0.5px solid rgba(99,102,241,0.3)',
-          borderRadius: 8, padding: '12px 16px',
-          color: '#a5b4fc', fontSize: 13,
-          marginBottom: '1.5rem', lineHeight: 1.6
-        }}>
-          💡 Vous serez notifié une fois votre compte approuvé par l'équipe sécurité.
+    <div className="pp-root">
+      <div className="pp-bg-glow" />
+
+      <div className="pp-card">
+        <div className="pp-card-top-line" />
+
+        {/* Icône */}
+        <div className="pp-icon-wrap">
+          <span className="pp-icon">⏳</span>
         </div>
-        <Link
-          to="/login"
-          style={{ color: '#818cf8', fontSize: 13, textDecoration: 'none' }}
-        >
-          ← Retour à la connexion
+
+        {/* Titre */}
+        <h2 className="pp-title">Account pending approval</h2>
+        <p className="pp-desc">
+          Your account has been created successfully. An administrator
+          must validate your access and assign you to your projects
+          before you can sign in.
+        </p>
+
+        {/* Info box */}
+        <div className="pp-info">
+          <span className="pp-info-icon">💡</span>
+          <span>You will be notified once your account is approved by the security team.</span>
+        </div>
+
+        {/* Status */}
+        <div className="pp-status">
+          <span className="pp-status-dot" />
+          <span className="pp-status-text">Awaiting administrator review</span>
+        </div>
+
+        {/* Lien retour */}
+        <Link to="/login" className="pp-back">
+          ← Back to sign in
         </Link>
       </div>
     </div>

@@ -1,0 +1,524 @@
+/* ─── Keyframes ──────────────────────────────────────────── */
+@keyframes rp-fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rp-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes rp-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rp-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(6, 103, 149, 0.4); }
+  50%       { opacity: 0.8; box-shadow: 0 0 0 6px rgba(62, 255, 160, 0); }
+}
+
+@keyframes rp-slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Root — split layout ────────────────────────────────── */
+.rp-root {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-family: var(--font-body);
+  background: var(--bg);
+}
+
+/* ══════════════════════════════════════════════════════════
+   PANEL GAUCHE — BRANDING
+══════════════════════════════════════════════════════════ */
+.rp-left {
+  position: relative;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 64px 56px;
+  overflow: hidden;
+  animation: rp-fadeIn 0.6s ease both;
+}
+
+.rp-bg-glow {
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(62, 255, 160, 0.08) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.rp-left-content {
+  position: relative;
+  z-index: 1;
+  animation: rp-fadeUp 0.7s 0.15s ease both;
+}
+
+/* ── Logo mark ───────────────────────────────────────────── */
+.rp-brand-mark {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: rgba(62, 255, 160, 0.08);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 28px;
+}
+
+/* ── Nom de la marque ────────────────────────────────────── */
+.rp-brand-name {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0 0 16px;
+  line-height: 1.1;
+}
+
+.rp-brand-name span { color: var(--green); }
+
+/* ── Description ─────────────────────────────────────────── */
+.rp-brand-desc {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.75;
+  max-width: 340px;
+  margin-bottom: 44px;
+}
+
+/* ── Steps ───────────────────────────────────────────────── */
+.rp-steps {
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 28px;
+  gap: 0;
+}
+
+.rp-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  transition: opacity 0.3s ease;
+}
+
+.rp-step--active { opacity: 1; }
+.rp-step--dim    { opacity: 0.35; }
+
+.rp-step-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--dimmed);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.rp-step--active .rp-step-num {
+  color: var(--green);
+  background: rgba(62, 255, 160, 0.08);
+  border-color: rgba(62, 255, 160, 0.25);
+}
+
+.rp-step-check { font-size: 13px; color: var(--green); }
+
+.rp-step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rp-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rp-step-desc {
+  font-size: 11.5px;
+  color: var(--dimmed);
+}
+
+.rp-step-line {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin-left: 16px;
+  transition: background 0.5s ease;
+}
+
+.rp-step-line--done { background: var(--green); }
+
+/* ── Version bas gauche ──────────────────────────────────── */
+.rp-left-version {
+  position: absolute;
+  bottom: 24px;
+  left: 56px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--dimmed);
+  text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PANEL DROIT — FORMULAIRE
+══════════════════════════════════════════════════════════ */
+.rp-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 56px;
+  background: var(--bg);
+  animation: rp-fadeIn 0.6s 0.1s ease both;
+  overflow-y: auto;
+}
+
+.rp-form-wrap {
+  width: 100%;
+  max-width: 380px;
+  animation: rp-fadeUp 0.7s 0.25s ease both;
+}
+
+/* ── Progress bar ────────────────────────────────────────── */
+.rp-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.rp-progress-track {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rp-progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rp-progress-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dimmed);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Panel (chaque étape) ────────────────────────────────── */
+.rp-panel { width: 100%; }
+
+.rp-panel--enter {
+  animation: rp-slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── En-tête formulaire ──────────────────────────────────── */
+.rp-form-header { margin-bottom: 36px; }
+
+.rp-form-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.rp-form-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Formulaire ──────────────────────────────────────────── */
+.rp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+/* ── Champ ───────────────────────────────────────────────── */
+.rp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.rp-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.rp-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── Input ───────────────────────────────────────────────── */
+.rp-input-wrap { position: relative; }
+
+.rp-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.rp-input::placeholder { color: var(--dimmed); font-size: 14px; }
+.rp-input:hover         { border-color: var(--border2); }
+
+.rp-input:focus {
+  border-color: var(--green);
+  background: var(--bg3);
+  box-shadow: 0 0 0 3px rgba(62, 255, 160, 0.10);
+}
+
+.rp-input-wrap .rp-input { padding-right: 46px; }
+
+.rp-eye-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--dimmed);
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.rp-eye-btn:hover { color: var(--muted); }
+
+/* ── Récap ───────────────────────────────────────────────── */
+.rp-recap {
+  background: rgba(62, 255, 160, 0.04);
+  border: 1px solid rgba(62, 255, 160, 0.14);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.rp-recap-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.rp-recap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rp-recap-row:last-child { border-bottom: none; }
+
+.rp-recap-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--dimmed);
+  letter-spacing: 0.06em;
+}
+
+.rp-recap-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Erreur ──────────────────────────────────────────────── */
+.rp-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 86, 104, 0.08);
+  border: 1px solid rgba(255, 86, 104, 0.28);
+  color: var(--accent2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  animation: rp-fadeUp 0.3s ease both;
+}
+
+.rp-error-icon { font-size: 15px; flex-shrink: 0; }
+
+/* ── Bouton submit ───────────────────────────────────────── */
+.rp-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.rp-btn--flex { margin-top: 0; width: 100%; }
+
+.rp-btn:hover:not(:disabled) {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(62, 255, 160, 0.30);
+}
+
+.rp-btn:active:not(:disabled) { transform: translateY(0); }
+
+.rp-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Bouton back ─────────────────────────────────────────── */
+.rp-btn-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.rp-btn-back {
+  padding: 14px 18px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.rp-btn-back:hover {
+  border-color: var(--border2);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.rp-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(26, 34, 54, 0.3);
+  border-top-color: var(--bg);
+  border-radius: 50%;
+  animation: rp-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Footer lien login ───────────────────────────────────── */
+.rp-footer-text {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.rp-footer-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.rp-footer-link:hover { opacity: 0.75; }
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .rp-root {
+    grid-template-columns: 1fr;
+  }
+
+  .rp-left {
+    padding: 48px 32px 40px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rp-brand-name { font-size: 28px; }
+  .rp-brand-desc { margin-bottom: 32px; }
+  .rp-left-version { left: 32px; }
+
+  .rp-right { padding: 48px 24px; }
+}
+
+@media (max-width: 480px) {
+  .rp-left  { padding: 36px 20px 32px; }
+  .rp-right { padding: 36px 20px; }
+  .rp-field-row { grid-template-columns: 1fr; }
+  .rp-form-title { font-size: 22px; }
+}

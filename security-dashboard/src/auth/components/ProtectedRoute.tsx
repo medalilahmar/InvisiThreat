@@ -2,12 +2,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { UserRole } from '../types/auth.types';
 
+
 interface Props {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
+  blockedRoles?: UserRole[];
 }
 
-export default function ProtectedRoute({ children, allowedRoles }: Props) {
+export default function ProtectedRoute({ children, allowedRoles , blockedRoles }: Props) {
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
 
@@ -25,6 +27,10 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (blockedRoles && blockedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {

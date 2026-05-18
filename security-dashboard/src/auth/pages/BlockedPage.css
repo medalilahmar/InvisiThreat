@@ -1,0 +1,375 @@
+/* ─── Keyframes ──────────────────────────────────────────── */
+@keyframes bp-fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bp-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes bp-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 86, 104, 0.4); }
+  50%       { opacity: 0.7; box-shadow: 0 0 0 8px rgba(255, 86, 104, 0); }
+}
+
+@keyframes bp-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ─── Root — split layout ────────────────────────────────── */
+.bp-root {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-family: var(--font-body);
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PANEL GAUCHE — BRANDING
+══════════════════════════════════════════════════════════ */
+.bp-left {
+  position: relative;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 64px 56px;
+  overflow: hidden;
+  animation: bp-fadeIn 0.6s ease both;
+}
+
+/* Glow rouge en haut à droite */
+.bp-bg-glow {
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 86, 104, 0.08) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.bp-left-content {
+  position: relative;
+  z-index: 1;
+  animation: bp-fadeUp 0.7s 0.15s ease both;
+}
+
+/* ── Logo mark ───────────────────────────────────────────── */
+.bp-brand-mark {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: rgba(255, 86, 104, 0.08);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 28px;
+}
+
+/* ── Nom de la marque ────────────────────────────────────── */
+.bp-brand-name {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0 0 16px;
+  line-height: 1.1;
+}
+
+.bp-brand-name span { color: var(--accent2); }
+
+/* ── Description ─────────────────────────────────────────── */
+.bp-brand-desc {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.75;
+  max-width: 340px;
+  margin-bottom: 36px;
+}
+
+/* ── Account box ─────────────────────────────────────────── */
+.bp-account-box {
+  padding: 20px 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 28px;
+}
+
+.bp-account-box-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dimmed);
+  margin-bottom: 14px;
+}
+
+.bp-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bp-info-row:last-child { border-bottom: none; }
+
+.bp-info-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--dimmed);
+  letter-spacing: 0.06em;
+}
+
+.bp-info-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bp-status-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent2);
+  background: rgba(255, 86, 104, 0.10);
+  border: 1px solid rgba(255, 86, 104, 0.28);
+  border-radius: 6px;
+  padding: 3px 10px;
+}
+
+/* ── Status indicator ────────────────────────────────────── */
+.bp-system-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bp-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent2);
+  animation: bp-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PANEL DROIT — CONTENU
+══════════════════════════════════════════════════════════ */
+.bp-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 56px;
+  background: var(--bg);
+  animation: bp-fadeIn 0.6s 0.1s ease both;
+  overflow-y: auto;
+}
+
+.bp-content-wrap {
+  width: 100%;
+  max-width: 380px;
+  animation: bp-fadeUp 0.7s 0.25s ease both;
+}
+
+/* ── Icône principale ────────────────────────────────────── */
+.bp-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: rgba(255, 86, 104, 0.08);
+  border: 1px solid rgba(255, 86, 104, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: 28px;
+  animation: bp-pulse 3s ease-in-out infinite;
+}
+
+/* ── Titre ───────────────────────────────────────────────── */
+.bp-form-header { margin-bottom: 32px; }
+
+.bp-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.bp-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── Section ─────────────────────────────────────────────── */
+.bp-section { margin-bottom: 28px; }
+
+.bp-section-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+/* ── Raisons ─────────────────────────────────────────────── */
+.bp-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bp-reason-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: rgba(255, 86, 104, 0.04);
+  border: 1px solid rgba(255, 86, 104, 0.12);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.bp-reason-item:hover {
+  background: rgba(255, 86, 104, 0.07);
+  border-color: rgba(255, 86, 104, 0.22);
+}
+
+.bp-reason-icon { font-size: 15px; flex-shrink: 0; }
+
+.bp-reason-text {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* ── Support ─────────────────────────────────────────────── */
+.bp-support-desc {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+
+.bp-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bp-contact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.bp-contact:hover {
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+a.bp-contact:hover {
+  color: var(--accent);
+  border-color: rgba(29, 233, 255, 0.25);
+}
+
+.bp-contact-icon { font-size: 15px; flex-shrink: 0; }
+
+/* ── Bouton logout ───────────────────────────────────────── */
+.bp-btn-logout {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent2);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  margin-bottom: 24px;
+}
+
+.bp-btn-logout:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(255, 86, 104, 0.30);
+}
+
+.bp-btn-logout:active { transform: translateY(0); }
+
+/* ── Footer ──────────────────────────────────────────────── */
+.bp-footer-text {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--dimmed);
+  text-transform: uppercase;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .bp-root {
+    grid-template-columns: 1fr;
+  }
+
+  .bp-left {
+    padding: 48px 32px 40px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .bp-brand-name { font-size: 28px; }
+  .bp-brand-desc { margin-bottom: 28px; }
+
+  .bp-right { padding: 48px 24px; }
+}
+
+@media (max-width: 480px) {
+  .bp-left  { padding: 36px 20px 32px; }
+  .bp-right { padding: 36px 20px; }
+  .bp-title { font-size: 22px; }
+}

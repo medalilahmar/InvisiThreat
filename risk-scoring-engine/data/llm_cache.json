@@ -165,5 +165,13 @@
     "confidence": 0.92,
     "from_cache": false,
     "_fallback": false
+  },
+  "a09ae5cfe3751173be3b80f5326031e9": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user<｜begin▁of▁sentence｜>,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
   }
 }

@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: invisithreat-config
+  namespace: invisithreat
+data:
+  # DefectDojo - URL mise à jour par le pipeline
+  DEFECTDOJO_URL: "http://defectdojo-external:8080"
+  DD_URL: "http://defectdojo-external:8080"
+
+  # FastAPI
+  API_HOST: "0.0.0.0"
+  API_PORT: "8081"
+  API_RELOAD: "false"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+
+  # Modèle IA
+  MODEL_PATH: "/app/models/pipeline_latest.pkl"
+  META_PATH: "/app/models/pipeline_latest_meta.json"
+
+  # Base de données (URL construite avec le secret dans le Deployment)
+  POSTGRES_HOST: "postgres-svc"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "invisithreat"
+  POSTGRES_USER: "invisithreat"
+
+  # Redis
+  REDIS_URL: "redis://redis-svc:6379/0"
+
+  # Jira
+  JIRA_PROJECT_KEY: "INV"
+
+  # CORS
+  CORS_ORIGINS: "*"
+
+  # Rate limiting
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW: "60"

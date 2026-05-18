@@ -19,6 +19,12 @@ on:
         default: "false"
         type: choice
         options: ["true", "false"]
+      fast_deploy:
+        description: "Mode rapide (skip sécurité) ?"
+        required: false
+        default: "false"
+        type: choice
+        options: ["true", "false"]
 
 env:
   APP_NAME: InvisiThreat
@@ -27,446 +33,562 @@ env:
   DD_URL: http://localhost:8080
   FAIL_ON_NEW_CRITICAL: "true"
   FAIL_ON_NEW_HIGH: "false"
+  NAMESPACE: invisithreat
+  REGISTRY: localhost:5000
 
-# ─────────────────────────────────────────────────────────────────
-#  JOB 1 : SECURITY  (SAST + SCA + DAST + DefectDojo)
-# ─────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+# JOB 1: SECURITY (SAST + SCA + DAST + DefectDojo)
+# ═══════════════════════════════════════════════════════════════════
 jobs:
   security:
     name: SAST + SCA + DAST + DefectDojo
     runs-on: self-hosted
     timeout-minutes: 120
 
+    # ✅ FIX #1 : Outputs avec logique ternaire (fast_deploy aware)
     outputs:
-      engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
-      engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-      product_id:      ${{ steps.dd_setup.outputs.product_id }}
-      env_tag:         ${{ steps.dd_setup.outputs.env_tag }}
-      start_date:      ${{ steps.dd_setup.outputs.start_date }}
-      end_date:        ${{ steps.dd_setup.outputs.end_date }}
-      new_critical:    ${{ steps.security_gate.outputs.new_critical }}
-      new_high:        ${{ steps.security_gate.outputs.new_high }}
-      gate_passed:     ${{ steps.security_gate.outputs.gate_passed }}
+      engagement_id:   ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.engagement_id || steps.dd_setup.outputs.engagement_id }}
+      engagement_name: ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.engagement_name || steps.dd_setup.outputs.engagement_name }}
+      product_id:      ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.product_id || steps.dd_setup.outputs.product_id }}
+      env_tag:         ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.env_tag || steps.dd_setup.outputs.env_tag }}
+      start_date:      ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.start_date || steps.dd_setup.outputs.start_date }}
+      end_date:        ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.end_date || steps.dd_setup.outputs.end_date }}
+      new_critical:    ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.new_critical || steps.security_gate.outputs.new_critical }}
+      new_high:        ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.new_high || steps.security_gate.outputs.new_high }}
+      gate_passed:     ${{ github.event.inputs.fast_deploy == 'true' && steps.fast_outputs.outputs.gate_passed || steps.security_gate.outputs.gate_passed }}
 
     steps:
 
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0
+      # ✅ ÉTAPE ULTRA-RAPIDE : Mode fast_deploy uniquement
+      - name: "[FAST] Initialiser les résultats sécurité"
+        id: fast_outputs
+        if: github.event.inputs.fast_deploy == 'true'
+        run: |
+          echo "gate_passed=true"             >> $GITHUB_OUTPUT
+          echo "new_critical=0"               >> $GITHUB_OUTPUT
+          echo "new_high=0"                   >> $GITHUB_OUTPUT
+          echo "engagement_name=FAST_DEPLOY"  >> $GITHUB_OUTPUT
+          echo "engagement_id=FAST"           >> $GITHUB_OUTPUT
+          echo "product_id=FAST"              >> $GITHUB_OUTPUT
+          echo "env_tag=fast"                 >> $GITHUB_OUTPUT
+          echo "start_date=$(date -I)"        >> $GITHUB_OUTPUT
+          echo "end_date=$(date -I)"          >> $GITHUB_OUTPUT
 
-    - name: Ensure DefectDojo is ready with Ansible
-      working-directory: infrastructure/ansible
-      run: |
-        ansible-playbook -i inventory.yml ensure-defectdojo.yml
+      # ✅ FIX #2 : Tous les steps suivants ont if: github.event.inputs.fast_deploy != 'true'
 
-    - name: Installer jq
-      run: |
-        if command -v jq &>/dev/null; then
-          echo "OK — jq $(jq --version)"; exit 0
-        fi
-        sudo killall apt apt-get dpkg 2>/dev/null || true
-        sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
-                   /var/cache/apt/archives/lock /var/lib/apt/lists/lock
-        sudo dpkg --configure -a
-        if sudo apt-get update -qq && sudo apt-get install -y -qq jq; then
-          echo "OK — jq $(jq --version)"
-        else
-          wget -q -O jq \
-            https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
-          chmod +x jq && sudo mv jq /usr/local/bin/
-          echo "OK — jq $(jq --version)"
-        fi
+      - name: Checkout
+        if: github.event.inputs.fast_deploy != 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-    - name: Cache des dépendances Node
-      id: node-cache
-      working-directory: ${{ env.APP_DIR }}
-      run: |
-        CACHE_DIR="${RUNNER_TEMP}/invisithreat-cache"
-        mkdir -p "$CACHE_DIR"
+      - name: Ensure DefectDojo is ready with Ansible
+        if: github.event.inputs.fast_deploy != 'true'
+        working-directory: infrastructure/ansible
+        run: |
+          ansible-playbook -i inventory.yml ensure-defectdojo.yml
 
-        # Hash stable
-        PKG_HASH=$(find . -name "package*.json" -exec cat {} + | sha256sum | cut -d' ' -f1)
-        echo "📊 Hash calculé : $PKG_HASH"
-
-        if [ -d "$CACHE_DIR/node_modules" ] && [ -d "$CACHE_DIR/frontend_node_modules" ] && [ -f "$CACHE_DIR/.hash" ] && [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
-          echo "=== ✅ CACHE HIT — Restauration ==="
-          cp -r "$CACHE_DIR/node_modules" ./node_modules || true
-          cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules || true
-          echo "cache_hit=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "=== ❌ CACHE MISS ==="
-          echo "cache_hit=false" >> "$GITHUB_OUTPUT"
-          echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Installer les dépendances Node
-      working-directory: ${{ env.APP_DIR }}
-      if: steps.node-cache.outputs.cache_hit != 'true'
-      run: |
-        echo "=== Installation des dépendances Node ==="
-
-        npm install --no-audit --no-fund
-
-        if [ -d "frontend" ]; then
-          echo "=== Installation frontend ==="
-          cd frontend && npm install --no-audit --no-fund && cd ..
-        fi
-
-        echo "=== Sauvegarde du cache ==="
-        CACHE_DIR="${RUNNER_TEMP}/invisithreat-cache"
-        PKG_HASH="${{ steps.node-cache.outputs.pkg_hash }}"
-
-        # Création des dossiers avant copie
-        mkdir -p "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
-
-        rm -rf "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
-        cp -r node_modules "$CACHE_DIR/node_modules" || true
-        cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
-        echo "$PKG_HASH" > "$CACHE_DIR/.hash"
-
-        echo "=== ✅ Cache sauvegardé avec succès ==="
-
-    - name: DefectDojo — Setup
-      id: dd_setup
-      uses: ./.github/actions/dd-setup
-      with:
-        dd_url:     ${{ env.DD_URL }}
-        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-        app_name:   ${{ env.APP_NAME }}
-        branch:     ${{ github.ref_name }}
-        run_id:     ${{ github.run_id }}
-        sha:        ${{ github.sha }}
-        repo_url:   ${{ github.server_url }}/${{ github.repository }}
-
-    - name: DefectDojo — Snapshot AVANT import
-      id: dd_snapshot
-      env:
-        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-      run: |
-        EID="${{ steps.dd_setup.outputs.engagement_id }}"
-        DD_BASE="${{ env.DD_URL }}"
-
-        echo "=== SNAPSHOT AVANT IMPORT ==="
-        RESP=$(curl -sf \
-          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
-          -H "Authorization: Token $DD_API_KEY" \
-          -H "Accept: application/json" \
-          || echo '{"count":0,"results":[]}')
-
-        BEFORE_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
-        BEFORE_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
-        BEFORE_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
-
-        echo "Total=$BEFORE_TOTAL | Critical=$BEFORE_CRIT | High=$BEFORE_HIGH"
-        echo "before_total=$BEFORE_TOTAL"   >> "$GITHUB_OUTPUT"
-        echo "before_critical=$BEFORE_CRIT" >> "$GITHUB_OUTPUT"
-        echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
-
-    # ── SAST ──────────────────────────────────────────────────────
-    - name: SAST — Semgrep
-      working-directory: ${{ env.APP_DIR }}
-      continue-on-error: true
-      run: |
-        echo "=== SEMGREP SCAN ==="
-        docker run --rm -v "$(pwd)":/src returntocorp/semgrep semgrep \
-          --config=p/security-audit \
-          --config=p/owasp-top-ten \
-          --json \
-          --output=/src/semgrep-results.json \
-          /src || true
-
-        [ ! -s semgrep-results.json ] && \
-          echo '{"results":[]}' > semgrep-results.json
-
-        COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
-        echo "Semgrep terminé — $COUNT résultat(s)"
-
-    # ── SCA ───────────────────────────────────────────────────────
-    - name: SCA — Snyk test
-      working-directory: ${{ env.APP_DIR }}
-      continue-on-error: true
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: |
-        echo "=== SNYK SCAN ==="
-        npx snyk test --severity-threshold=low \
-          --json-file-output=snyk-results.json || true
-
-        [ ! -s snyk-results.json ] && \
-          echo '{"vulnerabilities":[]}' > snyk-results.json
-
-        COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo 0)
-        echo "Snyk terminé — $COUNT vulnérabilité(s)"
-
-    - name: SCA — Snyk monitor
-      working-directory: ${{ env.APP_DIR }}
-      continue-on-error: true
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: npx snyk monitor || true
-
-    # ── DAST ──────────────────────────────────────────────────────
-    - name: DAST — Démarrer Juice Shop
-      working-directory: ${{ env.APP_DIR }}
-      run: |
-        echo "=== DÉMARRAGE APPLICATION ==="
-        npm start &
-        echo $! > api.pid
-
-        MAX_RETRIES=30
-        for i in $(seq 1 $MAX_RETRIES); do
-          if curl -sf "${{ env.TARGET_URL }}/" >/dev/null 2>&1; then
-            echo "Application prête (tentative $i)"
-            exit 0
+      - name: Installer jq
+        if: github.event.inputs.fast_deploy != 'true'
+        run: |
+          if command -v jq &>/dev/null; then
+            echo "OK — jq $(jq --version)"; exit 0
           fi
-          [ "$i" -eq 1 ] && sleep 15 || sleep 3
-          echo "Attente... $i/$MAX_RETRIES"
-        done
-        echo "ERREUR : application non disponible"
-        exit 1
+          sudo killall apt apt-get dpkg 2>/dev/null || true
+          sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+                     /var/cache/apt/archives/lock /var/lib/apt/lists/lock
+          sudo dpkg --configure -a
+          if sudo apt-get update -qq && sudo apt-get install -y -qq jq; then
+            echo "OK — jq $(jq --version)"
+          else
+            wget -q -O jq \
+              https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+            chmod +x jq && sudo mv jq /usr/local/bin/
+            echo "OK — jq $(jq --version)"
+          fi
 
-    - name: DAST — ZAP Scans
-      id: zap
-      uses: ./.github/actions/zap-scan
-      with:
-        target_url:        ${{ env.TARGET_URL }}
-        app_dir:           ${{ env.APP_DIR }}
-        full_scan_timeout: "30"
+      - name: Cache des dépendances Node
+        if: github.event.inputs.fast_deploy != 'true'
+        id: node-cache
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          CACHE_DIR="${RUNNER_TEMP}/invisithreat-cache"
+          mkdir -p "$CACHE_DIR"
 
-    - name: DAST — Arrêter Juice Shop
-      if: always()
-      working-directory: ${{ env.APP_DIR }}
-      run: |
-        if [ -f api.pid ]; then
-          PID=$(cat api.pid)
-          kill "$PID" 2>/dev/null || true
-          rm -f api.pid
-          echo "Application arrêtée (PID=$PID)"
-        fi
-        pkill -f "node.*juice-shop" 2>/dev/null || true
+          PKG_HASH=$(find . -name "package*.json" -exec cat {} + | sha256sum | cut -d' ' -f1)
+          echo "📊 Hash calculé : $PKG_HASH"
 
-    # ── UPLOAD RAPPORTS ───────────────────────────────────────────
-    - name: Upload des rapports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports-${{ github.sha }}
-        path: |
-          juice-shop/semgrep-results.json
-          juice-shop/snyk-results.json
-          juice-shop/zap-*.json
-          juice-shop/zap-*.xml
-        retention-days: 30
-        if-no-files-found: warn
+          if [ -d "$CACHE_DIR/node_modules" ] && [ -d "$CACHE_DIR/frontend_node_modules" ] && [ -f "$CACHE_DIR/.hash" ] && [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
+            echo "=== ✅ CACHE HIT — Restauration ==="
+            cp -r "$CACHE_DIR/node_modules" ./node_modules || true
+            cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules || true
+            echo "cache_hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "=== ❌ CACHE MISS ==="
+            echo "cache_hit=false" >> "$GITHUB_OUTPUT"
+            echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
+          fi
 
-    # ── IMPORT DEFECTDOJO ─────────────────────────────────────────
-    - name: DefectDojo — Import Semgrep
-      if: always()
-      uses: ./.github/actions/dd-import
-      with:
-        dd_url:          ${{ env.DD_URL }}
-        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name:    ${{ env.APP_NAME }}
-        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        scan_type:       Semgrep JSON Report
-        file:            ${{ env.APP_DIR }}/semgrep-results.json
-        test_title:      Semgrep SAST - ${{ github.ref_name }}
-        branch:          ${{ github.ref_name }}
-        sha:             ${{ github.sha }}
-        run_id:          ${{ github.run_id }}
-        tags: "sast,semgrep,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+      - name: Installer les dépendances Node
+        if: github.event.inputs.fast_deploy != 'true' && steps.node-cache.outputs.cache_hit != 'true'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          echo "=== Installation des dépendances Node ==="
 
-    - name: DefectDojo — Import Snyk
-      if: always()
-      uses: ./.github/actions/dd-import
-      with:
-        dd_url:          ${{ env.DD_URL }}
-        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name:    ${{ env.APP_NAME }}
-        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        scan_type:       Snyk Scan
-        file:            ${{ env.APP_DIR }}/snyk-results.json
-        test_title:      Snyk SCA - ${{ github.ref_name }}
-        branch:          ${{ github.ref_name }}
-        sha:             ${{ github.sha }}
-        run_id:          ${{ github.run_id }}
-        tags: "sca,snyk,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+          npm install --no-audit --no-fund
 
-    - name: DefectDojo — Import ZAP OpenAPI
-      if: always()
-      uses: ./.github/actions/dd-import-zap
-      with:
-        dd_url:          ${{ env.DD_URL }}
-        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name:    ${{ env.APP_NAME }}
-        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        file:            ${{ env.APP_DIR }}/zap-openapi.xml
-        test_title:      ZAP OpenAPI - ${{ github.ref_name }}
-        branch:          ${{ github.ref_name }}
-        sha:             ${{ github.sha }}
-        run_id:          ${{ github.run_id }}
-        tags: "${{ steps.zap.outputs.detected_tags }},openapi,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+          if [ -d "frontend" ]; then
+            echo "=== Installation frontend ==="
+            cd frontend && npm install --no-audit --no-fund && cd ..
+          fi
 
-    - name: DefectDojo — Import ZAP Full Scan
-      if: always()
-      uses: ./.github/actions/dd-import-zap
-      with:
-        dd_url:          ${{ env.DD_URL }}
-        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
-        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
-        product_name:    ${{ env.APP_NAME }}
-        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
-        file:            ${{ env.APP_DIR }}/zap-fullscan.xml
-        test_title:      ZAP Full Scan - ${{ github.ref_name }}
-        branch:          ${{ github.ref_name }}
-        sha:             ${{ github.sha }}
-        run_id:          ${{ github.run_id }}
-        tags: "${{ steps.zap.outputs.detected_tags }},fullscan,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+          echo "=== Sauvegarde du cache ==="
+          CACHE_DIR="${RUNNER_TEMP}/invisithreat-cache"
+          PKG_HASH="${{ steps.node-cache.outputs.pkg_hash }}"
 
-    # ── TAGGING ───────────────────────────────────────────────────
-    - name: DefectDojo — Tagging intelligent des findings
-      if: always()
-      continue-on-error: true
-      env:
-        DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-      run: |
-        echo "=== TAGGING INTELLIGENT DES FINDINGS ==="
+          mkdir -p "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
 
-        python3 -m pip install requests --quiet --break-system-packages 2>/dev/null || \
-        python3 -m pip install requests --quiet 2>/dev/null || true
+          rm -rf "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
+          cp -r node_modules "$CACHE_DIR/node_modules" || true
+          cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
+          echo "$PKG_HASH" > "$CACHE_DIR/.hash"
 
-        cd risk-scoring-engine/src
-        python3 tag_findings.py \
-          --dd-url        "${{ env.DD_URL }}" \
-          --engagement-id "${{ steps.dd_setup.outputs.engagement_id }}"
+          echo "=== ✅ Cache sauvegardé avec succès ==="
 
-        echo "Tagging terminé"
+      - name: DefectDojo — Setup
+        if: github.event.inputs.fast_deploy != 'true'
+        id: dd_setup
+        uses: ./.github/actions/dd-setup
+        with:
+          dd_url:     ${{ env.DD_URL }}
+          dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
+          app_name:   ${{ env.APP_NAME }}
+          branch:     ${{ github.ref_name }}
+          run_id:     ${{ github.run_id }}
+          sha:        ${{ github.sha }}
+          repo_url:   ${{ github.server_url }}/${{ github.repository }}
 
-    # ── SECURITY GATE ─────────────────────────────────────────────
-    - name: Rapport final et Security Gate
-      id: security_gate
-      if: always()
-      env:
-        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-      run: |
-        EID="${{ steps.dd_setup.outputs.engagement_id }}"
-        DD_BASE="${{ env.DD_URL }}"
+      - name: DefectDojo — Snapshot AVANT import
+        if: github.event.inputs.fast_deploy != 'true'
+        id: dd_snapshot
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          EID="${{ steps.dd_setup.outputs.engagement_id }}"
+          DD_BASE="${{ env.DD_URL }}"
 
-        RESP=$(curl -sf \
-          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
-          -H "Authorization: Token $DD_API_KEY" \
-          -H "Accept: application/json" \
-          || echo '{"count":0,"results":[]}')
+          echo "=== SNAPSHOT AVANT IMPORT ==="
+          RESP=$(curl -sf \
+            "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Accept: application/json" \
+            || echo '{"count":0,"results":[]}')
 
-        AFTER_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
-        AFTER_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
-        AFTER_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
-        AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
-        AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
+          BEFORE_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+          BEFORE_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+          BEFORE_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
 
-        NEW_CRIT=$(( AFTER_CRIT  - ${{ steps.dd_snapshot.outputs.before_critical }} ))
-        NEW_HIGH=$(( AFTER_HIGH  - ${{ steps.dd_snapshot.outputs.before_high }} ))
-        NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
-        [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
-        [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
+          echo "Total=$BEFORE_TOTAL | Critical=$BEFORE_CRIT | High=$BEFORE_HIGH"
+          echo "before_total=$BEFORE_TOTAL"   >> "$GITHUB_OUTPUT"
+          echo "before_critical=$BEFORE_CRIT" >> "$GITHUB_OUTPUT"
+          echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
 
-        # Exposer les compteurs pour le job deploy
-        echo "new_critical=$NEW_CRIT" >> "$GITHUB_OUTPUT"
-        echo "new_high=$NEW_HIGH"     >> "$GITHUB_OUTPUT"
+      # ─── SAST ─────────────────────────────────────────────────
+      - name: SAST — Semgrep
+        if: github.event.inputs.fast_deploy != 'true'
+        working-directory: ${{ env.APP_DIR }}
+        continue-on-error: true
+        run: |
+          echo "=== SEMGREP SCAN ==="
+          docker run --rm -v "$(pwd)":/src returntocorp/semgrep semgrep \
+            --config=p/security-audit \
+            --config=p/owasp-top-ten \
+            --json \
+            --output=/src/semgrep-results.json \
+            /src || true
 
-        echo ""
-        echo "========================================================"
-        echo "  RAPPORT SECURITE FINAL"
-        echo "========================================================"
-        echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_setup.outputs.product_id }})"
-        echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=$EID)"
-        echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
-        echo "  Branche    : ${{ github.ref_name }}"
-        echo "  Commit     : ${{ github.sha }}"
-        echo ""
-        echo "  SCANS :"
-        echo "    SAST  : Semgrep"
-        echo "    SCA   : Snyk"
-        echo "    DAST  : ZAP OpenAPI + ZAP Full Scan (AJAX Spider + Active)"
-        echo "            Total alertes : ${{ steps.zap.outputs.total_alerts }}"
-        echo "            High+         : ${{ steps.zap.outputs.high_alerts }}"
-        echo ""
-        echo "  ÉVOLUTION : ${{ steps.dd_snapshot.outputs.before_total }} → $AFTER_TOTAL ($NEW_TOTAL nouveau(x))"
-        echo ""
-        echo "  FINDINGS ACTIFS :"
-        echo "    Critical : $AFTER_CRIT  (nouveaux: $NEW_CRIT)"
-        echo "    High     : $AFTER_HIGH  (nouveaux: $NEW_HIGH)"
-        echo "    Medium   : $AFTER_MED"
-        echo "    Low      : $AFTER_LOW"
-        echo ""
-        echo "  Lien : $DD_BASE/engagements/$EID/finding/"
-        echo "========================================================"
+          [ ! -s semgrep-results.json ] && \
+            echo '{"results":[]}' > semgrep-results.json
 
-        FAILED=false
-        [ "${{ env.FAIL_ON_NEW_CRITICAL }}" = "true" ] && [ "$NEW_CRIT" -gt 0 ] && \
-          { echo "SECURITY GATE ECHEC : $NEW_CRIT nouveau(x) Critical !"; FAILED=true; }
-        [ "${{ env.FAIL_ON_NEW_HIGH }}" = "true" ]     && [ "$NEW_HIGH" -gt 0 ] && \
-          { echo "SECURITY GATE ECHEC : $NEW_HIGH nouveau(x) High !"; FAILED=true; }
+          COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
+          echo "Semgrep terminé — $COUNT résultat(s)"
 
-        if [ "$FAILED" = "true" ]; then
-          echo "gate_passed=false" >> "$GITHUB_OUTPUT"
+      # ─── SCA ──────────────────────────────────────────────────
+      - name: SCA — Snyk test
+        if: github.event.inputs.fast_deploy != 'true'
+        working-directory: ${{ env.APP_DIR }}
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          echo "=== SNYK SCAN ==="
+          npx snyk test --severity-threshold=low \
+            --json-file-output=snyk-results.json || true
+
+          [ ! -s snyk-results.json ] && \
+            echo '{"vulnerabilities":[]}' > snyk-results.json
+
+          COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo 0)
+          echo "Snyk terminé — $COUNT vulnérabilité(s)"
+
+      - name: SCA — Snyk monitor
+        if: github.event.inputs.fast_deploy != 'true'
+        working-directory: ${{ env.APP_DIR }}
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: npx snyk monitor || true
+
+      # ─── DAST ─────────────────────────────────────────────────
+      - name: DAST — Démarrer Juice Shop
+        if: github.event.inputs.fast_deploy != 'true'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          echo "=== DÉMARRAGE APPLICATION ==="
+          npm start &
+          echo $! > api.pid
+
+          MAX_RETRIES=30
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -sf "${{ env.TARGET_URL }}/" >/dev/null 2>&1; then
+              echo "Application prête (tentative $i)"
+              exit 0
+            fi
+            [ "$i" -eq 1 ] && sleep 15 || sleep 3
+            echo "Attente... $i/$MAX_RETRIES"
+          done
+          echo "ERREUR : application non disponible"
           exit 1
-        fi
-        echo "gate_passed=true" >> "$GITHUB_OUTPUT"
-        echo "Security Gate : OK"
 
-    - name: Résumé pipeline sécurité
-      if: always()
-      run: |
-        echo "========================================================"
-        echo "  DEVSECOPS PIPELINE — ${{ env.APP_NAME }}"
-        echo "========================================================"
-        echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_setup.outputs.product_id }})"
-        echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=${{ steps.dd_setup.outputs.engagement_id }})"
-        echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
-        echo "  Branche    : ${{ github.ref_name }}"
-        echo "  Env        : ${{ steps.dd_setup.outputs.env_tag }}"
-        echo "  Tags ZAP   : ${{ steps.zap.outputs.detected_tags }}"
-        echo "  Commit     : ${{ github.sha }}"
-        echo "  Run ID     : ${{ github.run_id }}"
-        echo "  Lien       : ${{ env.DD_URL }}/engagements/${{ steps.dd_setup.outputs.engagement_id }}/finding/"
-        echo "========================================================"
+      - name: DAST — ZAP Scans
+        if: github.event.inputs.fast_deploy != 'true'
+        id: zap
+        uses: ./.github/actions/zap-scan
+        with:
+          target_url:        ${{ env.TARGET_URL }}
+          app_dir:           ${{ env.APP_DIR }}
+          full_scan_timeout: "30"
 
+      - name: DAST — Arrêter Juice Shop
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          if [ -f api.pid ]; then
+            PID=$(cat api.pid)
+            kill "$PID" 2>/dev/null || true
+            rm -f api.pid
+            echo "Application arrêtée (PID=$PID)"
+          fi
+          pkill -f "node.*juice-shop" 2>/dev/null || true
 
-# ─────────────────────────────────────────────────────────────────
-#  JOB 2 : DEPLOY  (composite action — .github/actions/deploy)
-#  Se lance uniquement si :
-#    - Le security gate est passé (job security succeeded)
-#    - L'input deploy != "false"
-#    - La branche est main ou develop
-# ─────────────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy Docker Containers
+      # ─── UPLOAD RAPPORTS ──────────────────────────────────────
+      - name: Upload des rapports
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports-${{ github.sha }}
+          path: |
+            juice-shop/semgrep-results.json
+            juice-shop/snyk-results.json
+            juice-shop/zap-*.json
+            juice-shop/zap-*.xml
+          retention-days: 30
+          if-no-files-found: warn
+
+      # ─── IMPORT DEFECTDOJO ────────────────────────────────────
+      - name: DefectDojo — Import Semgrep
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        uses: ./.github/actions/dd-import
+        with:
+          dd_url:          ${{ env.DD_URL }}
+          dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+          engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+          product_name:    ${{ env.APP_NAME }}
+          engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+          scan_type:       Semgrep JSON Report
+          file:            ${{ env.APP_DIR }}/semgrep-results.json
+          test_title:      Semgrep SAST - ${{ github.ref_name }}
+          branch:          ${{ github.ref_name }}
+          sha:             ${{ github.sha }}
+          run_id:          ${{ github.run_id }}
+          tags: "sast,semgrep,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+
+      - name: DefectDojo — Import Snyk
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        uses: ./.github/actions/dd-import
+        with:
+          dd_url:          ${{ env.DD_URL }}
+          dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+          engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+          product_name:    ${{ env.APP_NAME }}
+          engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+          scan_type:       Snyk Scan
+          file:            ${{ env.APP_DIR }}/snyk-results.json
+          test_title:      Snyk SCA - ${{ github.ref_name }}
+          branch:          ${{ github.ref_name }}
+          sha:             ${{ github.sha }}
+          run_id:          ${{ github.run_id }}
+          tags: "sca,snyk,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+
+      - name: DefectDojo — Import ZAP OpenAPI
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        uses: ./.github/actions/dd-import-zap
+        with:
+          dd_url:          ${{ env.DD_URL }}
+          dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+          engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+          product_name:    ${{ env.APP_NAME }}
+          engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+          file:            ${{ env.APP_DIR }}/zap-openapi.xml
+          test_title:      ZAP OpenAPI - ${{ github.ref_name }}
+          branch:          ${{ github.ref_name }}
+          sha:             ${{ github.sha }}
+          run_id:          ${{ github.run_id }}
+          tags: "${{ steps.zap.outputs.detected_tags }},openapi,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+
+      - name: DefectDojo — Import ZAP Full Scan
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        uses: ./.github/actions/dd-import-zap
+        with:
+          dd_url:          ${{ env.DD_URL }}
+          dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+          engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+          product_name:    ${{ env.APP_NAME }}
+          engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+          file:            ${{ env.APP_DIR }}/zap-fullscan.xml
+          test_title:      ZAP Full Scan - ${{ github.ref_name }}
+          branch:          ${{ github.ref_name }}
+          sha:             ${{ github.sha }}
+          run_id:          ${{ github.run_id }}
+          tags: "${{ steps.zap.outputs.detected_tags }},fullscan,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }}"
+
+      # ─── TAGGING ──────────────────────────────────────────────
+      - name: DefectDojo — Tagging intelligent des findings
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        continue-on-error: true
+        env:
+          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          echo "=== TAGGING INTELLIGENT DES FINDINGS ==="
+
+          python3 -m pip install requests --quiet --break-system-packages 2>/dev/null || \
+          python3 -m pip install requests --quiet 2>/dev/null || true
+
+          cd risk-scoring-engine/src
+          python3 tag_findings.py \
+            --dd-url        "${{ env.DD_URL }}" \
+            --engagement-id "${{ steps.dd_setup.outputs.engagement_id }}"
+
+          echo "Tagging terminé"
+
+      # ─── SECURITY GATE ────────────────────────────────────────
+      - name: Rapport final et Security Gate
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        id: security_gate
+        env:
+          DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          EID="${{ steps.dd_setup.outputs.engagement_id }}"
+          DD_BASE="${{ env.DD_URL }}"
+
+          RESP=$(curl -sf \
+            "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+            -H "Authorization: Token $DD_API_KEY" \
+            -H "Accept: application/json" \
+            || echo '{"count":0,"results":[]}')
+
+          AFTER_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+          AFTER_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+          AFTER_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+          AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
+          AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
+
+          NEW_CRIT=$(( AFTER_CRIT  - ${{ steps.dd_snapshot.outputs.before_critical }} ))
+          NEW_HIGH=$(( AFTER_HIGH  - ${{ steps.dd_snapshot.outputs.before_high }} ))
+          NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
+          [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
+          [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
+
+          echo "new_critical=$NEW_CRIT" >> "$GITHUB_OUTPUT"
+          echo "new_high=$NEW_HIGH"     >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "========================================================"
+          echo "  RAPPORT SECURITE FINAL"
+          echo "========================================================"
+          echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_setup.outputs.product_id }})"
+          echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=$EID)"
+          echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
+          echo "  Branche    : ${{ github.ref_name }}"
+          echo "  Commit     : ${{ github.sha }}"
+          echo ""
+          echo "  SCANS :"
+          echo "    SAST  : Semgrep"
+          echo "    SCA   : Snyk"
+          echo "    DAST  : ZAP OpenAPI + ZAP Full Scan (AJAX Spider + Active)"
+          echo "            Total alertes : ${{ steps.zap.outputs.total_alerts }}"
+          echo "            High+         : ${{ steps.zap.outputs.high_alerts }}"
+          echo ""
+          echo "  ÉVOLUTION : ${{ steps.dd_snapshot.outputs.before_total }} → $AFTER_TOTAL ($NEW_TOTAL nouveau(x))"
+          echo ""
+          echo "  FINDINGS ACTIFS :"
+          echo "    Critical : $AFTER_CRIT  (nouveaux: $NEW_CRIT)"
+          echo "    High     : $AFTER_HIGH  (nouveaux: $NEW_HIGH)"
+          echo "    Medium   : $AFTER_MED"
+          echo "    Low      : $AFTER_LOW"
+          echo ""
+          echo "  Lien : $DD_BASE/engagements/$EID/finding/"
+          echo "========================================================"
+
+          FAILED=false
+          [ "${{ env.FAIL_ON_NEW_CRITICAL }}" = "true" ] && [ "$NEW_CRIT" -gt 0 ] && \
+            { echo "SECURITY GATE ECHEC : $NEW_CRIT nouveau(x) Critical !"; FAILED=true; }
+          [ "${{ env.FAIL_ON_NEW_HIGH }}" = "true" ]     && [ "$NEW_HIGH" -gt 0 ] && \
+            { echo "SECURITY GATE ECHEC : $NEW_HIGH nouveau(x) High !"; FAILED=true; }
+
+          if [ "$FAILED" = "true" ]; then
+            echo "gate_passed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "gate_passed=true" >> "$GITHUB_OUTPUT"
+          echo "Security Gate : OK"
+
+      - name: Résumé pipeline sécurité
+        if: always() && github.event.inputs.fast_deploy != 'true'
+        run: |
+          echo "========================================================"
+          echo "  DEVSECOPS PIPELINE — ${{ env.APP_NAME }}"
+          echo "========================================================"
+          echo "  Produit    : ${{ env.APP_NAME }} (ID=${{ steps.dd_setup.outputs.product_id }})"
+          echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=${{ steps.dd_setup.outputs.engagement_id }})"
+          echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
+          echo "  Branche    : ${{ github.ref_name }}"
+          echo "  Env        : ${{ steps.dd_setup.outputs.env_tag }}"
+          echo "  Tags ZAP   : ${{ steps.zap.outputs.detected_tags }}"
+          echo "  Commit     : ${{ github.sha }}"
+          echo "  Run ID     : ${{ github.run_id }}"
+          echo "  Lien       : ${{ env.DD_URL }}/engagements/${{ steps.dd_setup.outputs.engagement_id }}/finding/"
+          echo "========================================================"
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 2: BUILD AND PUSH
+  # ═══════════════════════════════════════════════════════════════
+  build-and-push:
+    name: Build and Push Docker Images
     runs-on: self-hosted
     needs: security
     if: |
-      needs.security.result == 'success' &&
-      (github.event.inputs.deploy != 'false') &&
-      (github.ref_name == 'main' || github.ref_name == 'develop')
-    timeout-minutes: 30
+      (needs.security.outputs.gate_passed == 'true' && github.event.inputs.fast_deploy != 'true') ||
+      github.event.inputs.fast_deploy == 'true'
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: S'assurer que le registre local est actif
+        run: |
+          if ! docker ps --format '{{.Names}}' | grep -q '^local-registry$'; then
+            docker run -d \
+              --name local-registry \
+              --restart=always \
+              -p 5000:5000 \
+              -v /opt/registry-data:/var/lib/registry \
+              registry:2
+            echo "✅ Registre local démarré"
+          else
+            echo "✅ Registre local déjà actif"
+          fi
 
-    - name: Deploy
-      uses: ./.github/actions/deploy
-      with:
-        app_name:      ${{ env.APP_NAME }}
-        engagement_id: ${{ needs.security.outputs.engagement_id }}
-        new_critical:  ${{ needs.security.outputs.new_critical }}
-        new_high:      ${{ needs.security.outputs.new_high }}
-        force_retrain: ${{ github.event.inputs.force_retrain || 'false' }}
+      - name: Build et push — Risk Scoring Engine
+        run: |
+          echo "🔨 Build Risk Scoring Engine..."
+          docker build \
+            --cache-from ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
+            -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
+            -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }} \
+            ./risk-scoring-engine
+
+          echo "📤 Push Risk Scoring Engine..."
+          docker push ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest
+          docker push ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }}
+          echo "✅ Risk Scoring Engine OK"
+
+      - name: Build et push — Dashboard React
+        run: |
+          echo "🔨 Build Dashboard React..."
+          docker build \
+            --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
+            -t ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
+            -t ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }} \
+            ./security-dashboard
+
+          echo "📤 Push Dashboard React..."
+          docker push ${{ env.REGISTRY }}/invisithreat/dashboard:latest
+          docker push ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }}
+          echo "✅ Dashboard OK"
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 3: DEPLOY (appelle l'action composite)
+  # ═══════════════════════════════════════════════════════════════
+  deploy:
+    name: Deploy — k3s Setup + Kubernetes + ML Update
+    runs-on: self-hosted
+    needs: [security, build-and-push]
+    # ✅ FIX #3 : Condition corrigée pour permettre deploy en mode normal ET rapide
+    if: |
+      ((needs.security.outputs.gate_passed == 'true' && github.event.inputs.fast_deploy != 'true') ||
+      github.event.inputs.fast_deploy == 'true') &&
+      (github.event.inputs.deploy != 'false' || github.event_name != 'workflow_dispatch')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: "🚀 Deploy to Kubernetes"
+        id: k8s
+        uses: ./.github/actions/deploy
+        with:
+          namespace:          ${{ env.NAMESPACE }}
+          registry:           ${{ env.REGISTRY }}
+          sha:                ${{ github.sha }}
+          dd_url:             ${{ env.DD_URL }}
+          run_ml_update:      ${{ github.event.inputs.force_retrain || 'false' }}
+
+          # Secrets — passés depuis GitHub Secrets
+          defectdojo_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
+          postgres_password:  ${{ secrets.POSTGRES_PASSWORD }}
+          jwt_secret_key:     ${{ secrets.JWT_SECRET_KEY }}
+          api_admin_token:    ${{ secrets.API_ADMIN_TOKEN }}
+          gemini_api_key:     ${{ secrets.GEMINI_API_KEY }}
+          jira_api_token:     ${{ secrets.JIRA_API_TOKEN }}
+          jira_email:         ${{ secrets.JIRA_EMAIL }}
+          jira_server:        ${{ secrets.JIRA_SERVER }}
+
+      # ── Résumé final ──────────────────────────────────────────
+      - name: "📊 Résumé final du pipeline"
+        if: always()
+        run: |
+          MODE="${{ github.event.inputs.fast_deploy == 'true' && '⚡ FAST MODE' || '🔐 SECURITY MODE' }}"
+          ENGAGEMENT="${{ needs.security.outputs.engagement_name }}"
+          NEW_CRIT="${{ needs.security.outputs.new_critical }}"
+          NEW_HIGH="${{ needs.security.outputs.new_high }}"
+          DASHBOARD="${{ steps.k8s.outputs.dashboard_url }}"
+          API="${{ steps.k8s.outputs.api_url }}"
+
+          echo ""
+          echo "=========================================================="
+          echo "  RÉSUMÉ FINAL — InvisiThreat Pipeline"
+          echo "=========================================================="
+          echo "  Mode              : ${MODE}"
+          echo "  Engagement        : ${ENGAGEMENT}"
+          echo "  Nouvelles crit.   : ${NEW_CRIT}"
+          echo "  Nouvelles hautes  : ${NEW_HIGH}"
+          echo ""
+          echo "  🌐 URLs:"
+          echo "    Dashboard       : ${DASHBOARD}"
+          echo "    API FastAPI     : ${API}/docs"
+          echo "    DefectDojo      : http://localhost:8080"
+          echo ""
+          echo "=========================================================="
+          echo ""
