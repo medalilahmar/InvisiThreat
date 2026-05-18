@@ -65,10 +65,10 @@ jobs:
         run: |
           echo "🔨 Build Risk Scoring Engine..."
 
-          export DOCKER_BUILDKIT=1
+          # Désactiver BuildKit — utiliser le cache Docker classique
+          export DOCKER_BUILDKIT=0
 
           docker build \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
             -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
             -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }} \
@@ -94,10 +94,10 @@ jobs:
         run: |
           echo "🔨 Build Dashboard React..."
 
-          export DOCKER_BUILDKIT=1
+          # Désactiver BuildKit — utiliser le cache Docker classique
+          export DOCKER_BUILDKIT=0
 
           docker build \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
             -t ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
             -t ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }} \
