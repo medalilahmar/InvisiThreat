@@ -9,7 +9,7 @@ COPY . .
 
 # L'API est proxifiée par nginx sur le même port
 # donc VITE_API_URL = chemin relatif via nginx
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=
 ARG VITE_APP_NAME=InvisiThreat
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_NAME=$VITE_APP_NAME

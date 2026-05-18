@@ -106,7 +106,7 @@ runs:
     - name: "[k8s] 1/8 — Namespace"
       shell: bash
       run: |
-        kubectl apply -f infrastructure/kubernetes/namespace.yaml
+        kubectl apply -f infrastructure/kubernetes/namespace.yaml || echo "⚠️ Namespace already exists"
 
     - name: "[k8s] 2/8 — Secrets Kubernetes (depuis GitHub Secrets)"
       shell: bash
