@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # copiés AVANT lui ont changé. Tant que requirements.txt est identique,
 # le pip install ne sera JAMAIS réexécuté, même si src/ change.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=300 -r requirements.txt
 
 # ── Code source (copié EN DERNIER pour maximiser le cache) ────
 # Ce layer est invalidé à chaque modification de src/
