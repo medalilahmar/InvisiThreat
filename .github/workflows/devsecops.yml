@@ -64,13 +64,17 @@ jobs:
       - name: Build et push — Risk Scoring Engine
         run: |
           echo "🔨 Build Risk Scoring Engine..."
+
+          export DOCKER_BUILDKIT=1
+
           docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
             -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
             -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }} \
             ./risk-scoring-engine 2>&1 | tee build-rse.log
 
-          BUILD_STATUS=$?
+          BUILD_STATUS=${PIPESTATUS[0]}
           if [ $BUILD_STATUS -ne 0 ]; then
             echo "❌ Build Risk Scoring Engine échoué"
             cat build-rse.log
@@ -89,13 +93,17 @@ jobs:
       - name: Build et push — Dashboard React
         run: |
           echo "🔨 Build Dashboard React..."
+
+          export DOCKER_BUILDKIT=1
+
           docker build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
             -t ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
             -t ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }} \
             ./security-dashboard 2>&1 | tee build-dashboard.log
 
-          BUILD_STATUS=$?
+          BUILD_STATUS=${PIPESTATUS[0]}
           if [ $BUILD_STATUS -ne 0 ]; then
             echo "❌ Build Dashboard échoué"
             cat build-dashboard.log
