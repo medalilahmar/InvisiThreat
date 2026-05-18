@@ -1,6 +1,10 @@
 name: DevSecOps Pipeline - InvisiThreat (FAST MODE - Testing)
 
 on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
       force_retrain:
