@@ -14,9 +14,7 @@ import {
 
 type Tab = 'overview' | 'trends' | 'products' | 'performance';
 
-const SEV_COLORS: Record<string, string> = {
-  Critical: '#ff4757', High: '#ff6b35', Medium: '#ffd32a', Low: '#2ed573', Info: '#95a5a6',
-};
+
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -39,7 +37,6 @@ export default function AnalyticsPage() {
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
   const { data: productData, isLoading: productLoading } = useProductAnalytics(selectedProduct);
 
-  const isFullAccess = ['admin', 'analyst'].includes(user?.role || '');
 
   if (isLoading) return (
     <div style={pageStyle}>

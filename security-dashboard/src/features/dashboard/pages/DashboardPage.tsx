@@ -1,6 +1,6 @@
 import { useDashboardData } from '../hooks/useDashboardData';
 import { Link } from 'react-router-dom';
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid

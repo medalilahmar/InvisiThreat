@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { login as doLogin } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
-import { LoginError } from '../types/auth.types';
 import './LoginPage.css';
 
 export default function LoginPage() {
