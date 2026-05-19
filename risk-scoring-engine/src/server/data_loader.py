@@ -35,6 +35,7 @@ class LocalDataLoader:
             return False
         try:
             self.df_findings = pd.read_csv(self.csv_path, low_memory=False)
+            
             logger.info(
                 f"[LocalDataLoader] CSV chargé : "
                 f"{len(self.df_findings)} findings, "
@@ -81,6 +82,8 @@ class LocalDataLoader:
             {
                 "id":               p["id"],
                 "name":             p["name"],
+                "description":      p.get("description", None),  # ← AJOUTE
+                "created":          p.get("created",     None),  # ← AJOUTE
                 "engagement_count": len(p.get("engagements", [])),
             }
             for p in self.products.values()
@@ -132,13 +135,16 @@ class LocalDataLoader:
 
             # Produits
             for _, row in (
-                self.df_findings[["product_id", "product_name"]].drop_duplicates().iterrows()
+                self.df_findings[["product_id", "product_name", "created"]].drop_duplicates().iterrows()
             ):
                 prod_id = int(row["product_id"])
                 self.products[prod_id] = {
                     "id":          prod_id,
                     "name":        row["product_name"],
                     "engagements": set(),
+                    "description": None,
+                    "created":     row.get("created", None),
+
                 }
 
             # Engagements

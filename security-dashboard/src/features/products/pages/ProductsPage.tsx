@@ -1,11 +1,27 @@
-import { useProducts } from '../hooks/useProducts';
+import { useProducts   } from '../hooks/useProducts';
 import { Link } from 'react-router-dom';
 import './ProductsPage.css';
-
+import { useState } from 'react';
+import { useProjectMembers } from '../hooks/useProjectMembers';
+import MembersModal from '../components/MembersModal';
 
 
 export default function ProductsPage() {
   const { data: products, isLoading, error } = useProducts();
+  const { data: membersData, loading: membersLoading, error: membersError, fetchMembers, reset } = useProjectMembers();
+  const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
+
+  const handleOpenMembers = (e: React.MouseEvent, productId: number, productName: string) => {
+    e.preventDefault();   // empêche la navigation Link
+    e.stopPropagation();
+    setSelectedProduct({ id: productId, name: productName });
+    fetchMembers(productId);
+  };
+
+  const handleCloseMembers = () => {
+    setSelectedProduct(null);
+    reset();
+  };
   
 
   // 🔥 Dynamic Risk Assessment System
@@ -220,19 +236,39 @@ export default function ProductsPage() {
                         <span className="meta-text">
                           {product.created
                             ? new Date(product.created).toLocaleDateString('fr-FR', {
-                                year: '2-digit',
-                                month: 'short',
-                                day: 'numeric'
+                                year: '2-digit', month: 'short', day: 'numeric'
                               })
                             : 'N/A'}
                         </span>
                       </div>
+
                       <div className="meta-item">
                         <span className="meta-emoji">🛡️</span>
                         <span className="meta-text" style={{ color: risk.color, fontWeight: 600 }}>
                           {product.findings_count ?? 0} findings
                         </span>
                       </div>
+
+                      {/* ← AJOUTE CE BLOC */}
+                      <div
+                        className="meta-item"
+                        onClick={(e) => handleOpenMembers(e, product.id, product.name)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <span className="meta-emoji">👥</span>
+                        <span
+                          className="meta-text"
+                          style={{
+                            color:          "#00d4ff",
+                            fontWeight:     600,
+                            textDecoration: "underline",
+                            textUnderlineOffset: "3px",
+                          }}
+                        >
+                          Voir l'équipe
+                        </span>
+                      </div>
+                      {/* ← FIN AJOUT */}
                     </div>
 
                     {/* Hover Arrow */}
@@ -243,6 +279,15 @@ export default function ProductsPage() {
           </div>
         </div>
       </section>
+      {selectedProduct && (
+        <MembersModal
+          productName={selectedProduct.name}
+          members={membersData?.members ?? []}
+          loading={membersLoading}
+          error={membersError}
+          onClose={handleCloseMembers}
+        />
+      )}
     </div>
   );
 }

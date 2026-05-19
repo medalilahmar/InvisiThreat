@@ -120,8 +120,20 @@ async def get_products(
 ) -> List[ProductResponse]:
     loader = require_local_loader()
     all_products = loader.get_products()
-    products = [ProductResponse(id=p['id'], name=p['name']) for p in all_products]
-    if accessible_ids:  # non‑admin / analyst → filtrage
+
+    products = []
+    for p in all_products:
+        pid      = p['id']
+        findings = loader.get_findings_for_product(pid)
+        products.append(ProductResponse(
+            id             = pid,
+            name           = p.get('name', ''),
+            description    = p.get('description', None),
+            created        = p.get('created', None),
+            findings_count = len(findings),
+        ))
+
+    if accessible_ids:
         products = [p for p in products if p.id in accessible_ids]
     return products
 
