@@ -9,8 +9,6 @@ spec:
       targetPort: 8080
       protocol: TCP
 ---
-# L'IP sera mise à jour dynamiquement par le pipeline
-# via kubectl patch avant chaque déploiement
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -18,6 +16,6 @@ metadata:
   namespace: invisithreat
 subsets:
   - addresses:
-      - ip: "127.0.0.1"    # sera remplacé par le pipeline avec l'IP réelle du noeud
+      - ip: "192.168.11.170"
     ports:
       - port: 8080
