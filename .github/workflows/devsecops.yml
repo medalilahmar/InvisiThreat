@@ -67,6 +67,7 @@ jobs:
 
           # Désactiver BuildKit — utiliser le cache Docker classique
           export DOCKER_BUILDKIT=0
+          
 
           docker build \
             --cache-from ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
@@ -96,6 +97,8 @@ jobs:
 
           # Désactiver BuildKit — utiliser le cache Docker classique
           export DOCKER_BUILDKIT=0
+          docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:latest 2>/dev/null || true
+          
 
           docker build \
             --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:latest \

@@ -188,7 +188,7 @@ runs:
         kubectl apply -f infrastructure/kubernetes/redis/deployment.yaml
         kubectl apply -f infrastructure/kubernetes/redis/service.yaml
         echo "Attente rollout Redis..."
-        kubectl rollout status deployment/redis -n "${NS}" --timeout=60s
+        kubectl rollout status deployment/redis -n "${NS}" --timeout=300s
 
     - name: "[k8s] 8/8 — Risk Scoring Engine + Dashboard (rolling update)"
       shell: bash

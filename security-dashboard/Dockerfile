@@ -2,13 +2,19 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# ── Layer cache npm ──────────────────────────────────────
+# Ces deux lignes DOIVENT rester ensemble et stables
+# pour que le cache soit réutilisé entre les builds
 COPY package.json package-lock.json ./
-RUN npm ci
 
+RUN npm ci --ignore-scripts && \
+    npm rebuild esbuild && \
+    npm cache clean --force
+
+# ── Code source ──────────────────────────────────────────
+# Copié APRÈS npm ci pour ne pas invalider le cache npm
 COPY . .
 
-# L'API est proxifiée par nginx sur le même port
-# donc VITE_API_URL = chemin relatif via nginx
 ARG VITE_API_URL=
 ARG VITE_APP_NAME=InvisiThreat
 ENV VITE_API_URL=$VITE_API_URL
@@ -16,6 +22,7 @@ ENV VITE_APP_NAME=$VITE_APP_NAME
 
 RUN npm run build
 
+# ── Image finale ─────────────────────────────────────────
 FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
