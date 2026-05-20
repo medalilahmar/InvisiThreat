@@ -5,11 +5,7 @@ description: >
     2. k8s-deploy  — applique tous les manifests dans le bon ordre
     3. ml-update   — copie atomique du modèle + reload API
 
-# ─────────────────────────────────────────────────────────────────
-# INPUTS
-# ─────────────────────────────────────────────────────────────────
 inputs:
-  # Kubernetes / Registry
   namespace:
     description: Namespace Kubernetes cible
     required: false
@@ -21,8 +17,6 @@ inputs:
   sha:
     description: SHA du commit (tag de l'image)
     required: true
-
-  # Secrets applicatifs (passés depuis le workflow parent)
   defectdojo_api_key:
     description: Clé API DefectDojo
     required: true
@@ -47,8 +41,6 @@ inputs:
   jira_server:
     description: URL serveur Jira
     required: true
-
-  # ML — contrôle du retrain
   run_ml_update:
     description: Exécuter fetch + preprocess + train + reload ?
     required: false
@@ -58,9 +50,6 @@ inputs:
     required: false
     default: http://localhost:8080
 
-# ─────────────────────────────────────────────────────────────────
-# OUTPUTS
-# ─────────────────────────────────────────────────────────────────
 outputs:
   node_ip:
     description: IP interne du nœud k3s
@@ -72,9 +61,6 @@ outputs:
     description: URL de l'API FastAPI
     value: ${{ steps.get_node_ip.outputs.api_url }}
 
-# ─────────────────────────────────────────────────────────────────
-# STEPS
-# ─────────────────────────────────────────────────────────────────
 runs:
   using: composite
   steps:
@@ -90,6 +76,15 @@ runs:
         echo "::group::Ansible k3s install"
         ansible-playbook -i inventory.yml playbook-k3s-install.yml
         echo "::endgroup::"
+
+    # ✅ ÉTAPE AJOUTÉE — configure kubectl après l'installation k3s
+    - name: "[k3s] Configurer kubectl"
+      shell: bash
+      run: |
+        sudo ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl
+        mkdir -p ~/.kube
+        sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+        sudo chown $(id -u):$(id -g) ~/.kube/config
 
     - name: "[k3s] Vérifier que kubectl fonctionne"
       shell: bash
@@ -144,10 +139,8 @@ runs:
       env:
         NS: ${{ inputs.namespace }}
       run: |
-        # Appliquer le service sans sélecteur + Endpoints placeholder
         kubectl apply -f infrastructure/kubernetes/external-services.yaml
 
-        # Remplacer 127.0.0.1 par l'IP réelle du nœud k3s
         NODE_IP=$(kubectl get nodes \
           -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
         echo "IP du nœud k3s : ${NODE_IP}"
@@ -184,7 +177,8 @@ runs:
         kubectl apply -f infrastructure/kubernetes/postgres/deployment.yaml
         kubectl apply -f infrastructure/kubernetes/postgres/service.yaml
         echo "Attente rollout PostgreSQL..."
-        kubectl rollout status deployment/postgres -n "${NS}" --timeout=120s
+        kubectl rollout status deployment/postgres -n "${NS}" --timeout=300s
+
 
     - name: "[k8s] 7/8 — Redis + attente ready"
       shell: bash
@@ -203,23 +197,21 @@ runs:
         REGISTRY: ${{ inputs.registry }}
         SHA:      ${{ inputs.sha }}
       run: |
-        # Risk Scoring Engine
         kubectl apply -f infrastructure/kubernetes/risk-scoring-engine/deployment.yaml
         kubectl apply -f infrastructure/kubernetes/risk-scoring-engine/service.yaml
         kubectl set image deployment/risk-scoring-engine \
           api="${REGISTRY}/invisithreat/risk-scoring-engine:${SHA}" \
           -n "${NS}"
         echo "Attente rollout Risk Scoring Engine..."
-        kubectl rollout status deployment/risk-scoring-engine -n "${NS}" --timeout=180s
+        kubectl rollout status deployment/risk-scoring-engine -n "${NS}" --timeout=300s
 
-        # Dashboard React
         kubectl apply -f infrastructure/kubernetes/dashboard/deployment.yaml
         kubectl apply -f infrastructure/kubernetes/dashboard/service.yaml
         kubectl set image deployment/dashboard \
           dashboard="${REGISTRY}/invisithreat/dashboard:${SHA}" \
           -n "${NS}"
         echo "Attente rollout Dashboard..."
-        kubectl rollout status deployment/dashboard -n "${NS}" --timeout=120s
+        kubectl rollout status deployment/dashboard -n "${NS}" --timeout=240s
 
     - name: "[k8s] Récupérer l'IP du nœud (outputs)"
       id: get_node_ip
@@ -227,7 +219,7 @@ runs:
       run: |
         NODE_IP=$(kubectl get nodes \
           -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-        echo "node_ip=${NODE_IP}"          >> $GITHUB_OUTPUT
+        echo "node_ip=${NODE_IP}"                     >> $GITHUB_OUTPUT
         echo "dashboard_url=http://${NODE_IP}:30080"  >> $GITHUB_OUTPUT
         echo "api_url=http://${NODE_IP}:30081"        >> $GITHUB_OUTPUT
 
@@ -243,7 +235,6 @@ runs:
 
     # ══════════════════════════════════════════════════════════════
     # PHASE 3 — ML RETRAIN + COPIE ATOMIQUE + RELOAD API
-    # Exécutée seulement si run_ml_update == 'true'
     # ══════════════════════════════════════════════════════════════
 
     - name: "[ml] Installer les dépendances Python"
@@ -406,4 +397,4 @@ runs:
         echo "  API FastAPI : ${API_URL}/docs"
         echo "  DefectDojo  : http://localhost:8080"
         echo "========================================================"
-        kubectl get pods -n "${NS}"
+        kubectl get pods -n "${NS}" 2>/dev/null || echo "kubectl non disponible"
