@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir --default-timeout=300 -r requirements.txt
 # mais il ne déclenche plus le pip install
 COPY src/ ./src/
 
+ENV PYTHONPATH=/app/src
+
 # ── Répertoires montés par les PVC Kubernetes ─────────────────
 RUN mkdir -p /app/models \
              /app/data/raw \
