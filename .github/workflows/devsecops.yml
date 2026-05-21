@@ -95,12 +95,31 @@ jobs:
         run: |
           echo "🔨 Build Dashboard React..."
 
-          # Désactiver BuildKit — utiliser le cache Docker classique
-          export DOCKER_BUILDKIT=1
-          docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:latest 2>/dev/null || true
-          
+          export DOCKER_BUILDKIT=0
 
+          # Pull les 2 images
+          docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:builder 2>/dev/null || true
+          docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:latest 2>/dev/null || true
+
+          # Étape 1 — build et push le stage builder
           docker build \
+            --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:builder \
+            --target builder \
+            -t ${{ env.REGISTRY }}/invisithreat/dashboard:builder \
+            ./security-dashboard 2>&1 | tee build-dashboard.log
+
+          BUILD_STATUS=${PIPESTATUS[0]}
+          if [ $BUILD_STATUS -ne 0 ]; then
+            echo "❌ Build stage builder échoué"
+            cat build-dashboard.log
+            exit 1
+          fi
+
+          docker push ${{ env.REGISTRY }}/invisithreat/dashboard:builder
+
+          # Étape 2 — build final
+          docker build \
+            --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:builder \
             --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
             -t ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
             -t ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }} \
@@ -113,10 +132,7 @@ jobs:
             exit 1
           fi
 
-          echo "📤 Push Dashboard:latest..."
           docker push ${{ env.REGISTRY }}/invisithreat/dashboard:latest
-
-          echo "📤 Push Dashboard:${{ github.sha }}..."
           docker push ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }}
 
           echo "✅ Dashboard OK"
