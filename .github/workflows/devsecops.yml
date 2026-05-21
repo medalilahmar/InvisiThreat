@@ -10,7 +10,7 @@ on:
       force_retrain:
         description: "Réentraîner le modèle ML après déploiement ?"
         required: false
-        default: "false"
+        default: "true"
         type: choice
         options: ["true", "false"]
 
