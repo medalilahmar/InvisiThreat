@@ -140,8 +140,21 @@ async def root() -> Dict[str, Any]:
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["Info"])
-async def health_check() -> HealthResponse:
+@app.get("/health", tags=["Info"])
+async def health_live() -> Dict[str, Any]:
+    """Liveness — toujours 200 si le process tourne."""
+    uptime = (datetime.now(timezone.utc) - APP_START).total_seconds()
+    mm = get_model_manager()
+    return {
+        "status":         "alive",
+        "model_ready":    mm.is_ready(),
+        "uptime_seconds": round(uptime, 1),
+    }
+
+
+@app.get("/ready", response_model=HealthResponse, tags=["Info"])
+async def health_ready() -> HealthResponse:
+    """Readiness — 503 tant que le modèle n'est pas chargé."""
     from fastapi import HTTPException
     mm = get_model_manager()
     if not mm.is_ready():

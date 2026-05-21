@@ -209,5 +209,14 @@
     "priority_note": "Immediate — This vulnerability can be actively exploited in the wild without any authentication. Leaving it unpatched even for 24 hours significantly increases the risk of a breach.",
     "from_cache": false,
     "_fallback": false
+  },
+  "5fdbb254845942a78e5183d4e229481e": {
+    "summary": "The vulnerable package 'multer' in juice-shop@19.1.1 is prone to an Uncaught Exception vulnerability due to improper handling of file upload requests.",
+    "impact": "An attacker can cause the application to crash by sending a maliciously crafted request that leads to unhandled exceptions being thrown, potentially leading to system instability and potential data loss. This could lead to a significant business impact such as service disruption or data loss.",
+    "root_cause": "The vulnerability lies in the 'makeMiddleware' function of multer package where it fails to handle certain types of file upload requests properly, leading to uncaught exceptions being thrown during processing. This could be due to a lack of proper error handling or validation checks.",
+    "exploitation_difficulty": "Easy — No special tools required; an attacker can craft a malicious request that triggers the vulnerability.",
+    "priority_note": "Immediate — The vulnerability is actively exploited in the wild and requires no authentication. Leaving it unpatched even for 24 hours significantly increases the risk of a system crash or data loss.",
+    "from_cache": false,
+    "_fallback": false
   }
 }

@@ -1,11 +1,12 @@
 import { useSearchParams, Link } from 'react-router-dom';
+import { useHashedProductId } from '../../../utils/useHashedParams';
+import { encodeId } from '../../../utils/hashId';
 import { useEngagements } from '../hooks/useEngagements';
 import './EngagementsPage.css';
 
 export default function EngagementsPage() {
-  const [searchParams] = useSearchParams();
-  const productId = searchParams.get('productId');
-  const { data: engagements, isLoading, error } = useEngagements(Number(productId));
+  const { productId, rawToken } = useHashedProductId();
+  const { data: engagements, isLoading, error } = useEngagements(productId ?? 0);
 
   if (!productId) return <div className="error">Aucun produit sélectionné.</div>;
   if (isLoading) return <div className="loading">Chargement des engagements...</div>;
@@ -23,7 +24,7 @@ export default function EngagementsPage() {
         {engagements?.map((eng) => (
           <Link
             key={eng.id}
-            to={`/findings?engagementId=${eng.id}`}
+            to={`/findings?engagementId=${encodeId(eng.id)}`}
             className="engagement-card"
           >
             <div className="engagement-card-icon">🔍</div>

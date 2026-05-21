@@ -4,6 +4,8 @@ import './ProductsPage.css';
 import { useState } from 'react';
 import { useProjectMembers } from '../hooks/useProjectMembers';
 import MembersModal from '../components/MembersModal';
+import { encodeId } from '../../../utils/hashId';
+
 
 
 export default function ProductsPage() {
@@ -166,7 +168,7 @@ export default function ProductsPage() {
                 return (
                   <Link
                     key={product.id}
-                    to={`/engagements?productId=${product.id}`}
+                    to={`/engagements?productId=${encodeId(product.id)}`}
                     className={`feature-card product-card fu${index % 7}`}
                     style={{
                       textDecoration: 'none',

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useHashedPathParam } from '../../../utils/useHashedParams';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { findingsApi } from '../../../api/services/findings';
@@ -40,10 +41,10 @@ const formatDate = (dateStr?: string) => {
 };
 
 export default function FindingDetailPage() {
-  const { id } = useParams();
+  const { id: findingId } = useHashedPathParam();
   const navigate = useNavigate();
-  const findingId = parseInt(id || '0', 10);
   const { user } = useAuth();
+  
 
 
   const [llmExplanation, setLlmExplanation]       = useState<LLMExplanation | null>(null);
@@ -60,6 +61,15 @@ export default function FindingDetailPage() {
   const [jiraState, setJiraState] = useState<JiraIntegrationState>({
     loading: false, error: null, success: false, jiraKey: null, jiraUrl: null,
   });
+
+  if (!findingId) return (
+    <div className="home-root fdp-loading-screen">
+      <div className="bg-grid" /><div className="bg-radials" />
+      <div className="fdp-error-screen">
+        <span>⚠</span> Lien invalide ou expiré.
+      </div>
+    </div>
+  );
 
   
 

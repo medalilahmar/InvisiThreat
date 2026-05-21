@@ -7,12 +7,14 @@ import { RadarRiskChart } from '../components/RadarChart';
 import { MttrChart } from '../components/MttrChart';
 import { FunnelChart } from '../components/FunnelChart';
 import { TimelineChart } from '../components/TimelineChart';
+import CodeHeatmap from "../components/CodeHeatmap";
+
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 
-type Tab = 'overview' | 'trends' | 'products' | 'performance';
+type Tab = 'overview' | 'trends' | 'products' | 'performance' | 'heatmap';
 
 
 
@@ -129,10 +131,12 @@ export default function AnalyticsPage() {
       {/* ── Tabs ───────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 4, marginBottom: '2rem' }}>
         {([
-          { key: 'overview',     label: '📊 Vue globale' },
-          { key: 'trends',       label: '📈 Tendances' },
-          { key: 'products',     label: '🏭 Par produit' },
-          { key: 'performance',  label: '⚡ Performance' },
+          { key: 'overview',     label: ' Vue globale' },
+          { key: 'trends',       label: ' Tendances' },
+          { key: 'products',     label: ' Par produit' },
+          { key: 'performance',  label: ' Performance' },
+          { key: 'heatmap', label: ' Heatmap Code' },
+
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             flex: 1, padding: '10px 16px', borderRadius: 10,
@@ -433,6 +437,75 @@ export default function AnalyticsPage() {
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{s.subtitle}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+
+      {tab === 'heatmap' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* ← AJOUTE CE SÉLECTEUR */}
+          <div style={card}>
+            <CardTitle title="Filtrer par produit (optionnel)" dot="#6366f1" />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+
+              {/* Bouton "Tous" */}
+              <button
+                onClick={() => setSelectedProduct(null)}
+                style={{
+                  padding:    '8px 14px',
+                  borderRadius: 8,
+                  background: selectedProduct === null ? '#6366f1' : 'rgba(255,255,255,0.05)',
+                  color:      selectedProduct === null ? '#fff' : 'rgba(255,255,255,0.4)',
+                  border:     `0.5px solid ${selectedProduct === null ? '#6366f1' : 'rgba(255,255,255,0.1)'}`,
+                  cursor:     'pointer',
+                  fontSize:   13,
+                }}
+              >
+                🌍 Tous les produits
+              </button>
+
+              {data.by_product.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedProduct(selectedProduct === p.id ? null : p.id)}
+                  style={{
+                    padding:    '8px 14px',
+                    borderRadius: 8,
+                    background: selectedProduct === p.id ? '#6366f1' : 'rgba(255,255,255,0.05)',
+                    color:      selectedProduct === p.id ? '#fff' : 'rgba(255,255,255,0.6)',
+                    border:     `0.5px solid ${selectedProduct === p.id ? '#6366f1' : 'rgba(255,255,255,0.1)'}`,
+                    cursor:     'pointer',
+                    fontSize:   13,
+                  }}
+                >
+                  {p.name.length > 20 ? p.name.slice(0, 20) + '…' : p.name}
+                  {p.critical > 0 && (
+                    <span style={{ marginLeft: 6, color: '#ff4757', fontWeight: 700 }}>●</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Heatmap */}
+          <div style={card}>
+            <CardTitle title="Heatmap du code source" dot="#ff4757" />
+            <p style={{ margin: '0 0 1.5rem', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+              Visualisez les fichiers les plus vulnérables de votre codebase
+              {selectedProduct && (
+                <span style={{ color: '#6366f1', marginLeft: 6 }}>
+                  — {data.by_product.find(p => p.id === selectedProduct)?.name}
+                </span>
+              )}
+            </p>
+            <CodeHeatmap
+              productName={selectedProduct
+                ? data.by_product.find(p => p.id === selectedProduct)?.name
+                : undefined
+              }
+            />
           </div>
         </div>
       )}

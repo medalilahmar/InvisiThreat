@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from auth.security import get_accessible_product_ids, get_current_user
@@ -16,6 +16,8 @@ from database.models import User
 from server.cache import get_scores_cache
 from server.dependencies import require_local_loader
 from server.utils import safe_float, safe_int, safe_str
+from collections import defaultdict
+
 
 logger = logging.getLogger("invisithreat.analytics")
 
@@ -345,6 +347,7 @@ def get_product_analytics(
     return result
 
 
+
 @router.delete("/cache")
 def clear_analytics_cache(current_user: User = Depends(get_current_user)) -> Dict:
     """Vide le cache analytics — admin seulement."""
@@ -353,3 +356,169 @@ def clear_analytics_cache(current_user: User = Depends(get_current_user)) -> Dic
     count = len(_analytics_cache)
     _analytics_cache.clear()
     return {"cleared": count, "message": "Cache analytics vidé"}
+
+
+
+
+
+@router.get("/heatmap")
+def get_code_heatmap(
+    engagement_id: Optional[int] = Query(default=None),
+    product_name:  Optional[str] = Query(default=None),
+    db:            Session       = Depends(get_db),
+    _:             object        = Depends(get_current_user)
+):
+    """
+    Retourne l'arborescence des fichiers colorée par nombre de findings.
+    Utilisé pour la heatmap du code dans le dashboard.
+    """
+
+    # Récupère les findings depuis le cache local (LocalDataLoader)
+    # ou depuis DefectDojo directement
+    try:
+        from server.dependencies import get_local_data_loader
+        loader   = get_local_data_loader()
+        findings = loader.get_all_findings()
+    except Exception:
+        return {"tree": [], "stats": {}}
+
+    # Filtre par engagement ou produit si demandé
+    if engagement_id:
+        findings = [
+            f for f in findings
+            if f.get("engagement_id") == engagement_id
+        ]
+    if product_name:
+        findings = [
+            f for f in findings
+            if f.get("product_name") == product_name
+        ]
+
+    # Groupe par file_path
+    file_stats: dict = defaultdict(lambda: {
+        "findings":  [],
+        "critical":  0,
+        "high":      0,
+        "medium":    0,
+        "low":       0,
+        "total":     0,
+        "max_score": 0.0,
+    })
+
+    for f in findings:
+        # file_path peut être NaN (float) depuis pandas/CSV
+        raw_path = f.get("file_path")
+        if raw_path is None or (isinstance(raw_path, float)):
+            path = "unknown/"
+        else:
+            path = str(raw_path).strip()
+            if not path or path in ("", "None", "null", "nan"):
+                path = "unknown/"
+
+        # severity peut aussi être NaN
+        raw_sev = f.get("severity")
+        sev = str(raw_sev).lower() if raw_sev and not isinstance(raw_sev, float) else ""
+
+        # score peut être NaN ou absent
+        try:
+            score = float(f.get("ai_risk_score_cont") or 0)
+            if score != score:  # détecte NaN
+                score = 0.0
+        except (ValueError, TypeError):
+            score = 0.0
+
+        file_stats[path]["total"]    += 1
+        file_stats[path]["max_score"] = max(
+            file_stats[path]["max_score"], score
+        )
+        file_stats[path]["findings"].append(f.get("id"))
+
+        if sev == "critical": file_stats[path]["critical"] += 1
+        elif sev == "high":   file_stats[path]["high"]     += 1
+        elif sev == "medium": file_stats[path]["medium"]   += 1
+        elif sev == "low":    file_stats[path]["low"]      += 1
+
+    # Construit l'arbre
+    def build_tree(file_stats: dict) -> list:
+        tree: dict = {}
+
+        for path, stats in file_stats.items():
+            parts = path.replace("\\", "/").split("/")
+            node  = tree
+
+            for i, part in enumerate(parts):
+                if part not in node:
+                    node[part] = {
+                        "_children": {},
+                        "_stats": {
+                            "findings": [],
+                            "critical": 0, "high": 0,
+                            "medium":   0, "low":  0,
+                            "total":    0, "max_score": 0.0,
+                            "is_file":  False,
+                            "path":     "/".join(parts[:i+1])
+                        }
+                    }
+
+                # Si c'est le dernier élément → c'est un fichier
+                if i == len(parts) - 1:
+                    node[part]["_stats"].update({
+                        **stats,
+                        "is_file": True,
+                        "path":    path
+                    })
+                else:
+                    # Accumule les stats dans les dossiers parents
+                    s = node[part]["_stats"]
+                    s["total"]    += stats["total"]
+                    s["critical"] += stats["critical"]
+                    s["high"]     += stats["high"]
+                    s["medium"]   += stats["medium"]
+                    s["low"]      += stats["low"]
+                    s["max_score"] = max(s["max_score"], stats["max_score"])
+
+                node = node[part]["_children"]
+
+        # Convertit en liste récursive
+        def to_list(node: dict, depth: int = 0) -> list:
+            result = []
+            for name, data in sorted(node.items()):
+                children = to_list(data["_children"], depth + 1)
+                result.append({
+                    "name":     name,
+                    "depth":    depth,
+                    "stats":    data["_stats"],
+                    "children": children
+                })
+            return result
+
+        return to_list(tree)
+
+    tree = build_tree(file_stats)
+
+    # Stats globales
+    total_files    = len(file_stats)
+    total_findings = sum(s["total"]    for s in file_stats.values())
+    total_critical = sum(s["critical"] for s in file_stats.values())
+
+    return {
+        "tree": tree,
+        "stats": {
+            "total_files":    total_files,
+            "total_findings": total_findings,
+            "total_critical": total_critical,
+            "top_risky_files": sorted(
+                [
+                    {
+                        "path":     path,
+                        "total":    s["total"],
+                        "critical": s["critical"],
+                        "score":    round(s["max_score"], 2)
+                    }
+                    for path, s in file_stats.items()
+                ],
+                key=lambda x: (x["critical"], x["total"]),
+                reverse=True
+            )[:10]
+        }
+    }

@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import {  useNavigate } from 'react-router-dom';
+import { useHashedEngagementId } from '../../../utils/useHashedParams';
+import { encodeId } from '../../../utils/hashId';
 import { useQuery } from '@tanstack/react-query';
 import { findingsApi } from '../../../api/services/findings';
 import { predictionsApi, PredictionRequest } from '../../../api/services/predictions';
@@ -138,7 +140,8 @@ function escHtml(str: string) {
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function FindingsPage() {
-  const [searchParams] = useSearchParams();
+  const { engagementId: parsedId } = useHashedEngagementId();
+
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
@@ -147,8 +150,6 @@ export default function FindingsPage() {
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
 
-  const engagementId = searchParams.get('engagementId');
-  const parsedId = engagementId ? parseInt(engagementId, 10) : null;
 
   const { data: rawFindings = [], isLoading: loadingFindings } = useQuery({
     queryKey: ['findings', parsedId],
@@ -393,7 +394,8 @@ export default function FindingsPage() {
                     key={f.id}
                     className="fp-row"
                     data-severity={f.severity}
-                    onClick={() => navigate(`/findings/${f.id}`)}
+                    onClick={() => navigate(`/findings/${encodeId(f.id)}`)}
+
                   >
                     <td><span className="fp-mono-id">#{f.id}</span></td>
                     <td><span className="fp-cell-title" title={f.title}>{f.title}</span></td>

@@ -86,20 +86,20 @@ spec:
               cpu: "800m"
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health        # ← toujours 200, ne tue jamais le pod
               port: 8081
-            initialDelaySeconds: 60
+            initialDelaySeconds: 30
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready         # ← 503 sans modèle = pod vivant mais trafic bloqué
               port: 8081
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 6
       volumes:
         - name: models-storage
           persistentVolumeClaim:

@@ -202,8 +202,7 @@ runs:
         kubectl set image deployment/risk-scoring-engine \
           api="${REGISTRY}/invisithreat/risk-scoring-engine:${SHA}" \
           -n "${NS}"
-        echo "Attente rollout Risk Scoring Engine..."
-        kubectl rollout status deployment/risk-scoring-engine -n "${NS}" --timeout=300s
+        echo "RSE déployé — pas d'attente readiness (modèle absent au premier run)"
 
         kubectl apply -f infrastructure/kubernetes/dashboard/deployment.yaml
         kubectl apply -f infrastructure/kubernetes/dashboard/service.yaml
@@ -289,26 +288,30 @@ runs:
           risk-scoring-engine/reports/report.html
         retention-days: 90
 
-    - name: "[ml] Attendre que le pod FastAPI soit prêt"
+    - name: "[ml] Attendre que le pod FastAPI soit vivant"
       if: inputs.run_ml_update == 'true'
       id: get_pod
       shell: bash
       env:
         NS: ${{ inputs.namespace }}
       run: |
-        kubectl wait --for=condition=ready pod \
-          -l app=risk-scoring-engine \
-          -n "${NS}" \
-          --timeout=120s
-
-        POD=$(kubectl get pods \
-          -n "${NS}" \
-          -l app=risk-scoring-engine \
-          --field-selector=status.phase=Running \
-          -o jsonpath='{.items[0].metadata.name}')
-
-        echo "pod_name=${POD}" >> $GITHUB_OUTPUT
-        echo "Pod cible : ${POD}"
+        echo "Attente que le pod RSE soit Running (liveness, pas readiness)..."
+        for i in $(seq 1 30); do
+          POD=$(kubectl get pods \
+            -n "${NS}" \
+            -l app=risk-scoring-engine \
+            --field-selector=status.phase=Running \
+            -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "${POD}" ]; then
+            echo "✅ Pod trouvé : ${POD}"
+            echo "pod_name=${POD}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "Attente... (${i}/30)"
+          sleep 10
+        done
+        echo "::error::Pod RSE introuvable après 300s"
+        exit 1
 
     - name: "[ml] Copie atomique des artefacts vers le PVC k3s"
       if: inputs.run_ml_update == 'true'
@@ -372,11 +375,11 @@ runs:
       env:
         API_URL: ${{ steps.get_node_ip.outputs.api_url }}
       run: |
-        RESPONSE=$(curl -sf "${API_URL}/health")
-        echo "Health response : ${RESPONSE}"
-        echo "${RESPONSE}" | grep -q '"model_ready":true' \
-          && echo "Modèle actif et prêt" \
-          || echo "::warning::Modèle pas encore chargé (premier démarrage ?)"
+        RESPONSE=$(curl -sf "${API_URL}/ready" || echo '{"status":"not_ready"}')
+        echo "Ready response : ${RESPONSE}"
+        echo "${RESPONSE}" | grep -q '"status":"healthy"' \
+          && echo " Modèle actif et prêt" \
+          || echo "::warning::Modèle pas encore chargé"
 
     # ══════════════════════════════════════════════════════════════
     # RÉSUMÉ FINAL (toujours affiché)
