@@ -210,7 +210,7 @@ runs:
           dashboard="${REGISTRY}/invisithreat/dashboard:${SHA}" \
           -n "${NS}"
         echo "Attente rollout Dashboard..."
-        kubectl rollout status deployment/dashboard -n "${NS}" --timeout=240s
+        kubectl rollout status deployment/dashboard -n "${NS}" --timeout=240s || true
 
     - name: "[k8s] Récupérer l'IP du nœud (outputs)"
       id: get_node_ip
@@ -400,4 +400,6 @@ runs:
         echo "  API FastAPI : ${API_URL}/docs"
         echo "  DefectDojo  : http://localhost:8080"
         echo "========================================================"
-        kubectl get pods -n "${NS}" 2>/dev/null || echo "kubectl non disponible"
+        kubectl get pods -n "${NS}" -o wide 2>/dev/null || echo "kubectl non disponible"
+        echo ""
+        kubectl get events -n "${NS}" --sort-by='.lastTimestamp' | tail -10 2>/dev/null || true

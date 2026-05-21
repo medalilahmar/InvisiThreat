@@ -4,8 +4,7 @@ import {
   AuthUser, TokenResponse, LoginError
 } from '../types/auth.types';
 
-const BASE_URL = 'http://localhost:8081';
-
+const BASE_URL = import.meta.env.VITE_API_URL || '';
 // ─── LocalStorage (inchangé) ──────────────────────────────────────────────────
 
 export const saveToken    = (t: string)   => localStorage.setItem('token', t);

@@ -96,7 +96,7 @@ jobs:
           echo "🔨 Build Dashboard React..."
 
           # Désactiver BuildKit — utiliser le cache Docker classique
-          export DOCKER_BUILDKIT=0
+          export DOCKER_BUILDKIT=1
           docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:latest 2>/dev/null || true
           
 
