@@ -182,7 +182,7 @@ jobs:
           registry:           ${{ env.REGISTRY }}
           sha:                ${{ github.sha }}
           dd_url:             ${{ env.DD_URL }}
-          run_ml_update:      ${{ github.event.inputs.force_retrain || 'false' }}
+          run_ml_update:      ${{ github.event.inputs.force_retrain || 'true' }}
 
           # Secrets — passés depuis GitHub Secrets
           defectdojo_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
