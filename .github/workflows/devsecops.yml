@@ -36,9 +36,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: "🔍 Vérifier les Dockerfiles"
+      - name: " Vérifier les Dockerfiles"
         run: |
-          echo "📋 Fichiers Docker détectés :"
+          echo " Fichiers Docker détectés :"
           find . -name "Dockerfile" -type f
           ls -lah ./risk-scoring-engine/
           ls -lah ./security-dashboard/
@@ -46,7 +46,7 @@ jobs:
       - name: S'assurer que le registre local est actif
         run: |
           if ! docker ps --format '{{.Names}}' | grep -q '^local-registry$'; then
-            echo "🚀 Démarrage du registre Docker local..."
+            echo " Démarrage du registre Docker local..."
             docker run -d \
               --name local-registry \
               --restart=always \
@@ -54,16 +54,16 @@ jobs:
               -v /opt/registry-data:/var/lib/registry \
               registry:2
             sleep 2
-            echo "✅ Registre local démarré"
+            echo " Registre local démarré"
           else
-            echo "✅ Registre local déjà actif"
+            echo " Registre local déjà actif"
           fi
           
           docker ps | grep local-registry
 
       - name: Build et push — Risk Scoring Engine
         run: |
-          echo "🔨 Build Risk Scoring Engine..."
+          echo " Build Risk Scoring Engine..."
 
           # Désactiver BuildKit — utiliser le cache Docker classique
           export DOCKER_BUILDKIT=0
@@ -77,23 +77,23 @@ jobs:
 
           BUILD_STATUS=${PIPESTATUS[0]}
           if [ $BUILD_STATUS -ne 0 ]; then
-            echo "❌ Build Risk Scoring Engine échoué"
+            echo " Build Risk Scoring Engine échoué"
             cat build-rse.log
             exit 1
           fi
 
-          echo "📤 Push Risk Scoring Engine:latest..."
+          echo " Push Risk Scoring Engine:latest..."
           docker push ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest
 
-          echo "📤 Push Risk Scoring Engine:${{ github.sha }}..."
+          echo " Push Risk Scoring Engine:${{ github.sha }}..."
           docker push ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }}
 
-          echo "✅ Risk Scoring Engine OK"
+          echo " Risk Scoring Engine OK"
           docker images | grep risk-scoring-engine
 
       - name: Build et push — Dashboard React
         run: |
-          echo "🔨 Build Dashboard React..."
+          echo " Build Dashboard React..."
 
           export DOCKER_BUILDKIT=0
 
@@ -110,7 +110,7 @@ jobs:
 
           BUILD_STATUS=${PIPESTATUS[0]}
           if [ $BUILD_STATUS -ne 0 ]; then
-            echo "❌ Build stage builder échoué"
+            echo " Build stage builder échoué"
             cat build-dashboard.log
             exit 1
           fi
@@ -127,7 +127,7 @@ jobs:
 
           BUILD_STATUS=${PIPESTATUS[0]}
           if [ $BUILD_STATUS -ne 0 ]; then
-            echo "❌ Build Dashboard échoué"
+            echo " Build Dashboard échoué"
             cat build-dashboard.log
             exit 1
           fi
@@ -135,10 +135,10 @@ jobs:
           docker push ${{ env.REGISTRY }}/invisithreat/dashboard:latest
           docker push ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }}
 
-          echo "✅ Dashboard OK"
+          echo " Dashboard OK"
           docker images | grep dashboard
 
-      - name: "✅ Résumé Build"
+      - name: " Résumé Build"
         run: |
           echo ""
           echo "=========================================================="
@@ -163,7 +163,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: "📋 Afficher les inputs"
+      - name: " Afficher les inputs"
         run: |
           echo "=========================================================="
           echo "  PARAMÈTRES DE DÉPLOIEMENT"
@@ -174,7 +174,7 @@ jobs:
           echo "  Force ML Retrain    : ${{ github.event.inputs.force_retrain || 'false' }}"
           echo "=========================================================="
 
-      - name: "🚀 Deploy to Kubernetes"
+      - name: " Deploy to Kubernetes"
         id: k8s
         uses: ./.github/actions/deploy
         with:
@@ -195,7 +195,7 @@ jobs:
           jira_server:        ${{ secrets.JIRA_SERVER }}
 
       # ── Vérifications post-deploy ─────────────────────────────
-      - name: "🔍 Vérifier les pods"
+      - name: " Vérifier les pods"
         if: always()
         run: |
           echo ""
@@ -206,7 +206,7 @@ jobs:
           echo ""
           echo "=========================================================="
 
-      - name: "🔍 Vérifier les services"
+      - name: " Vérifier les services"
         if: always()
         run: |
           echo ""
@@ -217,7 +217,7 @@ jobs:
           echo ""
           echo "=========================================================="
 
-      - name: "🔍 Vérifier les events k3s"
+      - name: " Vérifier les events k3s"
         if: always()
         run: |
           echo ""
@@ -228,7 +228,7 @@ jobs:
           echo ""
           echo "=========================================================="
 
-      - name: "🔍 Logs Risk Scoring Engine"
+      - name: " Logs Risk Scoring Engine"
         if: always()
         continue-on-error: true
         run: |
@@ -243,7 +243,7 @@ jobs:
             echo "=========================================================="
           fi
 
-      - name: "🔍 Logs Dashboard"
+      - name: " Logs Dashboard"
         if: always()
         continue-on-error: true
         run: |
@@ -259,7 +259,7 @@ jobs:
           fi
 
       # ── Résumé final ──────────────────────────────────────────
-      - name: "📊 Résumé final du pipeline"
+      - name: " Résumé final du pipeline"
         if: always()
         run: |
           DASHBOARD="${{ steps.k8s.outputs.dashboard_url }}"
@@ -267,36 +267,36 @@ jobs:
 
           echo ""
           echo "=========================================================="
-          echo "  ✅ DÉPLOIEMENT TERMINÉ — InvisiThreat"
+          echo "   DÉPLOIEMENT TERMINÉ — InvisiThreat"
           echo "=========================================================="
           echo ""
-          echo "  📊 Informations du déploiement :"
+          echo "   Informations du déploiement :"
           echo "    Namespace       : ${{ env.NAMESPACE }}"
           echo "    Registre        : ${{ env.REGISTRY }}"
           echo "    SHA             : ${{ github.sha }}"
           echo "    Mode ML Retrain : ${{ github.event.inputs.force_retrain || 'false' }}"
           echo ""
-          echo "  🌐 URLs d'accès :"
+          echo "   URLs d'accès :"
           echo "    Dashboard       : ${DASHBOARD}"
           echo "    API FastAPI     : ${API}/docs"
           echo "    DefectDojo      : ${{ env.DD_URL }}"
           echo ""
-          echo "  📋 Vérifications :"
+          echo "   Vérifications :"
           kubectl get deployment -n ${{ env.NAMESPACE }}
           echo ""
           echo "=========================================================="
           echo ""
 
-      - name: "🧪 Test de connectivité API"
+      - name: " Test de connectivité API"
         if: always()
         continue-on-error: true
         run: |
           API="${{ steps.k8s.outputs.api_url }}"
           
           echo ""
-          echo "🔗 Test /health..."
+          echo " Test /health..."
           curl -sf "${API}/health" 2>/dev/null | jq . || echo "❌ /health indisponible"
           
           echo ""
-          echo "🔗 Test /docs..."
+          echo " Test /docs..."
           curl -sf "${API}/docs" 2>/dev/null | head -20 || echo "❌ /docs indisponible"

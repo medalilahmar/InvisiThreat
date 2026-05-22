@@ -242,7 +242,8 @@ runs:
       working-directory: risk-scoring-engine
       run: |
         echo "::group::pip install"
-        pip install -r requirements.txt --break-system-packages --quiet
+        python3 -m pip install --upgrade pip --quiet
+        pip install -r requirements.txt --quiet
         echo "::endgroup::"
 
     - name: "[ml] Étape 1 — Fetch data depuis DefectDojo"
