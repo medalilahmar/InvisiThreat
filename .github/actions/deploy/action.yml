@@ -77,7 +77,7 @@ runs:
         ansible-playbook -i inventory.yml playbook-k3s-install.yml
         echo "::endgroup::"
 
-    # ✅ ÉTAPE AJOUTÉE — configure kubectl après l'installation k3s
+    #  ÉTAPE AJOUTÉE — configure kubectl après l'installation k3s
     - name: "[k3s] Configurer kubectl"
       shell: bash
       run: |
@@ -255,7 +255,7 @@ runs:
         DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
       run: |
         echo "::group::fetch_data.py"
-        python src/fetch_data.py
+        python3 src/fetch_data.py
         echo "Données collectées : $(wc -l < data/raw/findings_raw.csv) findings"
         echo "::endgroup::"
 
@@ -265,7 +265,7 @@ runs:
       working-directory: risk-scoring-engine
       run: |
         echo "::group::preprocess.py"
-        python src/preprocess.py
+        python3 src/preprocess.py
         echo "Données propres : $(wc -l < data/processed/findings_clean.csv) lignes"
         echo "::endgroup::"
 
@@ -275,19 +275,17 @@ runs:
       working-directory: risk-scoring-engine
       run: |
         echo "::group::train.py"
-        python src/train.py
+        python3 src/train.py
         echo "Modèle entraîné : $(ls -lh models/pipeline_latest.pkl)"
         echo "::endgroup::"
 
     - name: "[ml] Upload artefacts ML"
       if: inputs.run_ml_update == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ml-artifacts-${{ inputs.sha }}
-        path: |
-          risk-scoring-engine/models/pipeline_latest_meta.json
-          risk-scoring-engine/reports/report.html
-        retention-days: 90
+      shell: bash
+      run: |
+        echo "Artefacts ML disponibles localement :"
+        ls -lah risk-scoring-engine/models/pipeline_latest_meta.json || true
+        ls -lah risk-scoring-engine/reports/report.html || true
 
     - name: "[ml] Attendre que le pod FastAPI soit vivant"
       if: inputs.run_ml_update == 'true'

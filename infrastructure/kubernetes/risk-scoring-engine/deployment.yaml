@@ -94,12 +94,13 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /ready         # ← 503 sans modèle = pod vivant mais trafic bloqué
+              path: /ready         
               port: 8081
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 6
+            failureThreshold: 12
+            successThreshold: 1
       volumes:
         - name: models-storage
           persistentVolumeClaim:
