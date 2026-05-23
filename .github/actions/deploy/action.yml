@@ -320,6 +320,10 @@ runs:
         POD: ${{ steps.get_pod.outputs.pod_name }}
         NS:  ${{ inputs.namespace }}
       run: |
+        echo "::group::Préparation des répertoires cibles"
+        kubectl exec -n "${NS}" "${POD}" -- mkdir -p /app/data/processed
+        echo "::endgroup::"
+
         echo "::group::Copie vers fichiers temporaires (.tmp)"
         kubectl cp models/pipeline_latest.pkl \
           ${NS}/${POD}:/app/models/pipeline_latest.pkl.tmp
@@ -331,14 +335,11 @@ runs:
 
         echo "::group::Activation atomique (mv — zéro downtime)"
         kubectl exec -n "${NS}" "${POD}" -- \
-          mv /app/models/pipeline_latest.pkl.tmp \
-             /app/models/pipeline_latest.pkl
+          mv /app/models/pipeline_latest.pkl.tmp /app/models/pipeline_latest.pkl
         kubectl exec -n "${NS}" "${POD}" -- \
-          mv /app/models/pipeline_latest_meta.json.tmp \
-             /app/models/pipeline_latest_meta.json
+          mv /app/models/pipeline_latest_meta.json.tmp /app/models/pipeline_latest_meta.json
         kubectl exec -n "${NS}" "${POD}" -- \
-          mv /app/data/processed/findings_clean.csv.tmp \
-             /app/data/processed/findings_clean.csv
+          mv /app/data/processed/findings_clean.csv.tmp /app/data/processed/findings_clean.csv
         echo "Transfert atomique terminé"
         echo "::endgroup::"
 
