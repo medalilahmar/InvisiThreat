@@ -27,7 +27,7 @@
 .fp-page {
   position: relative;
   z-index: 10;
-  max-width: 1350px;
+  max-width: 1420px;
   margin: 0 auto;
   padding: 48px 32px 80px;
 }
@@ -75,10 +75,8 @@
   margin-bottom: 10px;
 }
 
-/* Shimmer sur le titre — garde les couleurs hardcodées car c'est un effet
-   décoratif purement visuel qui ne dépend pas du thème */
 .fp-title-shimmer {
-  background: linear-gradient(90deg, #fff 0%, #00d4ff 30%, #fff 50%, #ff4757 72%, #fff 100%);
+  background: linear-gradient(90deg, var(--text-strong) 0%, var(--accent) 30%, var(--text-strong) 50%, var(--severity-critical) 72%, var(--text-strong) 100%);
   background-size: 250% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -208,9 +206,9 @@
 }
 
 .fp-search-input:focus {
-  border-color: rgba(0, 212, 255, 0.35);
-  background: rgba(0, 212, 255, 0.04);
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.07);
+  border-color: var(--accent-border);
+  background: var(--accent-muted);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 /* ─── Filter pills ───────────────────────────────────────────────────────── */
@@ -252,50 +250,50 @@
 
 /* Pill — Critical */
 .fp-pill-critical {
-  color: var(--accent2);
-  border-color: rgba(255, 71, 87, 0.2);
-  background: rgba(255, 71, 87, 0.06);
+  color: var(--severity-critical);
+  border-color: var(--severity-critical-border);
+  background: var(--severity-critical-bg);
 }
 .fp-pill-critical.active,
 .fp-pill-critical:hover {
-  background: rgba(255, 71, 87, 0.15);
-  border-color: rgba(255, 71, 87, 0.4);
+  background: var(--severity-critical-bg);
+  border-color: var(--severity-critical);
 }
 
 /* Pill — High */
 .fp-pill-high {
-  color: var(--orange);
-  border-color: rgba(255, 107, 53, 0.2);
-  background: rgba(255, 107, 53, 0.06);
+  color: var(--severity-high);
+  border-color: var(--severity-high-border);
+  background: var(--severity-high-bg);
 }
 .fp-pill-high.active,
 .fp-pill-high:hover {
-  background: rgba(255, 107, 53, 0.15);
-  border-color: rgba(255, 107, 53, 0.4);
+  background: var(--severity-high-bg);
+  border-color: var(--severity-high);
 }
 
 /* Pill — Medium */
 .fp-pill-medium {
-  color: var(--accent3);
-  border-color: rgba(255, 211, 42, 0.2);
-  background: rgba(255, 211, 42, 0.06);
+  color: var(--severity-medium);
+  border-color: var(--severity-medium-border);
+  background: var(--severity-medium-bg);
 }
 .fp-pill-medium.active,
 .fp-pill-medium:hover {
-  background: rgba(255, 211, 42, 0.15);
-  border-color: rgba(255, 211, 42, 0.4);
+  background: var(--severity-medium-bg);
+  border-color: var(--severity-medium);
 }
 
 /* Pill — Low */
 .fp-pill-low {
-  color: var(--green);
-  border-color: rgba(46, 213, 115, 0.2);
-  background: rgba(46, 213, 115, 0.06);
+  color: var(--severity-low);
+  border-color: var(--severity-low-border);
+  background: var(--severity-low-bg);
 }
 .fp-pill-low.active,
 .fp-pill-low:hover {
-  background: rgba(46, 213, 115, 0.15);
-  border-color: rgba(46, 213, 115, 0.4);
+  background: var(--severity-low-bg);
+  border-color: var(--severity-low);
 }
 
 /* Sort select */
@@ -313,7 +311,7 @@
 }
 
 .fp-sort-select:focus {
-  border-color: rgba(0, 212, 255, 0.35);
+  border-color: var(--accent-border);
 }
 
 /* ─── Table wrapper ──────────────────────────────────────────────────────── */
@@ -396,7 +394,7 @@
 .fp-tbl tbody tr:last-child { border-bottom: none; }
 
 .fp-tbl tbody tr:hover {
-  background: rgba(0, 212, 255, 0.04);
+  background: var(--accent-muted);
 }
 
 .fp-tbl tbody tr:hover .fp-row-arrow {
@@ -442,10 +440,10 @@
   display: inline-block;
 }
 
-.fp-sev-crit { background: rgba(255, 71, 87, 0.12);  color: var(--accent2); border-color: rgba(255, 71, 87, 0.22); }
-.fp-sev-high { background: rgba(255, 107, 53, 0.12); color: var(--orange);  border-color: rgba(255, 107, 53, 0.22); }
-.fp-sev-med  { background: rgba(255, 211, 42, 0.12); color: var(--accent3); border-color: rgba(255, 211, 42, 0.22); }
-.fp-sev-low  { background: rgba(46, 213, 115, 0.12); color: var(--green);   border-color: rgba(46, 213, 115, 0.22); }
+.fp-sev-crit { background: var(--severity-critical-bg);  color: var(--severity-critical); border-color: var(--severity-critical-border); }
+.fp-sev-high { background: var(--severity-high-bg);      color: var(--severity-high);     border-color: var(--severity-high-border); }
+.fp-sev-med  { background: var(--severity-medium-bg);    color: var(--severity-medium);   border-color: var(--severity-medium-border); }
+.fp-sev-low  { background: var(--severity-low-bg);       color: var(--severity-low);      border-color: var(--severity-low-border); }
 .fp-sev-info { background: var(--bg2); color: var(--dimmed); border-color: var(--border); }
 
 /* ─── Autres cellules ────────────────────────────────────────────────────── */
@@ -475,8 +473,8 @@
 }
 
 .fp-tpill-more {
-  background: rgba(0, 212, 255, 0.06);
-  border-color: rgba(0, 212, 255, 0.18);
+  background: var(--accent-muted);
+  border-color: var(--accent-border);
   color: var(--accent);
 }
 
@@ -500,7 +498,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
-  color: var(--accent2);
+  color: var(--severity-critical);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -511,8 +509,8 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent2);
-  box-shadow: 0 0 6px var(--accent2);
+  background: var(--severity-critical);
+  box-shadow: 0 0 6px var(--severity-critical);
   flex-shrink: 0;
 }
 
@@ -576,26 +574,26 @@
 
 /* Export Excel */
 .fp-export-excel {
-  color: var(--green);
-  background: rgba(46, 213, 115, 0.07);
-  border-color: rgba(46, 213, 115, 0.25);
+  color: var(--severity-low);
+  background: var(--severity-low-bg);
+  border-color: var(--severity-low-border);
 }
 .fp-export-excel:not(:disabled):hover {
-  background: rgba(46, 213, 115, 0.16);
-  border-color: rgba(46, 213, 115, 0.5);
-  box-shadow: 0 0 14px rgba(46, 213, 115, 0.15);
+  background: var(--severity-low-bg);
+  border-color: var(--severity-low);
+  box-shadow: var(--shadow-glow-success);
 }
 
 /* Export PDF */
 .fp-export-pdf {
-  color: var(--orange);
-  background: rgba(255, 107, 53, 0.07);
-  border-color: rgba(255, 107, 53, 0.25);
+  color: var(--severity-high);
+  background: var(--severity-high-bg);
+  border-color: var(--severity-high-border);
 }
 .fp-export-pdf:not(:disabled):hover {
-  background: rgba(255, 107, 53, 0.16);
-  border-color: rgba(255, 107, 53, 0.5);
-  box-shadow: 0 0 14px rgba(255, 107, 53, 0.15);
+  background: var(--severity-high-bg);
+  border-color: var(--severity-high);
+  box-shadow: 0 0 14px var(--severity-high-border);
 }
 
 /* Spinner */
@@ -652,10 +650,10 @@
 }
 
 .fp-page-btn.fp-page-num.active {
-  background: rgba(0, 212, 255, 0.12);
-  border-color: rgba(0, 212, 255, 0.4);
+  background: var(--accent-muted);
+  border-color: var(--accent-border);
   color: var(--accent);
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.12);
+  box-shadow: var(--shadow-glow-cyan);
 }
 
 .fp-page-ellipsis {

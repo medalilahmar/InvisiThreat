@@ -8,18 +8,20 @@ import { explanationsApi, LLMExplanation, LLMRecommendation } from '../../../api
 import { jiraApi } from '../../../api/services/jira';
 import type { JiraIntegrationState } from '../../../types/jira';
 import { SolutionAndAutofix } from '../components/SolutionAndAutofix';
+import FindingActions    from '../components/FindingActions';
+import ScoreHistoryChart from '../components/ScoreHistoryChart';
+import { apiClient }     from '../../../api/client';
 
 
 import './FindingDetailPage.css';
 
-const getSeverityColor = (severity: string) => {
-  switch (severity?.toLowerCase()) {
-    case 'critical': return '#ff3b5c';
-    case 'high':     return '#ff6b35';
-    case 'medium':   return '#f5a623';
-    case 'low':      return '#00e87a';
-    default:         return '#95a5a6';
-  }
+
+
+const SEV_VARS: Record<string, { color: string; bg: string; border: string }> = {
+  critical: { color: 'var(--severity-critical)', bg: 'var(--severity-critical-bg)', border: 'var(--severity-critical-border)' },
+  high:     { color: 'var(--severity-high)',     bg: 'var(--severity-high-bg)',     border: 'var(--severity-high-border)' },
+  medium:   { color: 'var(--severity-medium)',   bg: 'var(--severity-medium-bg)',   border: 'var(--severity-medium-border)' },
+  low:      { color: 'var(--severity-low)',      bg: 'var(--severity-low-bg)',      border: 'var(--severity-low-border)' },
 };
 
 const getSeverityClass = (severity: string) => {
@@ -70,6 +72,17 @@ export default function FindingDetailPage() {
       </div>
     </div>
   );
+
+
+  const [users, setUsers] = useState<{id: number; username: string; email?: string; role: string}[]>([]);
+
+  useEffect(() => {
+    apiClient.get("/admin/users")
+      .then(res => setUsers(
+        res.data.filter((u: any) => u.role === "developer" || u.role === "analyst")
+      ))
+      .catch(() => {});
+  }, []);
 
   
 
@@ -249,8 +262,7 @@ export default function FindingDetailPage() {
       </div>
     </div>
   );
-
-  const sevColor = getSeverityColor(finding.severity);
+  const sevVars = SEV_VARS[finding.severity?.toLowerCase()] ?? { color: 'var(--muted)', bg: 'var(--bg4)', border: 'var(--border)' };
   const description = finding.description ?? '';
   const descTruncated = description.length > 320;
 
@@ -287,7 +299,7 @@ export default function FindingDetailPage() {
 
           <div className="fdp-hero-footer">
             <div className="fdp-badge-row">
-              <span className={`fdp-sev-badge ${getSeverityClass(finding.severity)}`}>
+              <span className={`badge badge-${finding.severity?.toLowerCase()}`}>
                 {finding.severity.toUpperCase()}
               </span>
               <span className="fdp-ai-badge">
@@ -310,12 +322,12 @@ export default function FindingDetailPage() {
         </header>
 
         <div className="fdp-stats-grid fu2">
-          <StatCard label="CVSS Score"     value={finding.cvss_score ?? 'N/A'} unit="/10"  color="#ff3b5c" />
-          <StatCard label="Âge"            value={finding.age_days ?? 'N/A'}   unit="jours" color="#f5a623" />
-          <StatCard label="Confiance IA"   value={aiScore?.confidence ? `${(aiScore.confidence * 100).toFixed(0)}` : 'N/A'} unit="%" color="#b48eff" />
-          <StatCard label="Score Contexte" value={aiScore?.context_score ?? 'N/A'} unit="/10" color="#00d4ff" />
-          <StatCard label="CVE"            value={(finding as any).cve ?? (finding.has_cve ? 'Présent' : '—')} color={finding.has_cve ? '#ff3b5c' : undefined} textSize />
-          <div className="fdp-stat-card" style={{ '--acc-color': '#00e87a' } as React.CSSProperties}>
+          <StatCard label="CVSS Score"     value={finding.cvss_score ?? 'N/A'} unit="/10"  color="var(--severity-critical)" />
+          <StatCard label="Âge"            value={finding.age_days ?? 'N/A'}   unit="jours" color="var(--severity-medium)" />
+          <StatCard label="Confiance IA"   value={aiScore?.confidence ? `${(aiScore.confidence * 100).toFixed(0)}` : 'N/A'} unit="%" color="var(--severity-info)" />
+          <StatCard label="Score Contexte" value={aiScore?.context_score ?? 'N/A'} unit="/10" color="var(--accent)" />
+          <StatCard label="CVE"            value={(finding as any).cve ?? (finding.has_cve ? 'Présent' : '—')} color={finding.has_cve ? 'var(--severity-critical)' : undefined} textSize />
+          <div className="fdp-stat-card" style={{ '--acc-color': 'var(--severity-low)' } as React.CSSProperties}>
             <div className="fdp-stat-label">TAGS</div>
             <div className="fdp-tags-wrap">
               {finding.tags?.length
@@ -331,7 +343,7 @@ export default function FindingDetailPage() {
 
             <div className="fdp-card fdp-card-file">
               <div className="fdp-card-header">
-                <div className="fdp-card-icon" style={{ background: 'rgba(0,212,255,.09)' }}>
+                <div className="fdp-card-icon" style={{ background: 'var(--accent-muted)' }}>
                   <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4">
                     <path d="M3 2h6l3 3v8H3V2z" strokeLinecap="round" strokeLinejoin="round"/>
                     <path d="M9 2v3h3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -350,7 +362,7 @@ export default function FindingDetailPage() {
 
             <div className="fdp-card fdp-card-desc">
               <div className="fdp-card-header">
-                <div className="fdp-card-icon" style={{ background: 'rgba(255,255,255,.055)' }}>
+                <div className="fdp-card-icon" style={{ background: 'var(--bg4)' }}>
                   <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4">
                     <path d="M2 4h11M2 7h9M2 10h7" strokeLinecap="round"/>
                   </svg>
@@ -376,8 +388,8 @@ export default function FindingDetailPage() {
           <div className="fdp-col-risk">
             <div className="fdp-card fdp-card-risk">
               <div className="fdp-card-header">
-                <div className="fdp-card-icon" style={{ background: 'rgba(180,142,255,.1)' }}>
-                  <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="#b48eff" strokeWidth="1.4">
+                <div className="fdp-card-icon" style={{ background: 'var(--glass-purple)' }}>
+                  <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="var(--purple)" strokeWidth="1.4">
                     <circle cx="7.5" cy="7.5" r="5.5" />
                     <path d="M7.5 4.5v3.5M7.5 10h.01" strokeLinecap="round"/>
                   </svg>
@@ -388,10 +400,10 @@ export default function FindingDetailPage() {
                 </div>
               </div>
 
-              <div className="fdp-risk-bar" style={{ background: `${sevColor}0c`, borderLeftColor: sevColor }}>
+              <div className="fdp-risk-bar" style={{ background: sevVars.bg, borderLeftColor: sevVars.color }}>
                 <div>
                   <div className="fdp-risk-label">NIVEAU DE RISQUE</div>
-                  <div className="fdp-risk-val" style={{ color: sevColor }}>
+                  <div className="fdp-risk-val" style={{ color: sevVars.color }}>
                     {(aiScore?.risk_level || 'Non déterminé').toUpperCase()}
                   </div>
                 </div>
@@ -402,7 +414,7 @@ export default function FindingDetailPage() {
                 {aiScore?.risk_class != null && aiScore?.risk_class >= 3
                   ? '⚠️ Risque ÉLEVÉ — traitement en priorité absolue requis.'
                   : aiScore?.risk_class != null && aiScore?.risk_class >= 2
-                  ? '📌 Risque MODÉRÉ — correction recommandée rapidement.'
+                  ? '📍 Risque MODÉRÉ — correction recommandée rapidement.'
                   : 'ℹ️ Risque FAIBLE — à surveiller lors des prochaines maintenances.'}
                 {aiScore?.context_score && aiScore.context_score > 5 &&
                   ` Score de contexte élevé (${aiScore.context_score}/10) — environnement critique.`}
@@ -411,7 +423,7 @@ export default function FindingDetailPage() {
               <div className="fdp-risk-classes-label">DISTRIBUTION DES CLASSES</div>
               <div className="fdp-risk-score-row">
                 {(['Low', 'Medium', 'High', 'Critical'] as const).map((level, i) => {
-                  const colors   = ['#00e87a', '#f5a623', '#ff6b35', '#ff3b5c'];
+                  const colors = ['var(--severity-low)', 'var(--severity-medium)', 'var(--severity-high)', 'var(--severity-critical)'];
                   const fallback = [0.02, 0.04, 0.06, 0.88][i];
 
                   const val = aiScore?.probabilities?.[level] ?? fallback;
@@ -438,13 +450,13 @@ export default function FindingDetailPage() {
                           onClick={() => setShowShap(!showShap)}
                           style={{
                             marginTop: 16,
-                            background: 'rgba(180,142,255,.08)',
-                            border: '1px solid rgba(180,142,255,.2)',
-                            borderRadius: 6,
+                            background: 'var(--glass-purple)',
+                            border: '1px solid var(--severity-info-border)',
+                            borderRadius: 'var(--radius-sm)',
                             padding: '6px 14px',
                             cursor: 'pointer',
                             fontSize: 12,
-                            color: '#b48eff',
+                            color: 'var(--purple)',
                             width: '100%',
                           }}
                         >
@@ -466,22 +478,22 @@ export default function FindingDetailPage() {
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     padding: '5px 0',
-                                    borderBottom: '1px solid rgba(255,255,255,.05)',
+                                    borderBottom: '1px solid var(--border)',
                                     fontSize: 13,
                                   }}
                                 >
-                                  <span style={{ color: feat.direction === '+' ? '#00e87a' : '#ff3b5c', fontWeight: 600 }}>
+                                  <span style={{ color: feat.direction === '+' ? 'var(--severity-low)' : 'var(--severity-critical)', fontWeight: 600 }}>
                                     {feat.direction}
                                   </span>
-                                  <span style={{ flex: 1, marginLeft: 8, color: '#ccc' }}>{feat.feature}</span>
-                                  <span style={{ color: '#f5a623', fontWeight: 500 }}>{feat.shap_value.toFixed(2)}</span>
+                                  <span style={{ flex: 1, marginLeft: 8, color: 'var(--muted)' }}>{feat.feature}</span>
+                                  <span style={{ color: 'var(--severity-medium)', fontWeight: 500 }}>{feat.shap_value.toFixed(2)}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         )}
                         {showShap && (!aiScore?.shapFeatures || aiScore.shapFeatures.length === 0) && (
-                          <p style={{ fontSize: 12, color: '#888', marginTop: 12 }}>
+                          <p style={{ fontSize: 12, color: 'var(--dimmed)', marginTop: 12 }}>
                             Aucune explication SHAP disponible actuellement.
                           </p>
                   )}
@@ -501,12 +513,12 @@ export default function FindingDetailPage() {
 
           <LLMPanel
             icon={
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#00d4ff" strokeWidth="1.4">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" strokeWidth="1.4">
                 <circle cx="8" cy="8" r="6" /><path d="M8 5v3.5l2.5 1.5" strokeLinecap="round"/>
               </svg>
             }
-            iconBg="rgba(0,212,255,.09)"
-            accentColor="#00d4ff"
+            iconBg="var(--accent-muted)"
+            accentColor="var(--accent)"
             title="Explication IA"
             loading={explanationLoading}
             error={explanationError}
@@ -524,13 +536,13 @@ export default function FindingDetailPage() {
                   </div>
                 )}
                 <div className="fdp-llm-sections">
-                  <LLMSection icon="📖" iconBg="rgba(0,212,255,.07)"  label="EXPLICATION"      labelColor="var(--accent)">
+                  <LLMSection icon="📖" iconBg="var(--accent-muted)"  label="EXPLICATION"      labelColor="var(--accent)">
                     <p className="fdp-llm-sec-text">{llmExplanation.summary}</p>
                   </LLMSection>
-                  <LLMSection icon="💥" iconBg="rgba(255,59,92,.07)"  label="IMPACT"           labelColor="#ff3b5c">
+                  <LLMSection icon="💥" iconBg="var(--glass-danger)"  label="IMPACT"           labelColor="var(--severity-critical)">
                     <p className="fdp-llm-sec-text">{llmExplanation.impact}</p>
                   </LLMSection>
-                  <LLMSection icon="⏱" iconBg="rgba(245,166,35,.07)" label="DÉLAI RECOMMANDÉ" labelColor="#f5a623">
+                  <LLMSection icon="⏱" iconBg="var(--glass-warning)" label="DÉLAI RECOMMANDÉ" labelColor="var(--severity-medium)">
                     <p className="fdp-llm-sec-text" style={{ color: '#f5a623', opacity: .82, fontWeight: 500 }}>
                       {llmExplanation.priority_note}
                     </p>
@@ -542,12 +554,12 @@ export default function FindingDetailPage() {
 
           <LLMPanel
             icon={
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#00e87a" strokeWidth="1.4">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="var(--severity-low)" strokeWidth="1.4">
                 <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             }
-            iconBg="rgba(0,232,122,.09)"
-            accentColor="#00e87a"
+            iconBg="var(--glass-success)"
+            accentColor="var(--severity-low)"
             title="Recommandations IA"
             loading={recommendationLoading}
             error={recommendationError}
@@ -565,7 +577,7 @@ export default function FindingDetailPage() {
                   </div>
                 )}
                 <div className="fdp-llm-sections">
-                  <LLMSection icon="🔧" iconBg="rgba(0,232,122,.07)" label="ÉTAPES DE REMÉDIATION" labelColor="#00e87a">
+                  <LLMSection icon="🔧" iconBg="var(--glass-success)" label="ÉTAPES DE REMÉDIATION" labelColor="var(--severity-low)">
                     <ol className="fdp-llm-steps">
                       {(llmRecommendation.recommendations || []).map((step: string, i: number) => (
                         <li key={i}>
@@ -577,7 +589,7 @@ export default function FindingDetailPage() {
                   </LLMSection>
                   {(llmRecommendation.references ?? []).length > 0 && (
                     <div className="fdp-llm-refs">
-                      <div className="fdp-llm-sec-label" style={{ color: 'rgba(255,255,255,.22)', marginBottom: 9 }}>RÉFÉRENCES</div>
+                      <div className="fdp-llm-sec-label" style={{ color: 'var(--dimmed)', marginBottom: 9 }}>RÉFÉRENCES</div>
                       {(llmRecommendation.references ?? []).map((ref: string, i: number) => (
                         <a key={i} href={ref} target="_blank" rel="noopener noreferrer" className="fdp-ref-link">
                           🔗 {ref}
@@ -600,7 +612,7 @@ export default function FindingDetailPage() {
 
         <div className="fdp-card fu5">
           <div className="fdp-card-header">
-            <div className="fdp-card-icon" style={{ background: 'rgba(255,255,255,.045)' }}>
+            <div className="fdp-card-icon" style={{ background: 'var(--bg4)' }}>
               <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4">
                 <circle cx="7.5" cy="7.5" r="5.5" />
                 <path d="M7.5 5v3.5l2 1.5" strokeLinecap="round"/>
@@ -618,6 +630,51 @@ export default function FindingDetailPage() {
             <TechItem label="DATE CRÉATION" value={formatDate(finding.created)} />
           </div>
         </div>
+
+
+
+        {/* ── Actions (épingler / assigner / statut) ── */}
+          {finding && (
+            <div className="fdp-card fu5" style={{ marginBottom: "16px" }}>
+              <div className="fdp-card-header">
+                <div className="fdp-card-icon" style={{ background: "var(--accent-muted)" }}>
+                  📍
+                </div>
+                <div>
+                  <div className="fdp-card-title">Actions</div>
+                  <div className="fdp-card-subtitle">ÉPINGLAGE · ASSIGNATION · STATUT</div>
+                </div>
+              </div>
+              <div style={{ padding: "8px 0" }}>
+                <FindingActions
+                  findingId={finding.id}
+                  findingTitle={finding.title}
+                  productName={String(finding.product_name || "")}
+                  severity={finding.severity}
+                  aiRiskScore={aiScore?.risk_class}
+                  users={users}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Historique des scores IA ── */}
+          {finding && (
+            <div className="fdp-card fu5" style={{ marginBottom: "16px" }}>
+              <div className="fdp-card-header">
+                <div className="fdp-card-icon" style={{ background: "var(--glass-purple)" }}>
+                  📊
+                </div>
+                <div>
+                  <div className="fdp-card-title">Évolution du score IA</div>
+                  <div className="fdp-card-subtitle">HISTORIQUE · TENDANCE</div>
+                </div>
+              </div>
+              <div style={{ padding: "8px 0" }}>
+                <ScoreHistoryChart findingId={finding.id} />
+              </div>
+            </div>
+          )}
 
       </div>
     </div>
@@ -695,7 +752,7 @@ function JiraPanel({ jiraState, onCreateIssue, onReset, canCreateTicket = false 
       <div className="fdp-jira-header">
         <div className="fdp-jira-title-row">
           <div className="fdp-jira-logo">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#4d9fff' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--accent)' }}>
               <path d="M11.53 2.195a.694.694 0 00-.98 0L5.83 6.913a.694.694 0 000 .981l4.72 4.718a.694.694 0 00.98 0l4.72-4.718a.694.694 0 000-.981L11.53 2.195zm0 9.198a.694.694 0 00-.98 0L5.83 16.11a.694.694 0 000 .982l4.72 4.718a.694.694 0 00.98 0l4.72-4.718a.694.694 0 000-.982l-4.72-4.717z" />
             </svg>
           </div>

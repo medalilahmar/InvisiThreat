@@ -206,6 +206,38 @@ def list_projects(
     projects = db.query(Project).all()
     return [{"id": p.id, "name": p.name} for p in projects]
 
+
+
+@router.get("/projects/{project_id}/users")
+def get_project_users(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Admin voit tout, manager uniquement si le projet est dans ses projets
+    if current_user.role not in ("admin", "manager"):
+        raise HTTPException(403, "Accès refusé")
+    
+    if current_user.role == "manager":
+        manager_project_ids = {p.id for p in current_user.projects}
+        if project_id not in manager_project_ids:
+            raise HTTPException(403, "Ce projet ne fait pas partie de votre équipe")
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Projet introuvable")
+
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "avatar_url": u.avatar_url,
+        }
+        for u in project.users
+        if u.role in ("developer", "analyst", "manager")
+    ]
+
 # ─── Routes dynamiques ENSUITE ────────────────────────────────────────────────
 
 @router.get("/users/{user_id}/projects")
@@ -424,3 +456,5 @@ def unlock_user(
     user.failed_login_attempts = 0
     db.commit()
     return {"message": f"Compte de '{user.username}' déverrouillé"}
+
+

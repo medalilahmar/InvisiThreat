@@ -218,5 +218,14 @@
     "priority_note": "Immediate — The vulnerability is actively exploited in the wild and requires no authentication. Leaving it unpatched even for 24 hours significantly increases the risk of a system crash or data loss.",
     "from_cache": false,
     "_fallback": false
+  },
+  "8f829d552dc81ebce942a44ecc490453": {
+    "summary": "The vulnerable package vm2 in juice-shop@19.1.1 allows arbitrary code execution within a sandbox, bypassing security measures.",
+    "impact": "An attacker can execute untrusted code with Node's built-in modules, potentially leading to data loss or service interruptions. This could be exploited for privilege escalation or system compromise.",
+    "root_cause": "The vm2 package in juice-shop@19.1.1 allows running untrusted code within a sandbox but fails to properly restrict the execution environment, allowing arbitrary code execution.",
+    "exploitation_difficulty": "Easy — An attacker can provide a malicious script that bypasses the security measures and executes in the context of other users' browsers.",
+    "priority_note": "Immediate — This vulnerability is actively exploited in the wild, leading to potential data loss or service interruptions.",
+    "from_cache": false,
+    "_fallback": false
   }
 }

@@ -28,11 +28,11 @@ export default function ProductsPage() {
 
   // 🔥 Dynamic Risk Assessment System
   const getRiskLevel = (findings: number) => {
-    if (findings > 50) return { level: 'CRITICAL', color: '#ff4757', icon: '🔴', severity: 'critical' };
-    if (findings > 30) return { level: 'HIGH', color: '#ff6b35', icon: '🟠', severity: 'high' };
-    if (findings > 15) return { level: 'MEDIUM', color: '#ffa502', icon: '🟡', severity: 'medium' };
-    if (findings > 5) return { level: 'LOW', color: '#2ed573', icon: '🟢', severity: 'low' };
-    return { level: 'SECURE', color: '#00d4ff', icon: '✅', severity: 'secure' };
+    if (findings > 50) return { level: 'CRITICAL', color: 'var(--severity-critical)', icon: '🔴', severity: 'critical' };
+    if (findings > 30) return { level: 'HIGH', color: 'var(--severity-high)', icon: '🟠', severity: 'high' };
+    if (findings > 15) return { level: 'MEDIUM', color: 'var(--severity-medium)', icon: '🟡', severity: 'medium' };
+    if (findings > 5) return { level: 'LOW', color: 'var(--severity-low)', icon: '🟢', severity: 'low' };
+    return { level: 'SECURE', color: 'var(--accent)', icon: '✅', severity: 'secure' };
   };
 
   const getSeverityWidth = (findings: number) => Math.min((findings / 100) * 100, 100);
@@ -111,8 +111,8 @@ export default function ProductsPage() {
                   <div
                     className="feature-card-icon skeleton-pulse"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,212,255,0.05))',
-                      border: '1px solid rgba(0,212,255,0.25)',
+                      background: 'var(--glass-cyan)',
+                      border: '1px solid var(--accent-border)',
                     }}
                   >
                     📦
@@ -261,7 +261,7 @@ export default function ProductsPage() {
                         <span
                           className="meta-text"
                           style={{
-                            color:          "#00d4ff",
+                            color:          "var(--accent)",
                             fontWeight:     600,
                             textDecoration: "underline",
                             textUnderlineOffset: "3px",

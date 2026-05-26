@@ -77,7 +77,6 @@ runs:
         ansible-playbook -i inventory.yml playbook-k3s-install.yml
         echo "::endgroup::"
 
-    #  ÉTAPE AJOUTÉE — configure kubectl après l'installation k3s
     - name: "[k3s] Configurer kubectl"
       shell: bash
       run: |
@@ -106,15 +105,15 @@ runs:
     - name: "[k8s] 2/8 — Secrets Kubernetes (depuis GitHub Secrets)"
       shell: bash
       env:
-        NS:                  ${{ inputs.namespace }}
-        DEFECTDOJO_API_KEY:  ${{ inputs.defectdojo_api_key }}
-        POSTGRES_PASSWORD:   ${{ inputs.postgres_password }}
-        JWT_SECRET_KEY:      ${{ inputs.jwt_secret_key }}
-        API_ADMIN_TOKEN:     ${{ inputs.api_admin_token }}
-        GEMINI_API_KEY:      ${{ inputs.gemini_api_key }}
-        JIRA_API_TOKEN:      ${{ inputs.jira_api_token }}
-        JIRA_EMAIL:          ${{ inputs.jira_email }}
-        JIRA_SERVER:         ${{ inputs.jira_server }}
+        NS:                 ${{ inputs.namespace }}
+        DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
+        POSTGRES_PASSWORD:  ${{ inputs.postgres_password }}
+        JWT_SECRET_KEY:     ${{ inputs.jwt_secret_key }}
+        API_ADMIN_TOKEN:    ${{ inputs.api_admin_token }}
+        GEMINI_API_KEY:     ${{ inputs.gemini_api_key }}
+        JIRA_API_TOKEN:     ${{ inputs.jira_api_token }}
+        JIRA_EMAIL:         ${{ inputs.jira_email }}
+        JIRA_SERVER:        ${{ inputs.jira_server }}
       run: |
         kubectl create secret generic invisithreat-secrets \
           --namespace="${NS}" \
@@ -179,7 +178,6 @@ runs:
         echo "Attente rollout PostgreSQL..."
         kubectl rollout status deployment/postgres -n "${NS}" --timeout=300s
 
-
     - name: "[k8s] 7/8 — Redis + attente ready"
       shell: bash
       env:
@@ -202,7 +200,7 @@ runs:
         kubectl set image deployment/risk-scoring-engine \
           api="${REGISTRY}/invisithreat/risk-scoring-engine:${SHA}" \
           -n "${NS}"
-        echo "RSE déployé — pas d'attente readiness (modèle absent au premier run)"
+        echo "RSE déployé — le restart ML le rendra ready après la copie du modèle"
 
         kubectl apply -f infrastructure/kubernetes/dashboard/deployment.yaml
         kubectl apply -f infrastructure/kubernetes/dashboard/service.yaml
@@ -312,7 +310,7 @@ runs:
         echo "::error::Pod RSE introuvable après 300s"
         exit 1
 
-    - name: "[ml] Copie atomique des artefacts vers le PVC k3s"
+    - name: "[ml] Copie atomique des artefacts vers le pod RSE"
       if: inputs.run_ml_update == 'true'
       shell: bash
       working-directory: risk-scoring-engine
@@ -343,33 +341,82 @@ runs:
         echo "Transfert atomique terminé"
         echo "::endgroup::"
 
-    - name: "[ml] Recharger les données CSV via API"
+    - name: "[ml] Restart RSE pour charger le nouveau modèle en mémoire"
       if: inputs.run_ml_update == 'true'
       shell: bash
       env:
-        API_ADMIN_TOKEN: ${{ inputs.api_admin_token }}
-        API_URL:         ${{ steps.get_node_ip.outputs.api_url }}
+        NS:      ${{ inputs.namespace }}
+        API_URL: ${{ steps.get_node_ip.outputs.api_url }}
       run: |
-        curl -sf -X POST "${API_URL}/data/refresh" \
-          -H "Authorization: Bearer ${API_ADMIN_TOKEN}" \
-          -H "Content-Type: application/json" \
-        && echo "data/refresh OK" \
-        || echo "::warning::data/refresh a échoué — vérifier le token"
+        echo "Restart du pod RSE pour charger le modèle en mémoire..."
+        kubectl rollout restart deployment/risk-scoring-engine -n "${NS}"
+        kubectl rollout status deployment/risk-scoring-engine -n "${NS}" --timeout=180s
 
-    - name: "[ml] Recharger le modèle et rescorer les findings"
+        echo "Vérification /ready..."
+        for i in $(seq 1 12); do
+          RESP=$(curl -sf "${API_URL}/ready" 2>/dev/null || echo '{}')
+          echo "Tentative ${i}/12 : ${RESP}"
+          echo "${RESP}" | grep -q "healthy" && echo "✅ RSE prêt !" && exit 0
+          sleep 10
+        done
+        echo "::warning::RSE non prêt après 120s — vérifier les logs du pod"
+
+    - name: "[ml] Init base de données et admin"
       if: inputs.run_ml_update == 'true'
       shell: bash
       env:
+        NS:              ${{ inputs.namespace }}
         API_ADMIN_TOKEN: ${{ inputs.api_admin_token }}
-        API_URL:         ${{ steps.get_node_ip.outputs.api_url }}
       run: |
-        curl -sf -X POST "${API_URL}/model/reload" \
-          -H "Authorization: Bearer ${API_ADMIN_TOKEN}" \
-          -H "Content-Type: application/json" \
-        && echo "model/reload OK" \
-        || echo "::warning::model/reload a échoué — vérifier le token"
+        POD=$(kubectl get pods -n "${NS}" -l app=risk-scoring-engine \
+          --field-selector=status.phase=Running \
+          -o jsonpath='{.items[0].metadata.name}')
 
-    - name: "[ml] Vérification santé de l'API"
+        if [ -z "${POD}" ]; then
+          echo "::warning::Aucun pod RSE Running trouvé — skip init admin"
+          exit 0
+        fi
+
+        echo "Pod RSE : ${POD}"
+        kubectl exec -n "${NS}" "${POD}" -- \
+          python src/create_admin.py \
+            --username admin \
+            --email admin@invisithreat.local \
+            --password "${API_ADMIN_TOKEN}" \
+        && echo "✅ Admin créé ou déjà existant" \
+        || echo "::warning::create_admin.py a échoué — admin peut-être déjà existant"
+
+    - name: "[ml] Scoring IA — predict_live.py"
+      if: inputs.run_ml_update == 'true'
+      shell: bash
+      working-directory: risk-scoring-engine
+      env:
+        DEFECTDOJO_URL:     ${{ inputs.dd_url }}
+        DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
+      run: |
+        echo "::group::predict_live.py — scoring CSV"
+        python3 src/predict_live.py \
+          --use-csv \
+          --csv-path data/processed/findings_clean.csv \
+          --model-path models/pipeline_latest.pkl \
+          --output-file logs/predictions_latest.json \
+          --gate-threshold 7.0 \
+          --log-level INFO
+        echo "Scoring terminé :"
+        python3 -c "
+          import json
+          with open('logs/predictions_latest.json') as f:
+              d = json.load(f)
+          print(f\"  Total findings scorés : {d['total']}\")
+          s = d.get('summary', {}).get('by_risk_level', {})
+          for level in ['critical','high','medium','low']:
+              count = s.get(level, 0)
+              if count:
+                  print(f\"  {level.upper():<10} : {count}\")
+          " || echo "Résumé non disponible"
+                  echo "::endgroup::"
+
+    - name: "[ml] Vérification santé finale de l'API"
       if: inputs.run_ml_update == 'true'
       shell: bash
       env:
@@ -378,8 +425,12 @@ runs:
         RESPONSE=$(curl -sf "${API_URL}/ready" || echo '{"status":"not_ready"}')
         echo "Ready response : ${RESPONSE}"
         echo "${RESPONSE}" | grep -q '"status":"healthy"' \
-          && echo " Modèle actif et prêt" \
+          && echo "✅ Modèle actif et prêt" \
           || echo "::warning::Modèle pas encore chargé"
+
+        echo ""
+        echo "Infos modèle :"
+        curl -sf "${API_URL}/model/info" 2>/dev/null | python3 -m json.tool || true
 
     # ══════════════════════════════════════════════════════════════
     # RÉSUMÉ FINAL (toujours affiché)
@@ -396,10 +447,16 @@ runs:
         echo "========================================================"
         echo "  DÉPLOIEMENT K8s TERMINÉ — InvisiThreat"
         echo "========================================================"
-        echo "  Dashboard  : ${DASHBOARD_URL}"
-        echo "  API FastAPI : ${API_URL}/docs"
-        echo "  DefectDojo  : http://localhost:8080"
+        echo "  Dashboard   : ${DASHBOARD_URL}"
+        echo "  API FastAPI  : ${API_URL}/docs"
+        echo "  DefectDojo   : http://localhost:8080"
         echo "========================================================"
+        echo ""
+        echo "État des pods :"
         kubectl get pods -n "${NS}" -o wide 2>/dev/null || echo "kubectl non disponible"
         echo ""
+        echo "Deployments :"
+        kubectl get deployment -n "${NS}" 2>/dev/null || true
+        echo ""
+        echo "Événements récents :"
         kubectl get events -n "${NS}" --sort-by='.lastTimestamp' | tail -10 2>/dev/null || true

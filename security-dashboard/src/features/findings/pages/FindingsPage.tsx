@@ -1,11 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback , useEffect } from 'react';
 import {  useNavigate } from 'react-router-dom';
 import { useHashedEngagementId } from '../../../utils/useHashedParams';
 import { encodeId } from '../../../utils/hashId';
 import { useQuery } from '@tanstack/react-query';
 import { findingsApi } from '../../../api/services/findings';
+import { useAuth } from '../../../auth/hooks/useAuth';
 import { predictionsApi, PredictionRequest } from '../../../api/services/predictions';
 import type { Finding } from '../../../types/finding';
+import FindingRowActions from '../components/FindingRowActions';
+import { apiClient } from '../../../api/client';
 import './FindingsPage.css';
 
 type SortKey = 'risk' | 'cvss' | 'age' | 'severity' | 'id';
@@ -15,7 +18,7 @@ const PAGE_SIZE = 20;
 
 const SEV_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 const RISK_COLOR: Record<string, string> = {
-  critical: '#ff4757', high: '#ff6b35', medium: '#ffd32a', low: '#2ed573',
+  critical: 'var(--severity-critical)', high: 'var(--severity-high)', medium: 'var(--severity-medium)', low: 'var(--severity-low)',
 };
 const SEV_CLASS: Record<string, string> = {
   critical: 'fp-sev-crit', high: 'fp-sev-high', medium: 'fp-sev-med', low: 'fp-sev-low',
@@ -149,6 +152,16 @@ export default function FindingsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('risk');
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
+  const { user } = useAuth();
+  const isManager = user?.role === 'manager' || user?.role === 'admin'; 
+  const [users, setUsers] = useState<{id: number; username: string; role: string}[]>([]);
+  const [metadataMap, setMetadataMap] = useState<Record<number, any>>({});
+
+  useEffect(() => {
+    apiClient.get("/findings/users/assignable")
+      .then(res => setUsers(res.data ?? []))
+      .catch(() => setUsers([]));
+  }, []);
 
 
   const { data: rawFindings = [], isLoading: loadingFindings } = useQuery({
@@ -211,18 +224,41 @@ export default function FindingsPage() {
   }, [findings, filter, search]);
 
   const sorted = useMemo(() => [...filtered].sort((a, b) => {
+    const aPinned = metadataMap[a.id]?.is_pinned ? 1 : 0;
+    const bPinned = metadataMap[b.id]?.is_pinned ? 1 : 0;
+    if (bPinned !== aPinned) return bPinned - aPinned;
+
     if (sortKey === 'risk')     return (b.ai_risk_class || 0) - (a.ai_risk_class || 0) || (b.cvss_score || 0) - (a.cvss_score || 0);
     if (sortKey === 'cvss')     return (b.cvss_score || 0) - (a.cvss_score || 0);
     if (sortKey === 'age')      return (b.age_days || 0) - (a.age_days || 0);
     if (sortKey === 'severity') return (SEV_ORDER[a.severity] ?? 9) - (SEV_ORDER[b.severity] ?? 9);
     if (sortKey === 'id')       return a.id - b.id;
     return 0;
-  }), [filtered, sortKey]);
+  }), [filtered, sortKey, metadataMap]);
 
   // ── Pagination ──
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paginated = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // APRÈS — stable
+  const paginatedIds = useMemo(
+    () => paginated.map(f => f.id),
+    // Sérialise les IDs en string pour comparer par valeur, pas par référence
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [paginated.map(f => f.id).join(',')]
+  );
+
+  const refreshMetadata = useCallback(() => {
+    if (paginatedIds.length === 0) return;
+    apiClient.post("/findings/metadata/batch", paginatedIds)
+      .then(res => setMetadataMap(prev => ({ ...prev, ...res.data })))
+      .catch(() => {});
+  }, [paginatedIds]);
+
+  useEffect(() => {
+    refreshMetadata();
+  }, [paginatedIds]);
 
   // Reset to page 1 when filter/search/sort changes
   const handleFilter = useCallback((f: FilterLevel) => { setFilter(f); setPage(1); }, []);
@@ -272,11 +308,11 @@ export default function FindingsPage() {
 
         {/* ── Stats Row ── */}
         <div className="fp-stats-row fu1">
-          <StatCard value={stats.total}    label="Total Findings" color="#00d4ff" pct={100} />
-          <StatCard value={stats.critical} label="Critical"       color="#ff4757" pct={stats.total ? (stats.critical / stats.total) * 100 : 0} />
-          <StatCard value={stats.high}     label="High"           color="#ff6b35" pct={stats.total ? (stats.high / stats.total) * 100 : 0} />
-          <StatCard value={stats.withCVE}  label="CVE Présents"   color="#ffd32a" pct={stats.total ? (stats.withCVE / stats.total) * 100 : 0} />
-          <StatCard value={stats.avgScore} label="Score IA Moy."  color="#a29bfe" pct={parseFloat(stats.avgScore as string) / 4 * 100} />
+          <StatCard value={stats.total}    label="Total Findings" color="var(--accent)" pct={100} />
+          <StatCard value={stats.critical} label="Critical"       color="var(--severity-critical)" pct={stats.total ? (stats.critical / stats.total) * 100 : 0} />
+          <StatCard value={stats.high}     label="High"           color="var(--severity-high)" pct={stats.total ? (stats.high / stats.total) * 100 : 0} />
+          <StatCard value={stats.withCVE}  label="CVE Présents"   color="var(--severity-medium)" pct={stats.total ? (stats.withCVE / stats.total) * 100 : 0} />
+          <StatCard value={stats.avgScore} label="Score IA Moy."  color="var(--severity-info)" pct={parseFloat(stats.avgScore as string) / 4 * 100} />
         </div>
 
         {/* ── Toolbar ── */}
@@ -443,7 +479,18 @@ export default function FindingsPage() {
                         ? <span className="fp-cve-yes">CVE</span>
                         : <span className="fp-cve-no">—</span>}
                     </td>
-                    <td><span className="fp-row-arrow">→</span></td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <FindingRowActions
+                        findingId={f.id}
+                        findingTitle={f.title}
+                        severity={f.severity}
+                        aiRiskScore={f.ai_risk_class}
+                        users={users}
+                        metadata={metadataMap[f.id]}
+                        onRefresh={refreshMetadata}
+                        canManage={isManager}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -556,12 +603,12 @@ function LoadingState({ message, progress }: { message: string; progress?: boole
     <div className="home-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div className="bg-grid" /><div className="bg-radials" /><div className="scan-line" />
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.3)', marginBottom: 16 }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.14em', color: 'var(--dimmed)', marginBottom: 16 }}>
           {message.toUpperCase()}
         </div>
         {progress && (
-          <div style={{ width: 220, height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: 'linear-gradient(90deg,#00d4ff,#008fbb)', animation: 'progressBar 2s ease infinite', borderRadius: 2 }} />
+          <div style={{ width: 220, height: 2, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent), var(--accent-muted))', animation: 'progressBar 2s ease infinite', borderRadius: 2 }} />
           </div>
         )}
       </div>

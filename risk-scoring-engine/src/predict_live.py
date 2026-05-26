@@ -884,6 +884,8 @@ class ResultPublisher:
         with open(output_path, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, ensure_ascii=False, default=str)
         logger.info("Predictions saved: %s (%d findings)", output_path, len(results))
+        model_version = results[0].model_version if results else "latest"
+        ResultPublisher._save_scores_to_history(results, model_version)
 
     @staticmethod
     def _build_note(result: PredictionResult) -> str:
@@ -944,6 +946,39 @@ class ResultPublisher:
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(cache, f, indent=2)
         logger.info("Cache saved: %d findings -> %s", len(results), cache_file)
+        
+
+
+
+    @staticmethod
+    def _save_scores_to_history(results: List[PredictionResult], model_version: str = "latest") -> None:
+        """Sauvegarde les scores dans PostgreSQL. Ne bloque jamais le scoring."""
+        try:
+            from database.connection import SessionLocal
+            from database.models import FindingScoreHistory
+
+            
+
+            db = SessionLocal()
+            try:
+                for r in results:
+                    record = FindingScoreHistory(
+                        finding_id    = r.finding_id,
+                        finding_title = r.title[:200] if r.title else "",
+                        ai_risk_score = r.ai_risk_score,
+                        risk_level    = r.ai_risk_level,
+                        confidence    = r.ai_confidence,
+                        severity      = r.severity,
+                        model_version = model_version,
+                    )
+                    db.add(record)
+                db.commit()
+                logger.info("Historique sauvegardé : %d findings", len(results))
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.warning("Historisation échouée (non bloquant) : %s", e)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

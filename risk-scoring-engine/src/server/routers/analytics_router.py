@@ -4,19 +4,23 @@ Calculs côté backend avec cache + RBAC automatique.
 """
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta , timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+
 
 from auth.security import get_accessible_product_ids, get_current_user
 from database.connection import get_db
-from database.models import User
+from database.models import User , FindingScoreHistory
 from server.cache import get_scores_cache
 from server.dependencies import require_local_loader
 from server.utils import safe_float, safe_int, safe_str
 from collections import defaultdict
+
+
 
 
 logger = logging.getLogger("invisithreat.analytics")
@@ -521,4 +525,112 @@ def get_code_heatmap(
                 reverse=True
             )[:10]
         }
+    }
+
+
+
+@router.get("/history/{finding_id}")
+def get_finding_history(
+    finding_id: int,
+    db:         Session = Depends(get_db),
+    _:          object  = Depends(get_current_user),
+):
+    records = (
+        db.query(FindingScoreHistory)
+        .filter_by(finding_id=finding_id)
+        .order_by(FindingScoreHistory.scored_at)
+        .all()
+    )
+    return {
+        "finding_id": finding_id,
+        "count":      len(records),
+        "history": [
+            {
+                "score":      r.ai_risk_score,
+                "level":      r.risk_level,
+                "confidence": r.confidence,
+                "date":       r.scored_at.isoformat(),
+            }
+            for r in records
+        ],
+    }
+
+
+@router.get("/trends")
+def get_global_trends(
+    days:         int            = Query(default=30, ge=7, le=365),
+    product_name: Optional[str]  = Query(default=None),
+    db:           Session        = Depends(get_db),
+    _:            object         = Depends(get_current_user),
+):
+    since   = datetime.now(timezone.utc) - timedelta(days=days)
+    query   = db.query(FindingScoreHistory).filter(FindingScoreHistory.scored_at >= since)
+
+    if product_name:
+        query = query.filter_by(product_name=product_name)
+
+    records = query.order_by(FindingScoreHistory.scored_at).all()
+
+    weeks: dict = {}
+    for r in records:
+        week_key = r.scored_at.strftime("%Y-W%W")
+        if week_key not in weeks:
+            weeks[week_key] = {
+                "week": week_key, "scores": [],
+                "critical": 0, "high": 0, "medium": 0, "low": 0, "total": 0,
+            }
+        weeks[week_key]["scores"].append(r.ai_risk_score)
+        weeks[week_key]["total"] += 1
+        level = (r.risk_level or "").lower()
+        if level in weeks[week_key]:
+            weeks[week_key][level] += 1
+
+    trends = []
+    for week_data in sorted(weeks.values(), key=lambda x: x["week"]):
+        scores = week_data.pop("scores")
+        week_data["avg_score"] = round(sum(scores) / len(scores), 2) if scores else 0
+        trends.append(week_data)
+
+    return {"period_days": days, "product": product_name or "all", "trends": trends}
+
+
+@router.get("/summary")
+def get_summary(
+    db: Session = Depends(get_db),
+    _:  object  = Depends(get_current_user),
+):
+    result = db.query(
+        func.avg(FindingScoreHistory.ai_risk_score).label("avg_score"),
+        func.count(FindingScoreHistory.id).label("total"),
+    ).first()
+
+    since_week   = datetime.now(timezone.utc) - timedelta(days=7)
+    since_2weeks = datetime.now(timezone.utc) - timedelta(days=14)
+
+    recent = db.query(FindingScoreHistory).filter(FindingScoreHistory.scored_at >= since_week).all()
+    distribution = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for r in recent:
+        level = (r.risk_level or "").lower()
+        if level in distribution:
+            distribution[level] += 1
+
+    prev_week_avg = db.query(func.avg(FindingScoreHistory.ai_risk_score)).filter(
+        FindingScoreHistory.scored_at >= since_2weeks,
+        FindingScoreHistory.scored_at <  since_week,
+    ).scalar()
+
+    curr_week_avg = db.query(func.avg(FindingScoreHistory.ai_risk_score)).filter(
+        FindingScoreHistory.scored_at >= since_week,
+    ).scalar()
+
+    trend = 0.0
+    if prev_week_avg and curr_week_avg:
+        trend = round(float(curr_week_avg) - float(prev_week_avg), 2)
+
+    return {
+        "global_avg_score":   round(float(result.avg_score or 0), 2),
+        "total_scored":       result.total or 0,
+        "last_7days":         distribution,
+        "trend_vs_last_week": trend,
+        "trend_direction":    "up" if trend > 0 else "down" if trend < 0 else "stable",
     }

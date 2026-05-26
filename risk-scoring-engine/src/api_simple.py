@@ -45,6 +45,7 @@ from server.routers.auth_router import router as auth_router
 from server.routers.admin_router import router as admin_router
 from server.routers.notifications_router import router as notifications_router
 from server.routers.projects import router as projects_router
+from server.routers.findings_metadata import router as findings_metadata_router
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ app.include_router(admin_router)
 app.include_router(analytics_router)
 app.include_router(notifications_router)
 app.include_router(projects_router)
+app.include_router(findings_metadata_router)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Middleware
