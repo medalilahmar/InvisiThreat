@@ -96,7 +96,7 @@
 - name: Appliquer l'IPAddressPool MetalLB
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/metallb/ipaddresspool.yaml
+    {{ playbook_dir }}/../../kubernetes/metallb/ipaddresspool.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -107,7 +107,7 @@
 - name: Appliquer le L2Advertisement MetalLB
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/metallb/l2advertisement.yaml
+    {{ playbook_dir }}/../../kubernetes/metallb/l2advertisement.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
