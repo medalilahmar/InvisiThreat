@@ -1,0 +1,22 @@
+---
+# ============================================================
+# Grafana - Service
+# Fichier : kubernetes/monitoring/grafana/service.yaml
+# Description : Expose Grafana en interne
+#               L'accès externe se fait via l'Ingress
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+    managed-by: ansible
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP

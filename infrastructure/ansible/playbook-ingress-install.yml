@@ -1,0 +1,37 @@
+---
+# ============================================================
+# Playbook : playbook-ingress-install.yml
+# Fichier : infrastructure/ansible/playbook-ingress-install.yml
+# Description : Installe NGINX Ingress Controller et
+#               configure le routage vers les services
+#               InvisiThreat via http://invisithreat.local
+# Prérequis : playbook-metallb-install.yml exécuté avant
+# Usage : ansible-playbook -i inventory.yml playbook-ingress-install.yml
+# ============================================================
+
+- name: Installation NGINX Ingress pour InvisiThreat
+  hosts: localhost
+  become: yes
+  roles:
+    - ingress-nginx
+
+  post_tasks:
+    - name: Résumé de l'installation
+      debug:
+        msg: |
+          ================================================
+          NGINX Ingress Controller installé et prêt !
+
+          Accès aux applications :
+          → Dashboard : http://invisithreat.local
+          → API       : http://invisithreat.local/api
+
+          IMPORTANT :
+          Ajouter cette ligne dans /etc/hosts de chaque
+          machine qui veut accéder au projet :
+
+          192.168.11.200  invisithreat.local
+
+          Sous Linux/Mac : /etc/hosts
+          Sous Windows   : C:\Windows\System32\drivers\etc\hosts
+          ================================================

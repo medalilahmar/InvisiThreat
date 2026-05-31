@@ -5,8 +5,8 @@
 }
 
 @keyframes pp-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 224, 102, 0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(255, 224, 102, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--severity-medium-bg); }
+  50%       { box-shadow: 0 0 0 8px transparent; }
 }
 
 @keyframes pp-spin {
@@ -40,7 +40,7 @@
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 224, 102, 0.06) 0%, transparent 65%);
+  background: radial-gradient(circle, var(--severity-medium-bg) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -70,8 +70,8 @@
   width: 72px;
   height: 72px;
   border-radius: 20px;
-  background: rgba(255, 224, 102, 0.08);
-  border: 1px solid rgba(255, 224, 102, 0.20);
+  background: var(--severity-medium-bg);
+  border: 1px solid var(--severity-medium-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -108,8 +108,9 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  background: rgba(196, 181, 253, 0.07);
-  border: 1px solid rgba(196, 181, 253, 0.18);
+  background: var(--glass-purple);
+  border: 1px solid var(--severity-info-border);
+  color: var(--purple);
   border-radius: 12px;
   padding: 14px 16px;
   font-size: 13px;
@@ -142,8 +143,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent3);
-  box-shadow: 0 0 8px var(--accent3);
+  background: var(--severity-medium);
+  box-shadow: 0 0 8px var(--severity-medium);
   animation: pp-blink 2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -162,12 +163,12 @@
   padding: 10px 20px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: rgba(29, 233, 255, 0.05);
+  background: var(--accent-muted);
   transition: all 0.2s ease;
 }
 
 .pp-back:hover {
-  background: rgba(29, 233, 255, 0.10);
+  background: var(--glass-cyan);
   border-color: var(--border2);
   transform: translateY(-1px);
 }

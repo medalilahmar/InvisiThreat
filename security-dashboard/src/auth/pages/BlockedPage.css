@@ -53,7 +53,7 @@
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 86, 104, 0.08) 0%, transparent 65%);
+  background: radial-gradient(circle, var(--severity-critical-bg) 0%, transparent 65%);
   pointer-events: none;
 }
 
@@ -68,8 +68,8 @@
   width: 60px;
   height: 60px;
   border-radius: 16px;
-  background: rgba(255, 86, 104, 0.08);
-  border: 1px solid var(--border2);
+  background: var(--severity-critical-bg);
+  border: 1px solid var(--severity-critical-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,8 +102,8 @@
 /* ── Account box ─────────────────────────────────────────── */
 .bp-account-box {
   padding: 20px 22px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border);
+  background: var(--glass-card);
+  border: 1px solid var(--border2);
   border-radius: 16px;
   margin-bottom: 28px;
 }
@@ -203,8 +203,8 @@
   width: 72px;
   height: 72px;
   border-radius: 20px;
-  background: rgba(255, 86, 104, 0.08);
-  border: 1px solid rgba(255, 86, 104, 0.22);
+  background: var(--severity-critical-bg);
+  border: 1px solid var(--severity-critical-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,15 +257,15 @@
   align-items: center;
   gap: 12px;
   padding: 11px 14px;
-  background: rgba(255, 86, 104, 0.04);
-  border: 1px solid rgba(255, 86, 104, 0.12);
+  background: var(--glass-danger);
+  border: 1px solid var(--border-danger);
   border-radius: 10px;
   transition: all 0.2s ease;
 }
 
 .bp-reason-item:hover {
-  background: rgba(255, 86, 104, 0.07);
-  border-color: rgba(255, 86, 104, 0.22);
+  filter: brightness(1.12);
+  box-shadow: 0 8px 24px rgba(255, 86, 104, 0.30);
 }
 
 .bp-reason-icon { font-size: 15px; flex-shrink: 0; }
@@ -294,8 +294,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
+  background: var(--glass-card);
+  border: 1px solid var(--border2);
   border-radius: 10px;
   font-size: 13px;
   color: var(--muted);
@@ -310,7 +310,7 @@
 
 a.bp-contact:hover {
   color: var(--accent);
-  border-color: rgba(29, 233, 255, 0.25);
+  border-color: var(--accent-border);
 }
 
 .bp-contact-icon { font-size: 15px; flex-shrink: 0; }

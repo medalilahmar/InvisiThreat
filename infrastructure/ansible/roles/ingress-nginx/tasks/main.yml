@@ -1,0 +1,139 @@
+---
+# ============================================================
+# Rôle : ingress-nginx
+# Fichier : tasks/main.yml
+# Description : Installe NGINX Ingress Controller v1.10.1
+#               MetalLB lui attribue l'IP 192.168.11.200
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Vérifier si NGINX Ingress est déjà installé
+# ------------------------------------------------------------
+- name: Vérifier si NGINX Ingress est déjà installé
+  command: kubectl get namespace ingress-nginx
+  register: ingress_namespace
+  failed_when: false
+  changed_when: false
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# ------------------------------------------------------------
+# 2. Télécharger le manifest officiel NGINX Ingress v1.10.1
+# ------------------------------------------------------------
+- name: Télécharger le manifest NGINX Ingress v1.10.1
+  get_url:
+    url: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/baremetal/deploy.yaml"
+    dest: "/tmp/ingress-nginx.yaml"
+    mode: '0644'
+    force: true
+  when: ingress_namespace.rc != 0
+
+# ------------------------------------------------------------
+# 3. Installer NGINX Ingress dans le cluster
+# ------------------------------------------------------------
+- name: Installer NGINX Ingress Controller
+  command: kubectl apply -f /tmp/ingress-nginx.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: ingress_namespace.rc != 0
+
+# ------------------------------------------------------------
+# 4. Attendre que le déploiement NGINX Ingress soit prêt
+# ------------------------------------------------------------
+- name: Attendre que NGINX Ingress Controller soit prêt
+  command: >
+    kubectl rollout status deployment/ingress-nginx-controller
+    -n ingress-nginx
+    --timeout=120s
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: ingress_ready
+  retries: 5
+  delay: 15
+  until: ingress_ready.rc == 0
+
+# ------------------------------------------------------------
+# 5. Patcher le Service en type LoadBalancer
+#    Par défaut baremetal installe en NodePort
+#    On le change en LoadBalancer pour que MetalLB
+#    lui attribue une IP de notre pool
+# ------------------------------------------------------------
+- name: Patcher le Service NGINX en type LoadBalancer
+  command: >
+    kubectl patch svc ingress-nginx-controller
+    -n ingress-nginx
+    -p '{"spec":{"type":"LoadBalancer"}}'
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# ------------------------------------------------------------
+# 6. Attendre que MetalLB attribue une IP externe
+# ------------------------------------------------------------
+- name: Attendre que MetalLB attribue une IP au Service NGINX
+  shell: >
+    kubectl get svc ingress-nginx-controller
+    -n ingress-nginx
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: ingress_ip
+  retries: 10
+  delay: 10
+  until: ingress_ip.stdout != ""
+
+# ------------------------------------------------------------
+# 7. Appliquer la ressource Ingress pour InvisiThreat
+# ------------------------------------------------------------
+- name: Appliquer la ressource Ingress InvisiThreat
+  command: >
+    kubectl apply -f
+    /home/{{ ansible_user }}/infrastructure/kubernetes/ingress/invisithreat-ingress.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# ------------------------------------------------------------
+# 8. Vérifier les pods NGINX Ingress
+# ------------------------------------------------------------
+- name: Vérifier les pods NGINX Ingress
+  command: kubectl get pods -n ingress-nginx
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: ingress_pods
+
+- name: Afficher les pods NGINX Ingress
+  debug:
+    msg: "{{ ingress_pods.stdout }}"
+
+# ------------------------------------------------------------
+# 9. Afficher l'IP externe attribuée par MetalLB
+# ------------------------------------------------------------
+- name: Afficher l'IP externe de NGINX Ingress
+  debug:
+    msg: |
+      IP externe attribuée par MetalLB : {{ ingress_ip.stdout }}
+      Dashboard : http://invisithreat.local
+      API       : http://invisithreat.local/api
+
+# ------------------------------------------------------------
+# 10. Résumé final
+# ------------------------------------------------------------
+- name: Résumé installation NGINX Ingress
+  debug:
+    msg: |
+      ================================================
+      NGINX Ingress Controller installé et prêt !
+      IP externe   : {{ ingress_ip.stdout }}
+      Dashboard    : http://invisithreat.local
+      API FastAPI  : http://invisithreat.local/api
+
+      IMPORTANT : Ajouter cette ligne dans /etc/hosts
+      de chaque machine qui veut accéder au projet :
+      {{ ingress_ip.stdout }}  invisithreat.local
+      ================================================

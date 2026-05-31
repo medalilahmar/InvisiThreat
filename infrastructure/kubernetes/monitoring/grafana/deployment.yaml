@@ -1,0 +1,99 @@
+---
+# ============================================================
+# Grafana - Deployment
+# Fichier : kubernetes/monitoring/grafana/deployment.yaml
+# Description : Interface web de visualisation des métriques
+#               Accessible via http://monitoring.invisithreat.local
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+    managed-by: ansible
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.0
+          ports:
+            - containerPort: 3000
+          env:
+            # --------------------------------------------------
+            # Compte admin par défaut
+            # --------------------------------------------------
+            - name: GF_SECURITY_ADMIN_USER
+              value: "admin"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "invisithreat2024"
+            # --------------------------------------------------
+            # Désactiver le login anonyme
+            # --------------------------------------------------
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            # --------------------------------------------------
+            # URL de base pour l'Ingress
+            # --------------------------------------------------
+            - name: GF_SERVER_ROOT_URL
+              value: "http://monitoring.invisithreat.local"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "false"
+            # --------------------------------------------------
+            # Désactiver la télémétrie Grafana
+            # --------------------------------------------------
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: grafana-dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: grafana-dashboard-kubernetes
+              mountPath: /var/lib/grafana/dashboards
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: grafana-storage
+          emptyDir: {}
+        - name: grafana-datasources
+          configMap:
+            name: grafana-datasources
+        - name: grafana-dashboards-config
+          configMap:
+            name: grafana-dashboards-config
+        - name: grafana-dashboard-kubernetes
+          configMap:
+            name: grafana-dashboard-kubernetes

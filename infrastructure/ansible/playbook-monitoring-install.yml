@@ -1,0 +1,39 @@
+---
+# ============================================================
+# Playbook : playbook-monitoring-install.yml
+# Fichier : infrastructure/ansible/playbook-monitoring-install.yml
+# Description : Installe Prometheus + Grafana + Loki
+#               sur le cluster K3s d'InvisiThreat
+# Prérequis : playbook-ingress-install.yml exécuté avant
+# Usage : ansible-playbook -i inventory.yml playbook-monitoring-install.yml
+# ============================================================
+
+- name: Installation du monitoring pour InvisiThreat
+  hosts: localhost
+  become: yes
+  roles:
+    - monitoring
+
+  post_tasks:
+    - name: Résumé de l'installation
+      debug:
+        msg: |
+          ================================================
+          Monitoring installé et prêt !
+
+          Grafana      : http://monitoring.invisithreat.local
+          Login        : admin
+          Mot de passe : invisithreat2024
+
+          IMPORTANT :
+          Ajouter cette ligne dans /etc/hosts :
+          192.168.11.200  monitoring.invisithreat.local
+
+          Dashboards disponibles :
+          → InvisiThreat - Kubernetes
+            (CPU, mémoire, redémarrages des pods)
+
+          Datasources préconfigurées :
+          → Prometheus (métriques)
+          → Loki (logs)
+          ================================================

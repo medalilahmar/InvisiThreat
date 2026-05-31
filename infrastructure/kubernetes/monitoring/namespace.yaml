@@ -1,0 +1,14 @@
+---
+# ============================================================
+# Namespace monitoring
+# Fichier : kubernetes/monitoring/namespace.yaml
+# Description : Isole tous les composants de monitoring
+#               du reste du cluster InvisiThreat
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/name: monitoring
+    managed-by: ansible

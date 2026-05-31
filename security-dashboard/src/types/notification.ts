@@ -4,6 +4,8 @@ export enum NotificationType {
   LOGIN_FAILED     = "login_failed",
   USER_BLOCKED     = "user_blocked",
   PROJECT_SYNC     = "project_sync",
+  FINDING_PINNED   = 'finding_pinned',
+  FINDING_ASSIGNED = 'finding_assigned',
 }
 
 export interface Notification {
@@ -13,6 +15,7 @@ export interface Notification {
   message: string;
   is_read: boolean;
   related_user_id: number | null;
+  finding_id:      number | null;
   created_at: string;
 }
 

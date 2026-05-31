@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation,useNavigate, Link } from 'react-router-dom';
 import { login as doLogin } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 import './LoginPage.css';
@@ -8,6 +8,7 @@ export default function LoginPage() {
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || '/dashboard';
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [form,         setForm]         = useState({ username: '', password: '' });
   const [error,        setError]        = useState('');
@@ -26,15 +27,15 @@ export default function LoginPage() {
       login(result.user, result.access_token);
 
       if (result.user.status === 'pending') {
-        window.location.href = '/auth/pending';
+        navigate('/auth/pending', { replace: true });
         return;
       }
       if (result.user.status === 'blocked') {
-        window.location.href = '/auth/blocked';
+        navigate('/auth/blocked', { replace: true });
         return;
       }
 
-      window.location.href = result.user.role === 'admin' ? '/admin' : from;
+      navigate(result.user.role === 'admin' ? '/admin' : from, { replace: true });
 
     } catch (err: any) {
       // ── Lire le LoginError structuré depuis authService ───────────────
@@ -46,11 +47,11 @@ export default function LoginPage() {
         setError(`🔒 Account locked. Try again in ${minutes} minutes.`);
 
       } else if (code === 'ACCOUNT_PENDING') {
-        window.location.href = '/auth/pending';
+        navigate('/auth/pending', { replace: true });
         return;
 
       } else if (code === 'ACCOUNT_BLOCKED') {
-        window.location.href = '/auth/blocked';
+        navigate('/auth/blocked', { replace: true });
         return;
 
       } else if (code === 'INVALID_CREDENTIALS') {
@@ -116,6 +117,9 @@ export default function LoginPage() {
         <div className="lp-form-wrap">
 
           <div className="lp-form-header">
+            <Link to="/" className="lp-back-home">
+              ← Home
+            </Link>
             <h2 className="lp-form-title">Welcome back</h2>
             <p className="lp-form-subtitle">Sign in to your account to continue</p>
           </div>

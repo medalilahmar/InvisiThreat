@@ -1,12 +1,20 @@
 import { RadialBarChart, RadialBar, ResponsiveContainer } from 'recharts';
 
 export function RiskGauge({ score }: { score: number }) {
-  const color = score >= 70 ? '#ff4757' : score >= 40 ? '#ffd32a' : '#2ed573';
+  const getVar = (v: string) =>
+    getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#888';
+
+  const color = score >= 70
+    ? getVar('--severity-critical')
+    : score >= 40
+    ? getVar('--severity-medium')
+    : getVar('--severity-low');
+
   const label = score >= 70 ? 'CRITIQUE' : score >= 40 ? 'MODÉRÉ' : 'FAIBLE';
 
   const data = [
-    { name: 'bg',    value: 100,   fill: 'rgba(255,255,255,0.06)' },
-    { name: 'score', value: score, fill: color },
+    { name: 'bg',    value: 100,   fill: getVar('--bg4')  },
+    { name: 'score', value: score, fill: color            },
   ];
 
   return (
@@ -26,7 +34,7 @@ export function RiskGauge({ score }: { score: number }) {
         textAlign: 'center',
       }}>
         <div style={{ fontSize: 36, fontWeight: 800, color, lineHeight: 1 }}>{score}</div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4, letterSpacing: 2 }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--dimmed)', marginTop: 4, letterSpacing: 2 }}>{label}</div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 // frontend/src/features/model/components/FeatureExplorer.tsx
-import { useState, useMemo } from 'react'; // ← Supprimé React
+import { useState, useMemo } from 'react';
 import { FEATURES_METADATA } from '../../../types/model';
 import type { ModelMetrics as IModelMetrics } from '../../../types/model';
 
@@ -7,25 +7,25 @@ interface FeatureExplorerProps {
   metrics: IModelMetrics | null;
 }
 
-const impactColors = {
-  Critique: '#e74c3c',
-  Élevé: '#f39c12',
-  Moyen: '#3498db',
+const impactColors: Record<string, string> = {
+  Critique: 'var(--severity-critical)',
+  Elevé:    'var(--severity-high)',
+  Moyen:    'var(--severity-info)',
 };
 
-const categoryIcons = {
-  'Sévérité': '📊',
-  'Contexte': '🌍',
-  'CVE/CWE': '🔐',
-  'Tags': '🏷️',
-  'Exploit': '⚡',
-  'Interaction': '🔗',
-  'Historique': '📜',
+const categoryLabels: Record<string, string> = {
+  'Sévérité':    'Sévérité',
+  'Contexte':    'Contexte',
+  'CVE/CWE':     'CVE/CWE',
+  'Tags':        'Tags',
+  'Exploit':     'Exploit',
+  'Interaction': 'Interaction',
+  'Historique':  'Historique',
 };
 
 export function FeatureExplorer({ metrics }: FeatureExplorerProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tous');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm]             = useState('');
 
   if (!metrics) return null;
 
@@ -50,7 +50,7 @@ export function FeatureExplorer({ metrics }: FeatureExplorerProps) {
           key.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .sort(([, a], [, b]) => {
-        const impactOrder = { Critique: 0, Élevé: 1, Moyen: 2 };
+        const impactOrder: Record<string, number> = { Critique: 0, Élevé: 1, Moyen: 2 };
         return (impactOrder[a.impact] ?? 3) - (impactOrder[b.impact] ?? 3);
       });
   }, [selectedCategory, searchTerm, metrics.feature_columns]);
@@ -68,7 +68,7 @@ export function FeatureExplorer({ metrics }: FeatureExplorerProps) {
       <div className="explorer-controls">
         <input
           type="text"
-          placeholder="🔍 Chercher une feature..."
+          placeholder="Chercher une feature..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
@@ -78,11 +78,10 @@ export function FeatureExplorer({ metrics }: FeatureExplorerProps) {
           {categories.map((cat) => (
             <button
               key={cat}
-              className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
+              className={`category-btn${selectedCategory === cat ? ' active' : ''}`}
               onClick={() => setSelectedCategory(cat)}
             >
-              {cat === 'Tous' ? '📋' : categoryIcons[cat as keyof typeof categoryIcons]}
-              {cat}
+              {cat === 'Tous' ? 'Tous' : (categoryLabels[cat] ?? cat)}
             </button>
           ))}
         </div>
@@ -92,14 +91,16 @@ export function FeatureExplorer({ metrics }: FeatureExplorerProps) {
         {filteredFeatures.map(([key, feature]) => (
           <div key={key} className="feature-card">
             <div className="feature-top">
-              <div className="feature-icons">
-                <span className="feature-category-icon">
-                  {categoryIcons[feature.category as keyof typeof categoryIcons]}
-                </span>
-              </div>
+              <span className="feature-category-label">
+                {categoryLabels[feature.category] ?? feature.category}
+              </span>
               <span
                 className="impact-badge"
-                style={{ background: impactColors[feature.impact] }}
+                style={{
+                  background:  impactColors[feature.impact] ?? 'var(--severity-none)',
+                  color:       'var(--text-on-accent)',
+                  borderColor: impactColors[feature.impact] ?? 'var(--border)',
+                }}
               >
                 {feature.impact}
               </span>

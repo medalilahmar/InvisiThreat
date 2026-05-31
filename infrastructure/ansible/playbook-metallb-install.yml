@@ -1,0 +1,34 @@
+---
+# ============================================================
+# Playbook : playbook-metallb-install.yml
+# Fichier : infrastructure/ansible/playbook-metallb-install.yml
+# Description : Installe et configure MetalLB v0.14.8
+#               sur le cluster K3s d'InvisiThreat
+# Prérequis : playbook-k3s-install.yml exécuté avant
+# Usage : ansible-playbook -i inventory.yml playbook-metallb-install.yml
+# ============================================================
+
+- name: Installation MetalLB pour InvisiThreat
+  hosts: localhost
+  become: yes
+  roles:
+    - metallb
+
+  post_tasks:
+    - name: Résumé de l'installation
+      debug:
+        msg: |
+          ================================================
+          MetalLB v0.14.8 installé et prêt !
+
+          Pool d'IPs : 192.168.11.200 - 192.168.11.210
+          Mode       : Layer 2 (ARP)
+          Namespace  : metallb-system
+
+          Prochaine étape :
+          → Exécuter playbook-ingress-install.yml
+            pour déployer NGINX Ingress Controller
+            qui recevra l'IP 192.168.11.200
+            et permettra d'accéder à :
+            http://invisithreat.local
+          ================================================

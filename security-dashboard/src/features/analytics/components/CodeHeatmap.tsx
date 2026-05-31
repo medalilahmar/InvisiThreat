@@ -12,33 +12,33 @@ function getRiskColor(node: FileNode["stats"]): {
   bg: string; border: string; text: string; label: string;
 } {
   if (node.critical > 0) return {
-    bg:     "rgba(255,71,87,0.15)",
-    border: "rgba(255,71,87,0.5)",
-    text:   "#ff4757",
+    bg:     "var(--severity-critical-bg)",
+    border: "var(--severity-critical-border)",
+    text:   "var(--severity-critical)",
     label:  "CRITICAL"
   };
   if (node.high > 0) return {
-    bg:     "rgba(255,107,53,0.15)",
-    border: "rgba(255,107,53,0.5)",
-    text:   "#ff6b35",
+    bg:     "var(--severity-high-bg)",
+    border: "var(--severity-high-border)",
+    text:   "var(--severity-high)",
     label:  "HIGH"
   };
   if (node.medium > 0) return {
-    bg:     "rgba(255,165,0,0.15)",
-    border: "rgba(255,165,0,0.5)",
-    text:   "#ffa502",
+    bg:     "var(--severity-medium-bg)",
+    border: "var(--severity-medium-border)",
+    text:   "var(--severity-medium)",
     label:  "MEDIUM"
   };
   if (node.low > 0) return {
-    bg:     "rgba(46,213,115,0.1)",
-    border: "rgba(46,213,115,0.3)",
-    text:   "#2ed573",
+    bg:     "var(--severity-low-bg)",
+    border: "var(--severity-low-border)",
+    text:   "var(--severity-low)",
     label:  "LOW"
   };
   return {
-    bg:     "rgba(255,255,255,0.02)",
-    border: "rgba(255,255,255,0.07)",
-    text:   "#444",
+    bg:     "var(--bg3)",
+    border: "var(--border)",
+    text:   "var(--dimmed)",
     label:  "SECURE"
   };
 }
@@ -95,7 +95,7 @@ function TreeNode({
 
         {/* Nom */}
         <span style={{
-          color:     node.stats.total > 0 ? colors.text : "#666",
+          color:     node.stats.total > 0 ? colors.text : "var(--dimmed)",
           fontSize:  "13px",
           fontWeight: node.stats.total > 0 ? 600 : 400,
           flex:      1,
@@ -114,8 +114,8 @@ function TreeNode({
                 fontSize:     "10px",
                 padding:      "1px 6px",
                 borderRadius: "10px",
-                background:   "rgba(255,71,87,0.2)",
-                color:        "#ff4757",
+                background: "var(--severity-critical-bg)",
+                color: "var(--severity-critical)",
                 fontWeight:   700,
               }}>
                 {node.stats.critical}C
@@ -126,8 +126,8 @@ function TreeNode({
                 fontSize:     "10px",
                 padding:      "1px 6px",
                 borderRadius: "10px",
-                background:   "rgba(255,107,53,0.2)",
-                color:        "#ff6b35",
+                background: "var(--severity-high-bg)",
+                color: "var(--severity-high)",
                 fontWeight:   700,
               }}>
                 {node.stats.high}H
@@ -138,8 +138,9 @@ function TreeNode({
                 fontSize:     "10px",
                 padding:      "1px 6px",
                 borderRadius: "10px",
-                background:   "rgba(255,255,255,0.05)",
-                color:        "#888",
+                background: "var(--bg4)",
+                color: "var(--dimmed)",
+
               }}>
                 {node.stats.medium + node.stats.low}
               </span>
@@ -149,7 +150,7 @@ function TreeNode({
 
         {/* Flèche expand/collapse pour dossiers */}
         {!isFile && hasKids && (
-          <span style={{ color: "#555", fontSize: "10px" }}>
+          <span style={{ color: "var(--dimmed)", fontSize: "10px" }}>
             {expanded ? "▼" : "▶"}
           </span>
         )}
@@ -205,8 +206,9 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
         <div style={{
           width:  "32px",
           height: "32px",
-          border: "2px solid rgba(0,212,255,0.3)",
-          borderTop: "2px solid #00d4ff",
+          border: "2px solid var(--accent-muted)",
+          borderTop: "2px solid var(--accent)",
+          color: "var(--dimmed)",
           borderRadius: "50%",
           animation: "spin 1s linear infinite",
         }} />
@@ -219,9 +221,9 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
     return (
       <div style={{
         textAlign:    "center",
-        color:        "#ff4757",
+        color:        "var(--severity-critical)",
         padding:      "40px",
-        background:   "rgba(255,71,87,0.05)",
+        background:   "var(--glass-danger)",
         borderRadius: "12px",
       }}>
         ⚠️ {error}
@@ -246,17 +248,17 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
           { label: "Critiques",         value: data.stats.total_critical,  icon: "🔴" },
         ].map((stat, i) => (
           <div key={i} style={{
-            background:   "rgba(255,255,255,0.03)",
-            border:       "1px solid rgba(255,255,255,0.07)",
+            background:   "var(--bg3)",
+            border:       "1px solid var(--border)",
             borderRadius: "10px",
             padding:      "14px",
             textAlign:    "center",
           }}>
             <div style={{ fontSize: "20px", marginBottom: "6px" }}>{stat.icon}</div>
-            <div style={{ color: "#fff", fontSize: "22px", fontWeight: 700 }}>
+            <div style={{ color: "var(--text-strong)", fontSize: "22px", fontWeight: 700 }}>
               {stat.value}
             </div>
-            <div style={{ color: "#666", fontSize: "11px" }}>{stat.label}</div>
+            <div style={{ color: "var(--dimmed)", fontSize: "11px" }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -271,15 +273,15 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
 
         {/* Arbre des fichiers */}
         <div style={{
-          background:   "rgba(255,255,255,0.02)",
-          border:       "1px solid rgba(255,255,255,0.07)",
+          background:   "var(--bg3)",
+          border:       "1px solid var(--border)",
           borderRadius: "12px",
           padding:      "16px",
           maxHeight:    "600px",
           overflowY:    "auto",
         }}>
           <div style={{
-            color:        "#00d4ff",
+            color:        "var(--accent)",
             fontSize:     "11px",
             letterSpacing: "2px",
             marginBottom: "14px",
@@ -288,7 +290,7 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
           </div>
 
           {data.tree.length === 0 ? (
-            <div style={{ color: "#555", textAlign: "center", padding: "40px 0" }}>
+            <div style={{ color: "var(--dimmed)", textAlign: "center", padding: "40px 0" }}>
               Aucun fichier avec findings
             </div>
           ) : (
@@ -304,13 +306,13 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
 
         {/* Top fichiers risqués */}
         <div style={{
-          background:   "rgba(255,255,255,0.02)",
-          border:       "1px solid rgba(255,255,255,0.07)",
+          background:   "var(--bg3)",
+          border:       "1px solid var(--border)",
           borderRadius: "12px",
           padding:      "16px",
         }}>
           <div style={{
-            color:        "#ff4757",
+            color:        "var(--severity-critical)",
             fontSize:     "11px",
             letterSpacing: "2px",
             marginBottom: "14px",
@@ -326,11 +328,11 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
             onChange={e => setSearchTerm(e.target.value)}
             style={{
               width:        "100%",
-              background:   "rgba(255,255,255,0.05)",
-              border:       "1px solid rgba(255,255,255,0.1)",
+              background:   "var(--bg4)",
+              border:       "1px solid var(--border)",
               borderRadius: "6px",
               padding:      "6px 10px",
-              color:        "#fff",
+              color:        "var(--text)",
               fontSize:     "12px",
               marginBottom: "12px",
               outline:      "none",
@@ -352,15 +354,15 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
                 onClick={() => handleFileClick(file.path)}
                 style={{
                   padding:      "10px 12px",
-                  background:   "rgba(255,255,255,0.03)",
-                  border:       `1px solid ${file.critical > 0 ? "rgba(255,71,87,0.3)" : "rgba(255,255,255,0.07)"}`,
+                  background:   "var(--bg4)",
+                  border:       `1px solid ${file.critical > 0 ? "var(--severity-critical)" : "var(--border)"}`,
                   borderRadius: "8px",
                   cursor:       "pointer",
                 }}
               >
                 {/* Nom du fichier */}
                 <div style={{
-                  color:        "#ddd",
+                  color:        "var(--text)",
                   fontSize:     "12px",
                   fontWeight:   600,
                   overflow:     "hidden",
@@ -373,7 +375,7 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
 
                 {/* Chemin court */}
                 <div style={{
-                  color:        "#555",
+                  color:        "var(--dimmed)",
                   fontSize:     "10px",
                   overflow:     "hidden",
                   textOverflow: "ellipsis",
@@ -386,14 +388,14 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
                 {/* Barre de risque */}
                 <div style={{
                   height:       "3px",
-                  background:   "rgba(255,255,255,0.05)",
+                  background:   "var(--bg4)",
                   borderRadius: "2px",
                   marginBottom: "6px",
                 }}>
                   <div style={{
                     height:       "3px",
                     width:        `${Math.min(file.total * 10, 100)}%`,
-                    background:   file.critical > 0 ? "#ff4757" : "#ffa502",
+                    background:   file.critical > 0 ? "var(--severity-critical)" : "var(--severity-high)",
                     borderRadius: "2px",
                   }} />
                 </div>
@@ -405,8 +407,8 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
                       fontSize:     "10px",
                       padding:      "1px 6px",
                       borderRadius: "10px",
-                      background:   "rgba(255,71,87,0.15)",
-                      color:        "#ff4757",
+                      background:   "var(--severity-critical-bg)",
+                      color:        "var(--severity-critical)",
                     }}>
                       {file.critical} critical
                     </span>
@@ -415,8 +417,8 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
                     fontSize:     "10px",
                     padding:      "1px 6px",
                     borderRadius: "10px",
-                    background:   "rgba(255,255,255,0.05)",
-                    color:        "#888",
+                    background:   "var(--bg4)",
+                    color:        "var(--dimmed)",
                   }}>
                     {file.total} total
                   </span>
@@ -425,8 +427,8 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
                       fontSize:     "10px",
                       padding:      "1px 6px",
                       borderRadius: "10px",
-                      background:   "rgba(0,212,255,0.1)",
-                      color:        "#00d4ff",
+                      background:   "var(--severity-ia-bg)",
+                      color:        "var(--severity-ia)",
                     }}>
                       IA {file.score}
                     </span>
@@ -446,11 +448,11 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
         flexWrap:       "wrap",
       }}>
         {[
-          { color: "#ff4757", label: "Critical" },
-          { color: "#ff6b35", label: "High"     },
-          { color: "#ffa502", label: "Medium"   },
-          { color: "#2ed573", label: "Low"      },
-          { color: "#444",    label: "Secure"   },
+          { color: "var(--severity-critical)", label: "Critical" },
+          { color: "var(--severity-high)", label: "High"     },
+          { color: "var(--severity-medium)", label: "Medium"   },
+          { color: "var(--severity-low)", label: "Low"      },
+          { color: "var(--severity-secure)", label: "Secure"   },
         ].map((item, i) => (
           <div key={i} style={{
             display:    "flex",
@@ -463,7 +465,7 @@ export default function CodeHeatmap({ engagementId, productName }: Props) {
               borderRadius: "2px",
               background:   item.color,
             }} />
-            <span style={{ color: "#666", fontSize: "12px" }}>
+            <span style={{ color: "var(--dimmed)", fontSize: "12px" }}>
               {item.label}
             </span>
           </div>

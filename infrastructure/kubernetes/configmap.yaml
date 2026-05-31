@@ -29,7 +29,6 @@ data:
   REDIS_URL: "redis://redis-svc:6379/0"
 
   # Jira
-  JIRA_PROJECT_KEY: "INV"
 
   # CORS
   CORS_ORIGINS: "*"

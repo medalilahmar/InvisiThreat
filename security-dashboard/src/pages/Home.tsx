@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import './Home.css'
 import Logo from '../assets/invilogo.png';
 import { Link } from 'react-router-dom';
+import { ThemeToggle } from '../components/ui/ThemeToggle';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type NodeType = 'critical' | 'high' | 'normal'
@@ -17,6 +19,12 @@ function ParticleCanvas() {
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
     let animId: number
+
+    const C = {
+      critical: '255,71,87',
+      high:     '255,107,53',
+      accent:   '0,212,255',
+    }
 
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }
     resize()
@@ -48,7 +56,11 @@ function ParticleCanvas() {
             const alpha = (1 - dist / 145) * 0.18
             const isCrit = nodes[i].type === 'critical' || nodes[j].type === 'critical'
             const isHigh = nodes[i].type === 'high'     || nodes[j].type === 'high'
-            ctx.strokeStyle = isCrit ? `rgba(255,71,87,${alpha})` : isHigh ? `rgba(255,107,53,${alpha * 0.75})` : `rgba(0,212,255,${alpha * 0.55})`
+            ctx.strokeStyle = isCrit
+              ? `rgba(${C.critical},${alpha})`
+              : isHigh
+              ? `rgba(${C.high},${alpha * 0.75})`
+              : `rgba(${C.accent},${alpha * 0.55})`
             ctx.lineWidth = isCrit ? 0.85 : 0.4
             ctx.beginPath()
             ctx.moveTo(nodes[i].x, nodes[i].y)
@@ -59,17 +71,17 @@ function ParticleCanvas() {
       }
       nodes.forEach(n => {
         const pr = n.r + Math.sin(n.pulse) * 0.7
-        const color = n.type === 'critical' ? '#ff4757' : n.type === 'high' ? '#ff6b35' : '#00d4ff'
+        const color = n.type === 'critical' ? `rgb(${C.critical})` : n.type === 'high' ? `rgb(${C.high})` : `rgb(${C.accent})`
         const alpha = n.type === 'critical' ? 0.92 : n.type === 'high' ? 0.72 : 0.48
         if (n.type === 'critical') {
           const grd = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, pr * 7)
-          grd.addColorStop(0, 'rgba(255,71,87,0.28)')
-          grd.addColorStop(1, 'rgba(255,71,87,0)')
+          grd.addColorStop(0, `rgba(${C.critical},0.28)`)
+          grd.addColorStop(1, `rgba(${C.critical},0)`)
           ctx.beginPath(); ctx.arc(n.x, n.y, pr * 7, 0, Math.PI * 2)
           ctx.fillStyle = grd; ctx.fill()
         }
         ctx.beginPath(); ctx.arc(n.x, n.y, pr, 0, Math.PI * 2)
-        ctx.fillStyle = color + Math.round(alpha * 255).toString(16).padStart(2, '0')
+        ctx.fillStyle = color.replace(')', `,${alpha})`).replace('rgb', 'rgba')
         ctx.fill()
       })
       animId = requestAnimationFrame(draw)
@@ -161,49 +173,49 @@ export default function Home() {
   }, [])
 
   const archSteps = [
-    { icon: '👨‍💻', label: 'Developer Push',  sub: 'git commit',        color: '#00d4ff' },
-    { icon: '🔍', label: 'Scanners',          sub: 'SAST · DAST · SCA', color: '#ffd32a' },
-    { icon: '🗄️', label: 'DefectDojo',        sub: 'Findings DB',       color: '#ff6b35' },
-    { icon: '🏷️', label: 'Tag Engine',        sub: 'Context tagging',   color: '#2ed573' },
-    { icon: '🤖', label: 'AI Scorer',         sub: 'LightGBM',          color: '#00d4ff' },
-    { icon: '🚦', label: 'Security Gate',     sub: 'Block / Allow',     color: '#ff4757' },
+    { icon: '👨‍💻', label: 'Developer Push',  sub: 'git commit',        color: 'var(--accent)' },
+    { icon: '🔍', label: 'Scanners',          sub: 'SAST · DAST · SCA', color: 'var(--accent3)' },
+    { icon: '🗄️', label: 'DefectDojo',        sub: 'Findings DB',       color: 'var(--orange)' },
+    { icon: '🏷️', label: 'Tag Engine',        sub: 'Context tagging',   color: 'var(--green)' },
+    { icon: '🤖', label: 'AI Scorer',         sub: 'LightGBM',          color: 'var(--accent)' },
+    { icon: '🚦', label: 'Security Gate',     sub: 'Block / Allow',     color: 'var(--accent2)' },
   ]
 
   const features = [
-    { icon: '🔬', color: '#00d4ff', title: 'AI Risk Scoring',     desc: 'XGBoost · LightGBM · RandomForest ensemble. Each finding gets a 0–4 risk score weighted by business context, not just CVSS severity.' },
-    { icon: '🏷️', color: '#2ed573', title: 'Intelligent Tagging', desc: 'Automatic detection of production, external-facing, sensitive, and urgent findings. Tags feed directly into the ML scoring pipeline.' },
-    { icon: '⚡', color: '#ffd32a', title: 'Security Gate',       desc: 'CI/CD integration automatically blocks deployments when any finding scores ≥ 3 (High or Critical). Zero-touch protection.' },
-    { icon: '🧠', color: '#ff6b35', title: 'SHAP Explainability', desc: 'Every AI decision is fully explained. See which features drove the score — no black boxes, full transparency for your security team.' },
-    { icon: '📡', color: '#ff4757', title: 'Scanner Unification', desc: 'Semgrep (SAST), OWASP ZAP (DAST), and Snyk (SCA) results unified via DefectDojo. One prioritized source of truth.' },
-    { icon: '📊', color: '#a29bfe', title: 'Live Dashboard',      desc: 'Real-time metrics, trend charts, scanner breakdown, and pipeline event feed. Full visibility over your security posture.' },
+    { icon: '🔬', color: 'var(--accent)', title: 'AI Risk Scoring',     desc: 'XGBoost · LightGBM · RandomForest ensemble. Each finding gets a 0–4 risk score weighted by business context, not just CVSS severity.' },
+    { icon: '🏷️', color: 'var(--green)', title: 'Intelligent Tagging', desc: 'Automatic detection of production, external-facing, sensitive, and urgent findings. Tags feed directly into the ML scoring pipeline.' },
+    { icon: '⚡', color: 'var(--accent3)', title: 'Security Gate',       desc: 'CI/CD integration automatically blocks deployments when any finding scores ≥ 3 (High or Critical). Zero-touch protection.' },
+    { icon: '🧠', color: 'var(--orange)', title: 'SHAP Explainability', desc: 'Every AI decision is fully explained. See which features drove the score — no black boxes, full transparency for your security team.' },
+    { icon: '📡', color: 'var(--accent2)', title: 'Scanner Unification', desc: 'Semgrep (SAST), OWASP ZAP (DAST), and Snyk (SCA) results unified via DefectDojo. One prioritized source of truth.' },
+    { icon: '📊', color: 'var(--purple)', title: 'Live Dashboard',      desc: 'Real-time metrics, trend charts, scanner breakdown, and pipeline event feed. Full visibility over your security posture.' },
   ]
 
   const termLines = [
-    { text: '$ semgrep --config auto ./src --output findings.json',       color: 'rgba(255,255,255,0.45)' },
-    { text: '✓  Semgrep SAST: 487 findings — 0 new Critical',             color: '#2ed573' },
-    { text: '$ snyk test --severity-threshold=medium',                    color: 'rgba(255,255,255,0.45)' },
-    { text: '⚠  Snyk SCA: 2 High vulnerabilities in node_modules',       color: '#ffd32a' },
-    { text: '$ python main.py tag --engagement-id 5',                     color: 'rgba(255,255,255,0.45)' },
-    { text: '🏷️  Tagged: production=847  external=312  sensitive=201',     color: '#00d4ff' },
-    { text: '$ python main.py predict --engagement-id 5',                 color: 'rgba(255,255,255,0.45)' },
-    { text: '🤖 AI Scored: 1311 findings · max_risk=4 (Critical)',        color: '#00d4ff' },
-    { text: '⛔ SECURITY GATE: score 4 ≥ threshold 3 — DEPLOY BLOCKED',  color: '#ff4757' },
+    { text: '$ semgrep --config auto ./src --output findings.json',       color: 'var(--muted)' },
+    { text: '✓  Semgrep SAST: 487 findings — 0 new Critical',             color: 'var(--green)' },
+    { text: '$ snyk test --severity-threshold=medium',                    color: 'var(--muted)' },
+    { text: '⚠  Snyk SCA: 2 High vulnerabilities in node_modules',       color: 'var(--accent3)' },
+    { text: '$ python main.py tag --engagement-id 5',                     color: 'var(--muted)' },
+    { text: '🏷️  Tagged: production=847  external=312  sensitive=201',     color: 'var(--accent)' },
+    { text: '$ python main.py predict --engagement-id 5',                 color: 'var(--muted)' },
+    { text: '🤖 AI Scored: 1311 findings · max_risk=4 (Critical)',        color: 'var(--accent)' },
+    { text: '⛔ SECURITY GATE: score 4 ≥ threshold 3 — DEPLOY BLOCKED',  color: 'var(--accent2)' },
   ]
 
   const riskClasses = [
-    { score: '0', color: '#00d4ff', label: 'Info' },
-    { score: '1', color: '#2ed573', label: 'Low'  },
-    { score: '2', color: '#ffd32a', label: 'Med'  },
-    { score: '3', color: '#ff6b35', label: 'High' },
-    { score: '4', color: '#ff4757', label: 'Crit' },
+    { score: '0', color: 'var(--accent)', label: 'Info' },
+    { score: '1', color: 'var(--green)', label: 'Low'  },
+    { score: '2', color: 'var(--accent3)', label: 'Med'  },
+    { score: '3', color: 'var(--orange)', label: 'High' },
+    { score: '4', color: 'var(--accent2)', label: 'Crit' },
   ]
 
   const techPills = [
-    { label: 'LightGBM', color: '#00d4ff' }, { label: 'FastAPI',    color: '#2ed573' },
-    { label: 'SHAP',     color: '#ffd32a' }, { label: 'DefectDojo', color: '#ff6b35' },
-    { label: 'React',    color: '#00d4ff' }, { label: 'Prometheus', color: '#ff4757' },
-    { label: 'Docker',   color: '#2ed573' }, { label: 'Semgrep',    color: '#a29bfe' },
-    { label: 'Snyk',     color: '#ffd32a' },
+    { label: 'LightGBM', color: 'var(--accent)' }, { label: 'FastAPI',    color: 'var(--green)' },
+    { label: 'SHAP',     color: 'var(--accent3)' }, { label: 'DefectDojo', color: 'var(--orange)' },
+    { label: 'React',    color: 'var(--accent)' }, { label: 'Prometheus', color: 'var(--accent2)' },
+    { label: 'Docker',   color: 'var(--green)' }, { label: 'Semgrep',    color: 'var(--purple)' },
+    { label: 'Snyk',     color: 'var(--accent3)' },
   ]
 
   return (
@@ -230,7 +242,10 @@ export default function Home() {
             <li key={id}><a href="#" onClick={e => { e.preventDefault(); scrollTo(id) }}>{lbl}</a></li>
           ))}
         </ul>
-        <Link to="/login" className="navbar-cta">Open Dashboard →</Link>
+        <div className="navbar-actions">
+          <ThemeToggle />
+          <Link to="/login" className="navbar-cta">Open Dashboard →</Link>
+        </div>
       </nav>
 
       {/* ── HERO ── */}
@@ -347,9 +362,9 @@ export default function Home() {
               outperforming XGBoost and RandomForest on all metrics.
             </p>
             <div className="model-bars">
-              <ModelBar label="F1-Weighted Score" value={89.4} color="#00d4ff" />
-              <ModelBar label="ROC-AUC Score"     value={96.0} color="#2ed573" />
-              <ModelBar label="Overall Accuracy"  value={90.0} color="#ffd32a" />
+              <ModelBar label="F1-Weighted Score" value={89.4} color="var(--accent)" />
+              <ModelBar label="ROC-AUC Score"     value={96.0} color="var(--green)" />
+              <ModelBar label="Overall Accuracy"  value={90.0} color="var(--accent3)" />
             </div>
           </div>
 
@@ -362,7 +377,7 @@ export default function Home() {
               <div className="model-card-badge"><span>● SELECTED</span></div>
             </div>
             <div className="model-card-metrics">
-              {[{k:'F1-weighted',v:'0.8937',c:'#00d4ff'},{k:'ROC-AUC',v:'0.9603',c:'#2ed573'},{k:'Accuracy',v:'90.0%',c:'#ffd32a'},{k:'Features',v:'23',c:'#ff6b35'}].map(({ k, v, c }) => (
+              {[{k:'F1-weighted',v:'0.8937',c:'var(--accent)'},{k:'ROC-AUC',v:'0.9603',c:'var(--green)'},{k:'Accuracy',v:'90.0%',c:'var(--accent3)'},{k:'Features',v:'23',c:'var(--orange)'}].map(({ k, v, c }) => (
                 <div key={k} className="model-metric-box">
                   <div className="model-metric-value" style={{ color: c }}>{v}</div>
                   <div className="model-metric-label">{k}</div>
@@ -394,7 +409,7 @@ export default function Home() {
           </p>
           <div className="terminal">
             <div className="terminal-header">
-              {['#ff5f56','#ffbd2e','#27c93f'].map((bg, i) => <div key={i} className="terminal-dot" style={{ background: bg, opacity: 0.82 }} />)}
+              {['var(--accent2)','var(--accent3)','var(--green)'].map((bg, i) => <div key={i} className="terminal-dot" style={{ background: bg, opacity: 0.82 }} />)}
               <span className="terminal-title">github-actions / security-pipeline.yml — main branch</span>
             </div>
             <div className="terminal-body">
@@ -418,9 +433,9 @@ export default function Home() {
         </p>
         <div className="cta-steps">
           {[
-            { step: '01', cmd: 'python main.py serve', color: '#00d4ff' },
-            { step: '02', cmd: 'npm run dev',          color: '#2ed573' },
-            { step: '03', cmd: 'localhost:5173',       color: '#ffd32a' },
+            { step: '01', cmd: 'python main.py serve', color: 'var(--accent)' },
+            { step: '02', cmd: 'npm run dev',          color: 'var(--green)' },
+            { step: '03', cmd: 'localhost:5173',       color: 'var(--accent3)' },
           ].map(({ step, cmd, color }) => (
             <div key={step} className="cta-step">
               <span className="cta-step-num" style={{ color }}>{step}</span>

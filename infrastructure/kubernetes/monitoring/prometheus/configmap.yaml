@@ -1,0 +1,81 @@
+---
+# ============================================================
+# Prometheus - ConfigMap
+# Fichier : kubernetes/monitoring/prometheus/configmap.yaml
+# Description : Configuration de Prometheus
+#               Définit quoi scraper et à quelle fréquence
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+  labels:
+    app: prometheus
+    managed-by: ansible
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+
+      # --------------------------------------------------
+      # 1. Prometheus lui-même
+      # --------------------------------------------------
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # --------------------------------------------------
+      # 2. Pods Kubernetes (CPU, mémoire, redémarrages)
+      # --------------------------------------------------
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - invisithreat
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # --------------------------------------------------
+      # 3. API FastAPI (temps de réponse, erreurs HTTP)
+      # --------------------------------------------------
+      - job_name: 'risk-scoring-engine'
+        static_configs:
+          - targets: ['risk-scoring-engine-svc.invisithreat.svc.cluster.local:8081']
+        metrics_path: /metrics
+        scrape_interval: 30s
+
+      # --------------------------------------------------
+      # 4. PostgreSQL via postgres-exporter
+      # --------------------------------------------------
+      - job_name: 'postgresql'
+        static_configs:
+          - targets: ['postgres-exporter.monitoring.svc.cluster.local:9187']
+        scrape_interval: 30s
+
+      # --------------------------------------------------
+      # 5. Nodes Kubernetes via node-exporter
+      # --------------------------------------------------
+      - job_name: 'node-exporter'
+        static_configs:
+          - targets: ['node-exporter.monitoring.svc.cluster.local:9100']
+        scrape_interval: 30s

@@ -1,0 +1,64 @@
+---
+# ============================================================
+# Ingress InvisiThreat
+# Fichier : kubernetes/ingress/invisithreat-ingress.yaml
+# Description : Définit les règles de routage HTTP
+#               pour accéder aux services via le domaine
+#               http://invisithreat.local
+#
+# Flux du trafic :
+# http://invisithreat.local
+#       → MetalLB IP 192.168.11.200
+#           → NGINX Ingress Controller
+#               → dashboard-svc:80
+#
+# http://invisithreat.local/api
+#       → MetalLB IP 192.168.11.200
+#           → NGINX Ingress Controller
+#               → risk-scoring-engine-svc:8081
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: invisithreat-ingress
+  namespace: invisithreat
+  labels:
+    app.kubernetes.io/name: invisithreat
+    managed-by: ansible
+  annotations:
+    # Utilise le contrôleur NGINX qu'on vient d'installer
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Augmente la taille max des requêtes pour les fichiers
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    # Timeout pour les scans qui peuvent prendre du temps
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    # ----------------------------------------------------------
+    # Règle 1 : Dashboard
+    # http://invisithreat.local → dashboard-svc:80
+    # ----------------------------------------------------------
+    - host: invisithreat.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard-svc
+                port:
+                  number: 80
+
+          # --------------------------------------------------
+          # Règle 2 : API FastAPI
+          # http://invisithreat.local/api → risk-scoring-engine-svc:8081
+          # --------------------------------------------------
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: risk-scoring-engine-svc
+                port:
+                  number: 8081

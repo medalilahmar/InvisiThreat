@@ -1,0 +1,42 @@
+---
+# ============================================================
+# Ingress Monitoring
+# Fichier : kubernetes/monitoring/ingress/monitoring-ingress.yaml
+# Description : Expose Grafana via
+#               http://monitoring.invisithreat.local
+#
+# Flux du trafic :
+# http://monitoring.invisithreat.local
+#       → MetalLB IP 192.168.11.200
+#           → NGINX Ingress Controller
+#               → grafana:3000
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: monitoring
+    managed-by: ansible
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    # ----------------------------------------------------------
+    # Grafana
+    # http://monitoring.invisithreat.local → grafana:3000
+    # ----------------------------------------------------------
+    - host: monitoring.invisithreat.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

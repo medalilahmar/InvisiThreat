@@ -26,52 +26,19 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
+
+          # Injection automatique de toutes les variables
           envFrom:
             - configMapRef:
                 name: invisithreat-config
+            - secretRef:
+                name: invisithreat-secrets
+
+          # Seule variable construite dynamiquement
           env:
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: postgres-password
             - name: DATABASE_URL
               value: "postgresql://invisithreat:$(POSTGRES_PASSWORD)@postgres-svc:5432/invisithreat"
-            - name: SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: secret-key
-            - name: DEFECTDOJO_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: defectdojo-api-key
-            - name: GEMINI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: gemini-api-key
-            - name: JIRA_API_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: jira-api-token
-            - name: JIRA_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: jira-email
-            - name: JIRA_SERVER
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: jira-server
-            - name: API_ADMIN_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: invisithreat-secrets
-                  key: api-admin-token
+
           volumeMounts:
             - name: models-storage
               mountPath: /app/models
@@ -86,7 +53,7 @@ spec:
               cpu: "800m"
           livenessProbe:
             httpGet:
-              path: /health        # ← toujours 200, ne tue jamais le pod
+              path: /health
               port: 8081
             initialDelaySeconds: 30
             periodSeconds: 30
@@ -94,7 +61,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /ready         
+              path: /ready
               port: 8081
             initialDelaySeconds: 60
             periodSeconds: 10

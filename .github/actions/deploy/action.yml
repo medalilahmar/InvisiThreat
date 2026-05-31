@@ -49,6 +49,10 @@ inputs:
     description: URL de DefectDojo (pour fetch_data.py)
     required: false
     default: http://localhost:8080
+  smtp_password:
+    description: Mot de passe SMTP (Gmail App Password)
+    required: true
+  
 
 outputs:
   node_ip:
@@ -77,6 +81,7 @@ runs:
         ansible-playbook -i inventory.yml playbook-k3s-install.yml
         echo "::endgroup::"
 
+
     - name: "[k3s] Configurer kubectl"
       shell: bash
       run: |
@@ -93,6 +98,33 @@ runs:
         kubectl get ns
         echo "::endgroup::"
 
+    - name: "[k3s] Installer MetalLB via Ansible"
+      shell: bash
+      working-directory: infrastructure/ansible
+      run: |
+        echo "::group::Ansible MetalLB install"
+        ansible-playbook -i inventory.yml playbook-metallb-install.yml
+        echo "::endgroup::"
+
+    - name: "[k3s] Installer NGINX Ingress via Ansible"
+      shell: bash
+      working-directory: infrastructure/ansible
+      run: |
+        echo "::group::Ansible NGINX Ingress install"
+        ansible-playbook -i inventory.yml playbook-ingress-install.yml
+        echo "::endgroup::"
+
+    - name: "[k3s] Installer Monitoring via Ansible"
+      shell: bash
+      working-directory: infrastructure/ansible
+      run: |
+        echo "::group::Ansible Monitoring install"
+        ansible-playbook -i inventory.yml playbook-monitoring-install.yml
+        echo "::endgroup::"
+
+
+    
+
     # ══════════════════════════════════════════════════════════════
     # PHASE 2 — DEPLOY KUBERNETES (ordre strict)
     # ══════════════════════════════════════════════════════════════
@@ -102,31 +134,43 @@ runs:
       run: |
         kubectl apply -f infrastructure/kubernetes/namespace.yaml || echo "⚠️ Namespace already exists"
 
-    - name: "[k8s] 2/8 — Secrets Kubernetes (depuis GitHub Secrets)"
+    - name: "[k8s] 2/8 — Secrets Kubernetes "
       shell: bash
       env:
         NS:                 ${{ inputs.namespace }}
-        DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
         POSTGRES_PASSWORD:  ${{ inputs.postgres_password }}
-        JWT_SECRET_KEY:     ${{ inputs.jwt_secret_key }}
+        SECRET_KEY:         ${{ inputs.jwt_secret_key }}
         API_ADMIN_TOKEN:    ${{ inputs.api_admin_token }}
+        DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
         GEMINI_API_KEY:     ${{ inputs.gemini_api_key }}
         JIRA_API_TOKEN:     ${{ inputs.jira_api_token }}
         JIRA_EMAIL:         ${{ inputs.jira_email }}
         JIRA_SERVER:        ${{ inputs.jira_server }}
+        SMTP_PASSWORD:      ${{ inputs.smtp_password }}
       run: |
         kubectl create secret generic invisithreat-secrets \
           --namespace="${NS}" \
-          --from-literal=defectdojo-api-key="${DEFECTDOJO_API_KEY}" \
-          --from-literal=postgres-password="${POSTGRES_PASSWORD}" \
-          --from-literal=secret-key="${JWT_SECRET_KEY}" \
-          --from-literal=api-admin-token="${API_ADMIN_TOKEN}" \
-          --from-literal=gemini-api-key="${GEMINI_API_KEY}" \
-          --from-literal=jira-api-token="${JIRA_API_TOKEN}" \
-          --from-literal=jira-email="${JIRA_EMAIL}" \
-          --from-literal=jira-server="${JIRA_SERVER}" \
-          --dry-run=client -o yaml | kubectl apply -f -
-        echo "Secrets appliqués"
+          --dry-run=client -o yaml \
+          --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=SECRET_KEY="${SECRET_KEY}" \
+          --from-literal=API_ADMIN_TOKEN="${API_ADMIN_TOKEN}" \
+          --from-literal=DEFECTDOJO_API_KEY="${DEFECTDOJO_API_KEY}" \
+          --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY}" \
+          --from-literal=JIRA_SERVER="${JIRA_SERVER}" \
+          --from-literal=JIRA_EMAIL="${JIRA_EMAIL}" \
+          --from-literal=JIRA_API_TOKEN="${JIRA_API_TOKEN}" \
+          --from-literal=JIRA_PROJECT_KEY="INV" \
+          --from-literal=JIRA_ISSUE_TYPE="Task" \
+          --from-literal=JIRA_ASSIGNEE_ID="712020:eace03a0-1057-4b00-8e1f-27dd479ad83c" \
+          --from-literal=JIRA_LABEL_PREFIX="invisitreat" \
+          --from-literal=SMTP_HOST="smtp.gmail.com" \
+          --from-literal=SMTP_PORT="587" \
+          --from-literal=SMTP_USER="medalilahmar00@gmail.com" \
+          --from-literal=SMTP_PASSWORD="${SMTP_PASSWORD}" \
+          --from-literal=ADMIN_EMAIL="medalilahmar00@gmail.com" \
+          --from-literal=FRONTEND_URL="http://invisithreat.local" \
+        | kubectl apply -f -
+        echo " Secret Kubernetes appliqué"
 
     - name: "[k8s] 3/8 — ConfigMap"
       shell: bash
@@ -210,15 +254,23 @@ runs:
         echo "Attente rollout Dashboard..."
         kubectl rollout status deployment/dashboard -n "${NS}" --timeout=240s || true
 
-    - name: "[k8s] Récupérer l'IP du nœud (outputs)"
+    - name: "[k8s] Récupérer l'IP MetalLB (outputs)"
       id: get_node_ip
       shell: bash
       run: |
         NODE_IP=$(kubectl get nodes \
           -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-        echo "node_ip=${NODE_IP}"                     >> $GITHUB_OUTPUT
-        echo "dashboard_url=http://${NODE_IP}:30080"  >> $GITHUB_OUTPUT
-        echo "api_url=http://${NODE_IP}:30081"        >> $GITHUB_OUTPUT
+
+        INGRESS_IP=$(kubectl get svc ingress-nginx-controller \
+          -n ingress-nginx \
+          -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "${NODE_IP}")
+
+        echo "node_ip=${NODE_IP}"                          >> $GITHUB_OUTPUT
+        echo "dashboard_url=http://invisithreat.local"     >> $GITHUB_OUTPUT
+        echo "api_url=http://invisithreat.local"           >> $GITHUB_OUTPUT
+        echo "ingress_ip=${INGRESS_IP}"                    >> $GITHUB_OUTPUT
+        echo "IP nœud    : ${NODE_IP}"
+        echo "IP Ingress : ${INGRESS_IP}"
 
     - name: "[k8s] Vérification globale des pods"
       shell: bash
@@ -416,13 +468,36 @@ runs:
           " || echo "Résumé non disponible"
                   echo "::endgroup::"
 
+    - name: "[ml] Copie du cache AI scores vers le pod RSE"
+      if: inputs.run_ml_update == 'true'
+      shell: bash
+      working-directory: risk-scoring-engine
+      env:
+        NS: ${{ inputs.namespace }}
+      run: |
+        POD=$(kubectl get pods -n "${NS}" -l app=risk-scoring-engine \
+          --field-selector=status.phase=Running \
+          -o jsonpath='{.items[0].metadata.name}')
+        
+        echo "Copie du cache AI scores vers ${POD}..."
+        kubectl cp data/ai_scores_cache.json \
+          ${NS}/${POD}:/app/data/ai_scores_cache.json
+        echo " Cache AI scores copié"
+
+        # Reload du cache via l'API (sans restart)
+        kubectl exec -n "${NS}" "${POD}" -- \
+          curl -sf -X POST http://localhost:8081/data/refresh || true
+        echo " Cache rechargé"
+
+
+
     - name: "[ml] Vérification santé finale de l'API"
       if: inputs.run_ml_update == 'true'
       shell: bash
       env:
         API_URL: ${{ steps.get_node_ip.outputs.api_url }}
       run: |
-        RESPONSE=$(curl -sf "${API_URL}/ready" || echo '{"status":"not_ready"}')
+        RESP=$(curl -sf "${API_URL}/api/ready" 2>/dev/null || echo '{}')
         echo "Ready response : ${RESPONSE}"
         echo "${RESPONSE}" | grep -q '"status":"healthy"' \
           && echo "✅ Modèle actif et prêt" \
@@ -430,7 +505,7 @@ runs:
 
         echo ""
         echo "Infos modèle :"
-        curl -sf "${API_URL}/model/info" 2>/dev/null | python3 -m json.tool || true
+        curl -sf "${API_URL}/api/model/info"
 
     # ══════════════════════════════════════════════════════════════
     # RÉSUMÉ FINAL (toujours affiché)
@@ -447,8 +522,9 @@ runs:
         echo "========================================================"
         echo "  DÉPLOIEMENT K8s TERMINÉ — InvisiThreat"
         echo "========================================================"
-        echo "  Dashboard   : ${DASHBOARD_URL}"
-        echo "  API FastAPI  : ${API_URL}/docs"
+        echo "  Dashboard    : ${DASHBOARD_URL}"
+        echo "  API FastAPI  : ${API_URL}/api/docs"
+        echo "  Monitoring   : http://monitoring.invisithreat.local"
         echo "  DefectDojo   : http://localhost:8080"
         echo "========================================================"
         echo ""

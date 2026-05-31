@@ -1,0 +1,15 @@
+---
+# ============================================================
+# Rôle : ingress-nginx
+# Fichier : handlers/main.yml
+# Description : Redémarre NGINX Ingress si la configuration
+#               de l'Ingress change
+# ============================================================
+
+- name: restart ingress-nginx
+  command: >
+    kubectl rollout restart deployment/ingress-nginx-controller
+    -n ingress-nginx
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"

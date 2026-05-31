@@ -14,8 +14,8 @@
 }
 
 @keyframes rp-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(6, 103, 149, 0.4); }
-  50%       { opacity: 0.8; box-shadow: 0 0 0 6px rgba(62, 255, 160, 0); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--accent-muted); }
+  50%       { opacity: 0.8; box-shadow: 0 0 0 6px transparent; }
 }
 
 @keyframes rp-slideIn {
@@ -54,7 +54,7 @@
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(62, 255, 160, 0.08) 0%, transparent 65%);
+  background: radial-gradient(circle, var(--glass-success) 0%, transparent 65%);
   pointer-events: none;
 }
 
@@ -69,7 +69,7 @@
   width: 60px;
   height: 60px;
   border-radius: 16px;
-  background: rgba(62, 255, 160, 0.08);
+  background: var(--glass-success);
   border: 1px solid var(--border2);
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@
   line-height: 1.1;
 }
 
-.rp-brand-name span { color: var(--green); }
+.rp-brand-name span { color: var(--accent); }
 
 /* ── Description ─────────────────────────────────────────── */
 .rp-brand-desc {
@@ -105,7 +105,7 @@
   display: flex;
   flex-direction: column;
   padding: 22px 24px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 16px;
   margin-bottom: 28px;
@@ -129,7 +129,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--dimmed);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg4);
   border: 1px solid var(--border);
   border-radius: 8px;
   width: 34px;
@@ -142,12 +142,12 @@
 }
 
 .rp-step--active .rp-step-num {
-  color: var(--green);
-  background: rgba(62, 255, 160, 0.08);
-  border-color: rgba(62, 255, 160, 0.25);
+  color: var(--accent);
+  background: var(--glass-success);
+  border-color: var(--border-success);
 }
 
-.rp-step-check { font-size: 13px; color: var(--green); }
+.rp-step-check { font-size: 13px; color: var(--accent); }
 
 .rp-step-info {
   display: flex;
@@ -174,7 +174,7 @@
   transition: background 0.5s ease;
 }
 
-.rp-step-line--done { background: var(--green); }
+.rp-step-line--done { background: var(--accent); }
 
 /* ── Version bas gauche ──────────────────────────────────── */
 .rp-left-version {
@@ -225,7 +225,7 @@
 
 .rp-progress-fill {
   height: 100%;
-  background: var(--green);
+  background: var(--accent);
   border-radius: 2px;
   transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -318,9 +318,9 @@
 .rp-input:hover         { border-color: var(--border2); }
 
 .rp-input:focus {
-  border-color: var(--green);
+  border-color: var(--accent);
   background: var(--bg3);
-  box-shadow: 0 0 0 3px rgba(62, 255, 160, 0.10);
+  box-shadow: 0 0 0 3px var(--glass-success);
 }
 
 .rp-input-wrap .rp-input { padding-right: 46px; }
@@ -346,8 +346,8 @@
 
 /* ── Récap ───────────────────────────────────────────────── */
 .rp-recap {
-  background: rgba(62, 255, 160, 0.04);
-  border: 1px solid rgba(62, 255, 160, 0.14);
+  background: var(--glass-success);
+  border: 1px solid var(--border-success);
   border-radius: 10px;
   padding: 14px 16px;
 }
@@ -357,7 +357,7 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--green);
+  color: var(--accent);
   margin-bottom: 10px;
   font-weight: 700;
 }
@@ -394,8 +394,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 86, 104, 0.08);
-  border: 1px solid rgba(255, 86, 104, 0.28);
+  background: var(--glass-danger);
+  border: 1px solid var(--border-danger);
   color: var(--accent2);
   border-radius: 10px;
   padding: 12px 14px;
@@ -409,7 +409,7 @@
 .rp-btn {
   width: 100%;
   padding: 14px;
-  background: var(--green);
+  background: var(--accent);
   color: var(--bg);
   border: none;
   border-radius: 10px;
@@ -431,7 +431,7 @@
 .rp-btn:hover:not(:disabled) {
   filter: brightness(1.15);
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(62, 255, 160, 0.30);
+  box-shadow: 0 8px 24px var(--shadow-glow-success);
 }
 
 .rp-btn:active:not(:disabled) { transform: translateY(0); }
@@ -467,14 +467,14 @@
 .rp-btn-back:hover {
   border-color: var(--border2);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg4);
 }
 
 /* ── Spinner ─────────────────────────────────────────────── */
 .rp-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(26, 34, 54, 0.3);
+  border: 2px solid var(--border2);
   border-top-color: var(--bg);
   border-radius: 50%;
   animation: rp-spin 0.7s linear infinite;

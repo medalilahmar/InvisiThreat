@@ -1,0 +1,20 @@
+---
+# ============================================================
+# MetalLB - IPAddressPool
+# Fichier : kubernetes/metallb/ipaddresspool.yaml
+# Description : Définit la plage d'IPs que MetalLB attribue
+#               aux Services de type LoadBalancer
+# Réseau : 192.168.11.x (réseau local InvisiThreat)
+# ============================================================
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: invisithreat-pool
+  namespace: metallb-system
+  labels:
+    app.kubernetes.io/name: metallb
+    managed-by: ansible
+spec:
+  addresses:
+    - 192.168.11.200-192.168.11.210
+  autoAssign: true

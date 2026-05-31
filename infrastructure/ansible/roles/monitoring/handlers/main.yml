@@ -1,0 +1,31 @@
+---
+# ============================================================
+# Rôle : monitoring
+# Fichier : handlers/main.yml
+# Description : Redémarre les composants de monitoring
+#               si leur configuration change
+# ============================================================
+
+- name: restart prometheus
+  command: >
+    kubectl rollout restart deployment/prometheus
+    -n monitoring
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: restart grafana
+  command: >
+    kubectl rollout restart deployment/grafana
+    -n monitoring
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: restart loki
+  command: >
+    kubectl rollout restart deployment/loki
+    -n monitoring
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"

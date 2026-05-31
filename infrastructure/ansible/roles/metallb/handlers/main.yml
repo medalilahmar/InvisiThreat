@@ -1,0 +1,16 @@
+---
+# ============================================================
+# Rôle : metallb
+# Fichier : handlers/main.yml
+# Description : Redémarre le contrôleur MetalLB si la
+#               configuration change (IPAddressPool ou
+#               L2Advertisement modifiée)
+# ============================================================
+
+- name: restart metallb controller
+  command: >
+    kubectl rollout restart deployment/controller
+    -n metallb-system
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"

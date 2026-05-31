@@ -1,20 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../auth/hooks/useAuth';
 import {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
+  getNotifications, getUnreadCount, markAsRead, markAllAsRead,
+  getMyNotifications, getMyUnreadCount, markMyAsRead, markAllMyAsRead,
 } from '../../api/services/notifications';
-import { Notification, NotificationType } from '../../types/notification';
+import { Notification } from '../../types/notification';
 import './NotificationBell.css';
 
-const typeConfig: Record<NotificationType, { emoji: string }> = {
-  [NotificationType.NEW_USER]:         { emoji: '👤' },
-  [NotificationType.LOGIN_FAILED]:     { emoji: '🔒' },
-  [NotificationType.USER_BLOCKED]:     { emoji: '🚫' },
-  [NotificationType.PENDING_REMINDER]: { emoji: '⏳' },
-  [NotificationType.PROJECT_SYNC]:     { emoji: '🔄' },
+const typeConfig: Record<string, { emoji: string }> = {
+  new_user:         { emoji: '👤' },
+  login_failed:     { emoji: '🔒' },
+  user_blocked:     { emoji: '🚫' },
+  pending_reminder: { emoji: '⏳' },
+  project_sync:     { emoji: '🔄' },
+  finding_pinned:   { emoji: '📌' },
+  finding_assigned: { emoji: '🎯' },
 };
 
 const formatDate = (iso: string) =>
@@ -33,7 +33,7 @@ const BellIcon = () => (
 );
 
 export default function NotificationBell() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
 
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -42,18 +42,22 @@ export default function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!user) return;
     const fetchCount = async () => {
-      const count = await getUnreadCount();
-      setUnreadCount(count);
+      try {
+        const count = isAdmin
+          ? await getUnreadCount()
+          : await getMyUnreadCount();
+        setUnreadCount(count);
+      } catch { /* silencieux */ }
     };
     fetchCount();
     const id = setInterval(fetchCount, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [isAdmin]);
+  }, [isAdmin, user]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!user) return;
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -61,9 +65,9 @@ export default function NotificationBell() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isAdmin]);
+  }, [user]);
 
-  if (!isAdmin) return null;
+  if (!user) return null;
 
   const handleOpen = async () => {
     const nextOpen = !open;
@@ -71,7 +75,9 @@ export default function NotificationBell() {
     if (nextOpen) {
       setLoading(true);
       try {
-        const data = await getNotifications(false, 0, 30);
+        const data = isAdmin
+          ? await getNotifications(false, 0, 30)
+          : await getMyNotifications(false, 0, 30);
         setNotifications(data);
       } finally {
         setLoading(false);
@@ -80,7 +86,7 @@ export default function NotificationBell() {
   };
 
   const handleMarkRead = async (id: number) => {
-    await markAsRead(id);
+    isAdmin ? await markAsRead(id) : await markMyAsRead(id);
     setNotifications(prev =>
       prev.map(n => n.id === id ? { ...n, is_read: true } : n)
     );
@@ -88,7 +94,7 @@ export default function NotificationBell() {
   };
 
   const handleMarkAll = async () => {
-    await markAllAsRead();
+    isAdmin ? await markAllAsRead() : await markAllMyAsRead();
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
@@ -121,13 +127,13 @@ export default function NotificationBell() {
 
           <div className="notif-bell__list">
             {loading && (
-              <div className="notif-bell__loading">Chargement</div>
+              <div className="notif-bell__loading">Chargement…</div>
             )}
             {!loading && notifications.length === 0 && (
               <div className="notif-bell__empty">Aucune notification</div>
             )}
             {!loading && notifications.map(notif => {
-              const cfg = typeConfig[notif.type] ?? { emoji: '📌' };
+              const cfg = typeConfig[notif.type] ?? { emoji: '🔔' };
               const isUnread = !notif.is_read;
               return (
                 <div

@@ -441,7 +441,7 @@ export default function FindingsPage() {
                       </span>
                     </td>
                     <td>
-                      <span className="fp-cvss-val" style={{ color: RISK_COLOR[f.ai_risk_level ?? 'low'] ?? '#95a5a6' }}>
+                      <span className="fp-cvss-val" style={{ color: RISK_COLOR[f.ai_risk_level ?? 'low'] ?? 'var(--text)' }}>
                         {f.cvss_score ?? '—'}
                       </span>
                     </td>
@@ -457,7 +457,7 @@ export default function FindingsPage() {
                       </div>
                     </td>
                     <td>
-                      <span className="fp-ai-score" style={{ color: RISK_COLOR[f.ai_risk_level ?? 'low'] ?? '#95a5a6' }}>
+                      <span className="fp-ai-score" style={{ color: RISK_COLOR[f.ai_risk_level ?? 'low'] ?? 'var(--text)' }}>
                         {f.ai_risk_class !== undefined ? `${f.ai_risk_class}/4` : 'N/A'}
                       </span>
                     </td>

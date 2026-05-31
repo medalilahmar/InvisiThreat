@@ -232,6 +232,11 @@ def pin_finding(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
+    if current_user.role not in ("manager", "admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Seul un manager peut épingler un finding"
+        )
     meta = get_or_create_metadata(
         finding_id    = finding_id,
         db            = db,
@@ -249,7 +254,7 @@ def pin_finding(
     meta.pinned_by_id = current_user.id
 
     team = db.query(User).filter(
-        User.role.in_(["admin", "analyst"]),
+        User.role.in_(["admin", "developer"]),
         User.id != current_user.id,
         User.status == "active",
     ).all()
@@ -321,18 +326,43 @@ def assign_finding(
     meta.assigned_at    = datetime.now(timezone.utc)
     meta.status         = FindingStatus.in_progress
 
+    # Notification au developer assigné
     db.add(Notification(
         type            = NotificationType.finding_assigned,
-        title           = "Finding assigné",
+        title           = " Finding assigné",
         message         = (
-            f"{current_user.username} t'a assigné : '{body.finding_title}' — "
-            f"Score IA : {body.ai_risk_score or 'N/A'} | "
-            f"Sévérité : {body.severity or 'N/A'}"
+            f"{current_user.username} t'a assigné le finding "
+            f"'{body.finding_title}' — "
+            f"Sévérité : {body.severity or 'N/A'} | "
+            f"Score IA : {body.ai_risk_score or 'N/A'}"
         ),
         related_user_id = dev.id,
         finding_id      = finding_id,
         is_read         = False,
     ))
+
+    # Notification aux admins
+    admins = db.query(User).filter(
+        User.role == "admin",
+        User.id != current_user.id,
+        User.id != dev.id,
+        User.status == "active",
+    ).all()
+
+    for admin in admins:
+        db.add(Notification(
+            type            = NotificationType.finding_assigned,
+            title           = "Finding assigné à un développeur",
+            message         = (
+                f"{current_user.username} a assigné '{body.finding_title}' "
+                f"à {dev.username} — "
+                f"Sévérité : {body.severity or 'N/A'} | "
+                f"Score IA : {body.ai_risk_score or 'N/A'}"
+            ),
+            related_user_id = admin.id,
+            finding_id      = finding_id,
+            is_read         = False,
+        ))
 
     db.commit()
     db.refresh(meta)

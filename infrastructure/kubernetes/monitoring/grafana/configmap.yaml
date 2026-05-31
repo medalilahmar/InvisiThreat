@@ -1,0 +1,105 @@
+---
+# ============================================================
+# Grafana - ConfigMap
+# Fichier : kubernetes/monitoring/grafana/configmap.yaml
+# Description : Configuration de Grafana
+#               Datasources Prometheus et Loki préconfigurées
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+  labels:
+    app: grafana
+    managed-by: ansible
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+
+      # --------------------------------------------------
+      # Prometheus - métriques
+      # --------------------------------------------------
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+        editable: false
+
+      # --------------------------------------------------
+      # Loki - logs
+      # --------------------------------------------------
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+        editable: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: monitoring
+  labels:
+    app: grafana
+    managed-by: ansible
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: InvisiThreat
+        orgId: 1
+        folder: InvisiThreat
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-kubernetes
+  namespace: monitoring
+  labels:
+    app: grafana
+    managed-by: ansible
+data:
+  kubernetes.json: |
+    {
+      "title": "InvisiThreat - Kubernetes",
+      "uid": "invisithreat-k8s",
+      "panels": [
+        {
+          "title": "CPU Usage par Pod",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "targets": [{
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"invisithreat\"}[5m])) by (pod)",
+            "legendFormat": "{{pod}}"
+          }]
+        },
+        {
+          "title": "Mémoire par Pod",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "targets": [{
+            "expr": "sum(container_memory_working_set_bytes{namespace=\"invisithreat\"}) by (pod)",
+            "legendFormat": "{{pod}}"
+          }]
+        },
+        {
+          "title": "Redémarrages des Pods",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+          "targets": [{
+            "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"invisithreat\"}) by (pod)",
+            "legendFormat": "{{pod}}"
+          }]
+        }
+      ],
+      "schemaVersion": 38,
+      "version": 1
+    }

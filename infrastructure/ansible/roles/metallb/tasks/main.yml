@@ -1,0 +1,152 @@
+---
+# ============================================================
+# Rôle : metallb
+# Fichier : tasks/main.yml
+# Description : Installe et configure MetalLB v0.14.8
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Vérifier si MetalLB est déjà installé
+# ------------------------------------------------------------
+- name: Vérifier si MetalLB est déjà installé
+  command: kubectl get namespace metallb-system
+  register: metallb_namespace
+  failed_when: false
+  changed_when: false
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# ------------------------------------------------------------
+# 2. Télécharger le manifest officiel MetalLB v0.14.8
+# ------------------------------------------------------------
+- name: Télécharger le manifest MetalLB v0.14.8
+  get_url:
+    url: "https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml"
+    dest: "/tmp/metallb-native.yaml"
+    mode: '0644'
+    force: true
+  when: metallb_namespace.rc != 0
+
+# ------------------------------------------------------------
+# 3. Installer MetalLB dans le cluster
+# ------------------------------------------------------------
+- name: Installer MetalLB (contrôleur + speaker + CRDs + RBAC)
+  command: kubectl apply -f /tmp/metallb-native.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: metallb_namespace.rc != 0
+
+# ------------------------------------------------------------
+# 4. Attendre que le contrôleur MetalLB soit prêt
+# ------------------------------------------------------------
+- name: Attendre que le contrôleur MetalLB soit prêt
+  command: >
+    kubectl rollout status deployment/controller
+    -n metallb-system
+    --timeout=120s
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: metallb_controller_ready
+  retries: 5
+  delay: 15
+  until: metallb_controller_ready.rc == 0
+
+# ------------------------------------------------------------
+# 5. Attendre que le speaker MetalLB soit prêt
+# ------------------------------------------------------------
+- name: Attendre que le speaker MetalLB soit prêt
+  command: >
+    kubectl rollout status daemonset/speaker
+    -n metallb-system
+    --timeout=120s
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: metallb_speaker_ready
+  retries: 5
+  delay: 15
+  until: metallb_speaker_ready.rc == 0
+
+# ------------------------------------------------------------
+# 6. Attendre que les CRDs MetalLB soient bien enregistrées
+# ------------------------------------------------------------
+- name: Attendre que la CRD IPAddressPool soit disponible
+  command: kubectl get crd ipaddresspools.metallb.io
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: crd_check
+  retries: 10
+  delay: 10
+  until: crd_check.rc == 0
+
+# ------------------------------------------------------------
+# 7. Pause pour que les webhooks MetalLB soient opérationnels
+# ------------------------------------------------------------
+- name: Attendre l'initialisation des webhooks MetalLB
+  pause:
+    seconds: 15
+
+# ------------------------------------------------------------
+# 8. Appliquer la configuration IPAddressPool
+# ------------------------------------------------------------
+- name: Appliquer l'IPAddressPool MetalLB
+  command: >
+    kubectl apply -f
+    /home/{{ ansible_user }}/infrastructure/kubernetes/metallb/ipaddresspool.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# ------------------------------------------------------------
+# 9. Appliquer la configuration L2Advertisement
+# ------------------------------------------------------------
+- name: Appliquer le L2Advertisement MetalLB
+  command: >
+    kubectl apply -f
+    /home/{{ ansible_user }}/infrastructure/kubernetes/metallb/l2advertisement.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# ------------------------------------------------------------
+# 10. Vérifier que tout est bien en place
+# ------------------------------------------------------------
+- name: Vérifier les pods MetalLB
+  command: kubectl get pods -n metallb-system
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: metallb_pods
+
+- name: Afficher l'état des pods MetalLB
+  debug:
+    msg: "{{ metallb_pods.stdout }}"
+
+- name: Vérifier l'IPAddressPool créée
+  command: kubectl get ipaddresspool -n metallb-system
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: ippool_check
+
+- name: Afficher l'IPAddressPool
+  debug:
+    msg: "{{ ippool_check.stdout }}"
+
+# ------------------------------------------------------------
+# 11. Résumé final
+# ------------------------------------------------------------
+- name: Résumé installation MetalLB
+  debug:
+    msg: |
+      ================================================
+      MetalLB v0.14.8 installé et configuré !
+      Pool d'IPs : 192.168.11.200 - 192.168.11.210
+      Mode       : Layer 2 (ARP)
+      Namespace  : metallb-system
+      Prochaine étape : installer NGINX Ingress
+      ================================================
