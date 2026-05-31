@@ -107,7 +107,7 @@
 - name: Appliquer le L2Advertisement MetalLB
   command: >
     kubectl apply -f
-    {{ playbook_dir }}/../../kubernetes/metallb/l2advertisement.yaml
+    {{ playbook_dir }}/../kubernetes/metallb/l2advertisement.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
