@@ -5,24 +5,18 @@
 # Description : Installe Prometheus + Grafana + Loki
 # ============================================================
 
-# ------------------------------------------------------------
-# 1. Créer le namespace monitoring
-# ------------------------------------------------------------
 - name: Créer le namespace monitoring
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/namespace.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/namespace.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# ------------------------------------------------------------
-# 2. Déployer Prometheus
-# ------------------------------------------------------------
 - name: Appliquer la ConfigMap Prometheus
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/prometheus/configmap.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/prometheus/configmap.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -30,7 +24,7 @@
 - name: Appliquer le Deployment Prometheus
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/prometheus/deployment.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/prometheus/deployment.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -38,14 +32,11 @@
 - name: Appliquer le Service Prometheus
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/prometheus/service.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/prometheus/service.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# ------------------------------------------------------------
-# 3. Attendre que Prometheus soit prêt
-# ------------------------------------------------------------
 - name: Attendre que Prometheus soit prêt
   command: >
     kubectl rollout status deployment/prometheus
@@ -59,13 +50,10 @@
   delay: 15
   until: prometheus_ready.rc == 0
 
-# ------------------------------------------------------------
-# 4. Déployer Grafana
-# ------------------------------------------------------------
 - name: Appliquer la ConfigMap Grafana
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/grafana/configmap.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/grafana/configmap.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -73,7 +61,7 @@
 - name: Appliquer le Deployment Grafana
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/grafana/deployment.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/grafana/deployment.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -81,14 +69,11 @@
 - name: Appliquer le Service Grafana
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/grafana/service.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/grafana/service.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# ------------------------------------------------------------
-# 5. Attendre que Grafana soit prêt
-# ------------------------------------------------------------
 - name: Attendre que Grafana soit prêt
   command: >
     kubectl rollout status deployment/grafana
@@ -102,13 +87,10 @@
   delay: 15
   until: grafana_ready.rc == 0
 
-# ------------------------------------------------------------
-# 6. Déployer Loki
-# ------------------------------------------------------------
 - name: Appliquer le Deployment Loki et Promtail
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/loki/deployment.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/loki/deployment.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -116,14 +98,11 @@
 - name: Appliquer le Service Loki
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/loki/service.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/loki/service.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# ------------------------------------------------------------
-# 7. Attendre que Loki soit prêt
-# ------------------------------------------------------------
 - name: Attendre que Loki soit prêt
   command: >
     kubectl rollout status deployment/loki
@@ -137,20 +116,14 @@
   delay: 15
   until: loki_ready.rc == 0
 
-# ------------------------------------------------------------
-# 8. Appliquer l'Ingress monitoring
-# ------------------------------------------------------------
 - name: Appliquer l'Ingress monitoring
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/monitoring/ingress/monitoring-ingress.yaml
+    {{ playbook_dir }}/../kubernetes/monitoring/ingress/monitoring-ingress.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# ------------------------------------------------------------
-# 9. Vérification finale
-# ------------------------------------------------------------
 - name: Vérifier les pods monitoring
   command: kubectl get pods -n monitoring
   become: false
@@ -162,24 +135,12 @@
   debug:
     msg: "{{ monitoring_pods.stdout }}"
 
-# ------------------------------------------------------------
-# 10. Résumé final
-# ------------------------------------------------------------
 - name: Résumé installation monitoring
   debug:
     msg: |
       ================================================
       Monitoring installé et prêt !
-
       Grafana    : http://monitoring.invisithreat.local
       Login      : admin
       Mot de passe : invisithreat2024
-
-      Dashboards disponibles :
-      → InvisiThreat - Kubernetes
-        (CPU, mémoire, redémarrages des pods)
-
-      Datasources préconfigurées :
-      → Prometheus (métriques)
-      → Loki (logs)
       ================================================
