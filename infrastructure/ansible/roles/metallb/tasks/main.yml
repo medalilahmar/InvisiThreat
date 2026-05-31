@@ -96,7 +96,7 @@
 - name: Appliquer l'IPAddressPool MetalLB
   command: >
     kubectl apply -f
-    {{ playbook_dir }}/../../kubernetes/metallb/ipaddresspool.yaml
+    {{ playbook_dir }}/../kubernetes/metallb/ipaddresspool.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
