@@ -92,7 +92,7 @@
 - name: Appliquer la ressource Ingress InvisiThreat
   command: >
     kubectl apply -f
-    /home/{{ ansible_user }}/infrastructure/kubernetes/ingress/invisithreat-ingress.yaml
+    {{ playbook_dir }}/../kubernetes/ingress/invisithreat-ingress.yaml
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
