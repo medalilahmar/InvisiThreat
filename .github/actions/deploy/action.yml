@@ -114,6 +114,43 @@ runs:
         ansible-playbook -i inventory.yml playbook-ingress-install.yml
         echo "::endgroup::"
 
+
+
+    - name: "[k8s] Créer le namespace monitoring"
+      shell: bash
+      run: |
+        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: "[k8s] Secret dans namespace monitoring"
+      shell: bash
+      env:
+        POSTGRES_PASSWORD:  ${{ inputs.postgres_password }}
+        SECRET_KEY:         ${{ inputs.jwt_secret_key }}
+        API_ADMIN_TOKEN:    ${{ inputs.api_admin_token }}
+        DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
+        GEMINI_API_KEY:     ${{ inputs.gemini_api_key }}
+        JIRA_API_TOKEN:     ${{ inputs.jira_api_token }}
+        JIRA_EMAIL:         ${{ inputs.jira_email }}
+        JIRA_SERVER:        ${{ inputs.jira_server }}
+        SMTP_PASSWORD:      ${{ inputs.smtp_password }}
+      run: |
+        kubectl create secret generic invisithreat-secrets \
+          --namespace="monitoring" \
+          --dry-run=client -o yaml \
+          --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=SECRET_KEY="${SECRET_KEY}" \
+          --from-literal=API_ADMIN_TOKEN="${API_ADMIN_TOKEN}" \
+          --from-literal=DEFECTDOJO_API_KEY="${DEFECTDOJO_API_KEY}" \
+          --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY}" \
+          --from-literal=JIRA_SERVER="${JIRA_SERVER}" \
+          --from-literal=JIRA_EMAIL="${JIRA_EMAIL}" \
+          --from-literal=JIRA_API_TOKEN="${JIRA_API_TOKEN}" \
+          --from-literal=SMTP_PASSWORD="${SMTP_PASSWORD}" \
+        | kubectl apply -f -
+        echo "Secret créé dans monitoring"
+
+        
+
     - name: "[k3s] Installer Monitoring via Ansible"
       shell: bash
       working-directory: infrastructure/ansible
@@ -171,6 +208,7 @@ runs:
           --from-literal=FRONTEND_URL="http://invisithreat.local" \
         | kubectl apply -f -
         echo " Secret Kubernetes appliqué"
+        
 
     - name: "[k8s] 3/8 — ConfigMap"
       shell: bash
