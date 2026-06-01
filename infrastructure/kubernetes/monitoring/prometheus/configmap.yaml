@@ -68,7 +68,7 @@ data:
       # --------------------------------------------------
       - job_name: 'postgresql'
         static_configs:
-          - targets: ['postgres-exporter.monitoring.svc.cluster.local:9100']
+          - targets: ['postgres-exporter.monitoring.svc.cluster.local:9187']
         scrape_interval: 30s
 
       # --------------------------------------------------

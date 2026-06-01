@@ -24,6 +24,17 @@
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
+
+
+- name: Appliquer le Deployment PostgreSQL Exporter
+  command: >
+    kubectl apply -f
+    {{ playbook_dir }}/../kubernetes/monitoring/postgres-exporter/deployment.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+    
+
 - name: Appliquer la ConfigMap Prometheus
   command: >
     kubectl apply -f
@@ -126,6 +137,14 @@
   retries: 5
   delay: 15
   until: loki_ready.rc == 0
+
+- name: Appliquer le RBAC pour kube-state-metrics
+  command: >
+    kubectl apply -f
+    {{ playbook_dir }}/../kubernetes/monitoring/kube-state-metrics/rbac.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
 
 - name: Appliquer le Deployment kube-state-metrics
