@@ -49,6 +49,10 @@ data:
       filesystem:
         directory: /loki/chunks
 
+    compactor:
+      working_directory: /loki/compactor
+      shared_store: filesystem
+
     limits_config:
       enforce_metric_name: false
       reject_old_samples: true
@@ -87,7 +91,7 @@ spec:
       initContainers:
         - name: fix-permissions
           image: busybox
-          command: ["sh", "-c", "mkdir -p /loki /wal && chmod -R 777 /loki /wal"]
+          command: ["sh", "-c", "mkdir -p /loki /loki/index /loki/cache /loki/chunks /loki/compactor /wal && chmod -R 777 /loki /wal"]
           volumeMounts:
             - name: loki-storage
               mountPath: /loki
