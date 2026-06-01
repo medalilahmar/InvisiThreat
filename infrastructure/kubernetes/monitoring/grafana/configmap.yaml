@@ -1,9 +1,9 @@
----
 # ============================================================
 # Grafana - ConfigMap
 # Fichier : kubernetes/monitoring/grafana/configmap.yaml
 # Description : Configuration de Grafana
 #               Datasources Prometheus et Loki préconfigurées
+#               Dashboard Kubernetes complet
 # ============================================================
 apiVersion: v1
 kind: ConfigMap
@@ -20,21 +20,23 @@ data:
 
       # --------------------------------------------------
       # Prometheus - métriques
+      # URL courte pour éviter les erreurs DNS
       # --------------------------------------------------
       - name: Prometheus
         type: prometheus
         access: proxy
-        url: http://prometheus.monitoring.svc.cluster.local:9090
+        url: http://prometheus:9090
         isDefault: true
         editable: false
 
       # --------------------------------------------------
       # Loki - logs
+      # URL courte pour éviter les erreurs DNS
       # --------------------------------------------------
       - name: Loki
         type: loki
         access: proxy
-        url: http://loki.monitoring.svc.cluster.local:3100
+        url: http://loki:3100
         editable: false
 ---
 apiVersion: v1
@@ -69,7 +71,7 @@ metadata:
 data:
   kubernetes.json: |
     {
-      "title": "InvisiThreat - Monitoring",
+      "title": "InvisiThreat - Monitoring Complet",
       "uid": "invisithreat-k8s",
       "panels": [
         {
@@ -107,8 +109,89 @@ data:
             "expr": "time() - node_boot_time_seconds",
             "legendFormat": "Uptime (s)"
           }]
+        },
+        {
+          "title": "Pods par namespace",
+          "type": "bargauge",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "targets": [{
+            "expr": "count by (namespace) (kube_pod_info)",
+            "legendFormat": "{{namespace}}"
+          }]
+        },
+        {
+          "title": "Pods en erreur / CrashLoop",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 12},
+          "targets": [{
+            "expr": "count(kube_pod_status_phase{phase!=\"Running\"} > 0)",
+            "legendFormat": "Pods non-Running"
+          }]
+        },
+        {
+          "title": "Redémarrages de pods (dernière heure)",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 12},
+          "targets": [{
+            "expr": "sum(increase(kube_pod_container_status_restarts_total[1h]))",
+            "legendFormat": "Restarts"
+          }]
+        },
+        {
+          "title": "Trafic réseau entrant (nœud)",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 20},
+          "targets": [{
+            "expr": "rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|cni.*\"}[5m])",
+            "legendFormat": "Rx {{device}}"
+          }]
+        },
+        {
+          "title": "Trafic réseau sortant (nœud)",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
+          "targets": [{
+            "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|cni.*\"}[5m])",
+            "legendFormat": "Tx {{device}}"
+          }]
+        },
+        {
+          "title": "Connexions PostgreSQL actives",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 26},
+          "targets": [{
+            "expr": "pg_stat_database_numbackends{datname=\"invisithreat\"}",
+            "legendFormat": "Connexions"
+          }]
+        },
+        {
+          "title": "PostgreSQL - Transactions par seconde",
+          "type": "timeseries",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 26},
+          "targets": [{
+            "expr": "rate(pg_stat_database_xact_commit{datname=\"invisithreat\"}[5m]) + rate(pg_stat_database_xact_rollback{datname=\"invisithreat\"}[5m])",
+            "legendFormat": "TPS"
+          }]
+        },
+        {
+          "title": "PostgreSQL - Taille base de données",
+          "type": "gauge",
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 26},
+          "targets": [{
+            "expr": "pg_database_size_bytes{datname=\"invisithreat\"}",
+            "legendFormat": "Taille"
+          }]
+        },
+        {
+          "title": "Logs en direct (Loki)",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 30},
+          "targets": [{
+            "expr": "{namespace=~\"invisithreat|monitoring\"}",
+            "legendFormat": "{{app}} - {{pod}}"
+          }]
         }
       ],
       "schemaVersion": 38,
-      "version": 1
+      "version": 2
     }
