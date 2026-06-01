@@ -127,6 +127,33 @@
   delay: 15
   until: loki_ready.rc == 0
 
+
+- name: Appliquer le Deployment kube-state-metrics
+  command: >
+    kubectl apply -f
+    {{ playbook_dir }}/../kubernetes/monitoring/kube-state-metrics/deployment.yaml
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+
+- name: Ajouter le job kube-state-metrics dans Prometheus
+  shell: |
+    if ! kubectl get configmap prometheus-server -n monitoring -o jsonpath='{.data.prometheus\.yml}' | grep -q "kube-state-metrics"; then
+      kubectl patch configmap prometheus-server -n monitoring --type merge -p \
+      '{"data":{"prometheus.yml":"'"$(kubectl get configmap prometheus-server -n monitoring -o jsonpath='{.data.prometheus\.yml}' | sed '/scrape_configs:/a\    - job_name: "kube-state-metrics"\n      kubernetes_sd_configs:\n        - role: endpoints\n      relabel_configs:\n        - source_labels: [__meta_kubernetes_service_name]\n          regex: kube-state-metrics\n          action: keep')"}}'
+    fi
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Redémarrer Prometheus pour prendre en compte le nouveau job
+  command: kubectl rollout restart deployment/prometheus -n monitoring
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+
 - name: Appliquer l'Ingress monitoring
   command: >
     kubectl apply -f
