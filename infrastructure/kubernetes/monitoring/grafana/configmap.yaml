@@ -69,34 +69,43 @@ metadata:
 data:
   kubernetes.json: |
     {
-      "title": "InvisiThreat - Kubernetes",
+      "title": "InvisiThreat - Monitoring",
       "uid": "invisithreat-k8s",
       "panels": [
         {
-          "title": "CPU Usage par Pod",
+          "title": "CPU Usage (nœud)",
           "type": "timeseries",
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
           "targets": [{
-            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"invisithreat\"}[5m])) by (pod)",
-            "legendFormat": "{{pod}}"
+            "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "CPU %"
           }]
         },
         {
-          "title": "Mémoire par Pod",
+          "title": "Mémoire utilisée (nœud)",
           "type": "timeseries",
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
           "targets": [{
-            "expr": "sum(container_memory_working_set_bytes{namespace=\"invisithreat\"}) by (pod)",
-            "legendFormat": "{{pod}}"
+            "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+            "legendFormat": "Mémoire %"
           }]
         },
         {
-          "title": "Redémarrages des Pods",
+          "title": "Disque utilisé %",
           "type": "stat",
           "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
           "targets": [{
-            "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"invisithreat\"}) by (pod)",
-            "legendFormat": "{{pod}}"
+            "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} * 100)",
+            "legendFormat": "Disque %"
+          }]
+        },
+        {
+          "title": "Uptime nœud",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8},
+          "targets": [{
+            "expr": "time() - node_boot_time_seconds",
+            "legendFormat": "Uptime (s)"
           }]
         }
       ],
