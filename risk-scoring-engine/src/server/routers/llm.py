@@ -46,7 +46,7 @@ GITHUB_BRANCH = os.getenv("GITHUB_DEFAULT_BRANCH", "main")
 # Ollama settings — read here so the health endpoint stays consistent
 # with whatever llm_service.py is using.
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://192.168.11.170:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-coder:6.7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:1.5b")
 
 # Guard import: if llm_service is not installed the router still loads,
 # all LLM endpoints simply return their static fallback responses.

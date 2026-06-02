@@ -227,5 +227,22 @@
     "priority_note": "Immediate — This vulnerability is actively exploited in the wild, leading to potential data loss or service interruptions.",
     "from_cache": false,
     "_fallback": false
+  },
+  "e7643b732937dd7bcf10c430ae99d853": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "71fabb1238d5b4e4829da8b11db1dcfa": {
+    "summary": "The SQL-Injection-Template vulnerability exists in the src/utils/calculator.js file. It allows an attacker to inject arbitrary SQL commands into the query string, leading to unauthorized access or data manipulation. The vulnerability is particularly dangerous because it can be exploited by malicious users to gain sensitive information or execute arbitrary code.",
+    "impact": "An attacker can steal sensitive data such as usernames and passwords, modify database records, or even delete important data. This can lead to a complete compromise of the system and potentially result in financial losses or legal consequences.",
+    "root_cause": "The application uses string concatenation to build SQL queries without properly sanitizing user input. The developer used string interpolation instead of parameterized queries, which allows SQL injection attacks to be executed.",
+    "exploitation_difficulty": "Medium — An attacker can exploit this vulnerability by crafting a malicious query that is passed to the calculator.js file. No special tools or authentication bypass is required.",
+    "priority_note": "48h — This vulnerability is actively exploited in the wild and requires no authentication. Delaying the fix increases the risk of a mass data breach incident.",
+    "from_cache": false,
+    "_fallback": false
   }
 }

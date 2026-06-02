@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://192.168.11.170:11434")
-OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "deepseek-coder:6.7b")
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:1.5b")
 
 LLM_CACHE_PATH: Path = Path(os.getenv("LLM_CACHE_PATH", "data/llm_cache.json"))
 

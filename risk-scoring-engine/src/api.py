@@ -1536,7 +1536,7 @@ async def llm_health():
     try:
         r = requests.get(f"{os.getenv('OLLAMA_URL', 'http://192.168.11.170:11434')}/api/tags", timeout=5)
         return {"status": "ok", "models": [m["name"] for m in r.json().get("models", [])],
-                "current": os.getenv("OLLAMA_MODEL", "deepseek-coder:6.7b")}
+                "current": os.getenv("OLLAMA_MODEL", "qwen2.5-coder:1.5b")}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
