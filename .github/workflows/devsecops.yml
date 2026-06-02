@@ -1,303 +1,594 @@
-name: DevSecOps Pipeline - InvisiThreat (FAST MODE - Testing)
+name: DevSecOps Pipeline — Multi-Projets
 
+# ─────────────────────────────────────────────────────────────────
+#  DÉCLENCHEURS
+# ─────────────────────────────────────────────────────────────────
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - "projects/**"          # Déclenché UNIQUEMENT si un projet change
+
   pull_request:
     branches: [ main, develop ]
+    paths:
+      - "projects/**"
+
   workflow_dispatch:
     inputs:
-      force_retrain:
-        description: "Réentraîner le modèle ML après déploiement ?"
+      project:
+        description: "Projet à scanner (laisser vide = auto-détection)"
+        required: false
+        default: ""
+        type: choice
+        options:
+          - ""                 # ← Auto-détection par git diff
+          - "juice-shop"       # ← Ajouter ici chaque nouveau projet
+      deploy:
+        description: "Déployer les containers après les scans ?"
         required: false
         default: "true"
         type: choice
         options: ["true", "false"]
+      force_retrain:
+        description: "Réentraîner le modèle ML après déploiement ?"
+        required: false
+        default: "false"
+        type: choice
+        options: ["true", "false"]
 
+# ─────────────────────────────────────────────────────────────────
+#  VARIABLES GLOBALES (non liées à un projet)
+# ─────────────────────────────────────────────────────────────────
 env:
-  APP_NAME: InvisiThreat
-  APP_DIR: ./juice-shop
-  NAMESPACE: invisithreat
-  REGISTRY: localhost:5000
-  DD_URL: http://localhost:8080
+  DD_URL: http://localhost:8080      # URL DefectDojo — commune à tous les projets
+  PROJECTS_DIR: projects             # Dossier racine des projets
 
-# ═══════════════════════════════════════════════════════════════════
-# JOB 1: BUILD AND PUSH (Docker images)
-# ═══════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────────────────────────
+#  JOB 1 : DETECT — Déterminer quels projets ont changé
+# ─────────────────────────────────────────────────────────────────
 jobs:
-  build-and-push:
-    name: Build and Push Docker Images
+  detect:
+    name: Détection des projets modifiés
     runs-on: self-hosted
+    outputs:
+      matrix: ${{ steps.build_matrix.outputs.matrix }}
+      has_projects: ${{ steps.build_matrix.outputs.has_projects }}
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Construire la matrice de projets
+      id: build_matrix
+      run: |
+        echo "=== DÉTECTION DES PROJETS ==="
+
+        PROJECTS_LIST=()
+
+        # ── CAS 1 : Déclenchement manuel avec projet explicitement choisi ──
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+           [ -n "${{ github.event.inputs.project }}" ]; then
+          echo "Mode manuel — projet sélectionné : ${{ github.event.inputs.project }}"
+          PROJECTS_LIST=("${{ github.event.inputs.project }}")
+
+        # ── CAS 2 : Push / PR → détecter par git diff ──
+        else
+          echo "Mode automatique — détection par git diff"
+
+          # Récupérer les fichiers modifiés
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED=$(git diff --name-only \
+              origin/${{ github.base_ref }}...${{ github.sha }} 2>/dev/null || \
+              git diff --name-only HEAD~1 HEAD)
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || \
+              git diff --name-only HEAD)
+          fi
+
+          echo "Fichiers modifiés :"
+          echo "$CHANGED"
+
+          # Extraire les noms de projets uniques depuis projects/PROJET/...
+          while IFS= read -r file; do
+            if [[ "$file" =~ ^projects/([^/]+)/ ]]; then
+              PROJECT="${BASH_REMATCH[1]}"
+              # Vérifier que le dossier projet existe et a un project.config.yml
+              if [ -f "projects/$PROJECT/project.config.yml" ]; then
+                # Ajouter uniquement si pas déjà dans la liste
+                if [[ ! " ${PROJECTS_LIST[*]} " =~ " ${PROJECT} " ]]; then
+                  PROJECTS_LIST+=("$PROJECT")
+                  echo "✅ Projet détecté : $PROJECT"
+                fi
+              else
+                echo "⚠️  Dossier projects/$PROJECT/ sans project.config.yml — ignoré"
+              fi
+            fi
+          done <<< "$CHANGED"
+        fi
+
+        # ── Construire le JSON de matrice ──
+        if [ ${#PROJECTS_LIST[@]} -eq 0 ]; then
+          echo "Aucun projet détecté."
+          echo "matrix=[]"        >> "$GITHUB_OUTPUT"
+          echo "has_projects=false" >> "$GITHUB_OUTPUT"
+        else
+          # Construire le JSON : ["juice-shop","mon-api"]
+          JSON="["
+          for i in "${!PROJECTS_LIST[@]}"; do
+            [ $i -gt 0 ] && JSON+=","
+            JSON+="\"${PROJECTS_LIST[$i]}\""
+          done
+          JSON+="]"
+
+          echo "Matrice construite : $JSON"
+          echo "matrix=$JSON"       >> "$GITHUB_OUTPUT"
+          echo "has_projects=true"  >> "$GITHUB_OUTPUT"
+        fi
+
+# ─────────────────────────────────────────────────────────────────
+#  JOB 2 : SECURITY — SAST + SCA + DAST + DefectDojo (par projet)
+# ─────────────────────────────────────────────────────────────────
+  security:
+    name: "Security [${{ matrix.project }}]"
+    needs: detect
+    if: needs.detect.outputs.has_projects == 'true'
+    runs-on: self-hosted
+    timeout-minutes: 120
+
+    # Matrice : un job par projet détecté, tournent EN PARALLÈLE
+    strategy:
+      fail-fast: false              # Un projet qui échoue n'arrête pas les autres
+      matrix:
+        project: ${{ fromJson(needs.detect.outputs.matrix) }}
 
     outputs:
-      image_tag: ${{ github.sha }}
+      engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+      engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+      product_id:      ${{ steps.dd_setup.outputs.product_id }}
+      env_tag:         ${{ steps.dd_setup.outputs.env_tag }}
+      start_date:      ${{ steps.dd_setup.outputs.start_date }}
+      end_date:        ${{ steps.dd_setup.outputs.end_date }}
+      new_critical:    ${{ steps.security_gate.outputs.new_critical }}
+      new_high:        ${{ steps.security_gate.outputs.new_high }}
+      gate_passed:     ${{ steps.security_gate.outputs.gate_passed }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: " Vérifier les Dockerfiles"
-        run: |
-          echo " Fichiers Docker détectés :"
-          find . -name "Dockerfile" -type f
-          ls -lah ./risk-scoring-engine/
-          ls -lah ./security-dashboard/
+    # ── CHECKOUT ──────────────────────────────────────────────────
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
 
-      - name: S'assurer que le registre local est actif
-        run: |
-          if ! docker ps --format '{{.Names}}' | grep -q '^local-registry$'; then
-            echo " Démarrage du registre Docker local..."
-            docker run -d \
-              --name local-registry \
-              --restart=always \
-              -p 5000:5000 \
-              -v /opt/registry-data:/var/lib/registry \
-              registry:2
-            sleep 2
-            echo " Registre local démarré"
-          else
-            echo " Registre local déjà actif"
+    # ── LECTURE CONFIG PROJET ─────────────────────────────────────
+    - name: Charger la configuration du projet
+      id: config
+      uses: ./.github/actions/load-config
+      with:
+        project: ${{ matrix.project }}
+        projects_dir: ${{ env.PROJECTS_DIR }}
+
+    # ── OUTILS ───────────────────────────────────────────────────
+    - name: Ensure DefectDojo is ready with Ansible
+      working-directory: infrastructure/ansible
+      run: |
+        ansible-playbook -i inventory.yml ensure-defectdojo.yml
+
+    - name: Installer jq
+      run: |
+        if command -v jq &>/dev/null; then
+          echo "OK — jq $(jq --version)"; exit 0
+        fi
+        sudo killall apt apt-get dpkg 2>/dev/null || true
+        sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+                   /var/cache/apt/archives/lock /var/lib/apt/lists/lock
+        sudo dpkg --configure -a
+        if sudo apt-get update -qq && sudo apt-get install -y -qq jq; then
+          echo "OK — jq $(jq --version)"
+        else
+          wget -q -O jq \
+            https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux64
+          chmod +x jq && sudo mv jq /usr/local/bin/
+          echo "OK — jq $(jq --version)"
+        fi
+
+    # ── CACHE NODE (uniquement pour projets nodejs) ───────────────
+    - name: Cache des dépendances Node
+      id: node-cache
+      if: steps.config.outputs.project_type == 'nodejs'
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      run: |
+        CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
+        mkdir -p "$CACHE_DIR"
+
+        PKG_HASH=$(find . -name "package*.json" -exec cat {} + | sha256sum | cut -d' ' -f1)
+        echo "Hash calculé : $PKG_HASH"
+
+        if [ -d "$CACHE_DIR/node_modules" ] && \
+           [ -d "$CACHE_DIR/frontend_node_modules" ] && \
+           [ -f "$CACHE_DIR/.hash" ] && \
+           [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
+          echo "=== ✅ CACHE HIT — Restauration ==="
+          cp -r "$CACHE_DIR/node_modules"          ./node_modules || true
+          cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules || true
+          echo "cache_hit=true"     >> "$GITHUB_OUTPUT"
+        else
+          echo "=== ❌ CACHE MISS ==="
+          echo "cache_hit=false"    >> "$GITHUB_OUTPUT"
+          echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Installer les dépendances Node
+      if: >
+        steps.config.outputs.project_type == 'nodejs' &&
+        steps.node-cache.outputs.cache_hit != 'true'
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      run: |
+        echo "=== Installation des dépendances Node ==="
+        npm install --no-audit --no-fund
+
+        if [ -d "frontend" ]; then
+          echo "=== Installation frontend ==="
+          cd frontend && npm install --no-audit --no-fund && cd ..
+        fi
+
+        echo "=== Sauvegarde du cache ==="
+        CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
+        PKG_HASH="${{ steps.node-cache.outputs.pkg_hash }}"
+        mkdir -p "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
+        rm -rf   "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
+        cp -r node_modules          "$CACHE_DIR/node_modules"          || true
+        cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
+        echo "$PKG_HASH" > "$CACHE_DIR/.hash"
+        echo "=== ✅ Cache sauvegardé ==="
+
+    # ── DEFECTDOJO SETUP ──────────────────────────────────────────
+    - name: DefectDojo — Setup
+      id: dd_setup
+      uses: ./.github/actions/dd-setup
+      with:
+        dd_url:     ${{ env.DD_URL }}
+        dd_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
+        app_name:   ${{ steps.config.outputs.project_name }}        # ← depuis config
+        branch:     ${{ github.ref_name }}
+        run_id:     ${{ github.run_id }}
+        sha:        ${{ github.sha }}
+        repo_url:   ${{ github.server_url }}/${{ github.repository }}
+
+    # ── SNAPSHOT AVANT ────────────────────────────────────────────
+    - name: DefectDojo — Snapshot AVANT import
+      id: dd_snapshot
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        EID="${{ steps.dd_setup.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
+
+        echo "=== SNAPSHOT AVANT IMPORT — ${{ matrix.project }} ==="
+        RESP=$(curl -sf \
+          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
+
+        BEFORE_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        BEFORE_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        BEFORE_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+
+        echo "Total=$BEFORE_TOTAL | Critical=$BEFORE_CRIT | High=$BEFORE_HIGH"
+        echo "before_total=$BEFORE_TOTAL"   >> "$GITHUB_OUTPUT"
+        echo "before_critical=$BEFORE_CRIT" >> "$GITHUB_OUTPUT"
+        echo "before_high=$BEFORE_HIGH"     >> "$GITHUB_OUTPUT"
+
+    # ── SAST — SEMGREP ────────────────────────────────────────────
+    - name: SAST — Semgrep
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      continue-on-error: true
+      run: |
+        echo "=== SEMGREP SCAN — ${{ matrix.project }} ==="
+
+        # Construire les --config depuis la liste dans project.config.yml
+        CONFIGS="${{ steps.config.outputs.semgrep_configs }}"
+        CONFIG_ARGS=""
+        IFS=',' read -ra CFG_LIST <<< "$CONFIGS"
+        for cfg in "${CFG_LIST[@]}"; do
+          cfg=$(echo "$cfg" | xargs)   # trim espaces
+          CONFIG_ARGS="$CONFIG_ARGS --config=$cfg"
+        done
+
+        docker run --rm -v "$(pwd)":/src returntocorp/semgrep semgrep \
+          $CONFIG_ARGS \
+          --json \
+          --output=/src/semgrep-results.json \
+          /src || true
+
+        [ ! -s semgrep-results.json ] && \
+          echo '{"results":[]}' > semgrep-results.json
+
+        COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
+        echo "Semgrep terminé — $COUNT résultat(s)"
+
+    # ── SCA — SNYK ────────────────────────────────────────────────
+    - name: SCA — Snyk test
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: |
+        echo "=== SNYK SCAN — ${{ matrix.project }} ==="
+        THRESHOLD="${{ steps.config.outputs.snyk_threshold }}"
+
+        npx snyk test --severity-threshold="${THRESHOLD:-low}" \
+          --json-file-output=snyk-results.json || true
+
+        [ ! -s snyk-results.json ] && \
+          echo '{"vulnerabilities":[]}' > snyk-results.json
+
+        COUNT=$(jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo 0)
+        echo "Snyk terminé — $COUNT vulnérabilité(s)"
+
+    - name: SCA — Snyk monitor
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: npx snyk monitor || true
+
+    # ── DAST — DÉMARRAGE APP ──────────────────────────────────────
+    - name: DAST — Démarrer l'application
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      run: |
+        echo "=== DÉMARRAGE — ${{ matrix.project }} ==="
+
+        START_CMD="${{ steps.config.outputs.start_command }}"
+        TARGET="${{ steps.config.outputs.target_url }}"
+        WAIT="${{ steps.config.outputs.startup_wait }}"
+        HEALTH="${{ steps.config.outputs.health_path }}"
+
+        eval "$START_CMD" &
+        echo $! > app.pid
+        echo "PID : $(cat app.pid)"
+
+        echo "Attente initiale de ${WAIT}s..."
+        sleep "${WAIT:-15}"
+
+        MAX_RETRIES=30
+        for i in $(seq 1 $MAX_RETRIES); do
+          if curl -sf "${TARGET}${HEALTH}" >/dev/null 2>&1; then
+            echo "✅ Application prête (tentative $i)"
+            exit 0
           fi
-          
-          docker ps | grep local-registry
+          sleep 3
+          echo "Attente... $i/$MAX_RETRIES"
+        done
+        echo "❌ ERREUR : application non disponible"
+        exit 1
 
-      - name: Build et push — Risk Scoring Engine
-        run: |
-          echo " Build Risk Scoring Engine..."
+    # ── DAST — ZAP ────────────────────────────────────────────────
+    - name: DAST — ZAP Scans
+      id: zap
+      uses: ./.github/actions/zap-scan
+      with:
+        target_url:        ${{ steps.config.outputs.target_url }}
+        app_dir:           ${{ steps.config.outputs.app_dir }}
+        full_scan_timeout: ${{ steps.config.outputs.zap_timeout }}
 
-          # Désactiver BuildKit — utiliser le cache Docker classique
-          export DOCKER_BUILDKIT=0
-          
+    # ── DAST — ARRÊT APP ──────────────────────────────────────────
+    - name: DAST — Arrêter l'application
+      if: always()
+      working-directory: ${{ steps.config.outputs.app_dir }}
+      run: |
+        if [ -f app.pid ]; then
+          PID=$(cat app.pid)
+          kill "$PID" 2>/dev/null || true
+          rm -f app.pid
+          echo "Application arrêtée (PID=$PID)"
+        fi
+        # Tuer par nom de processus selon le type de projet
+        PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
+        case "$PROJECT_TYPE" in
+          nodejs) pkill -f "node.*${{ matrix.project }}" 2>/dev/null || true ;;
+          python) pkill -f "python.*${{ matrix.project }}" 2>/dev/null || true ;;
+          java)   pkill -f "java.*${{ matrix.project }}"  2>/dev/null || true ;;
+        esac
 
-          docker build \
-            --cache-from ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
-            -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest \
-            -t ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }} \
-            ./risk-scoring-engine 2>&1 | tee build-rse.log
+    # ── UPLOAD RAPPORTS ───────────────────────────────────────────
+    - name: Upload des rapports de sécurité
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports-${{ matrix.project }}-${{ github.sha }}
+        path: |
+          ${{ steps.config.outputs.app_dir }}/semgrep-results.json
+          ${{ steps.config.outputs.app_dir }}/snyk-results.json
+          ${{ steps.config.outputs.app_dir }}/zap-*.json
+          ${{ steps.config.outputs.app_dir }}/zap-*.xml
+        retention-days: 30
+        if-no-files-found: warn
 
-          BUILD_STATUS=${PIPESTATUS[0]}
-          if [ $BUILD_STATUS -ne 0 ]; then
-            echo " Build Risk Scoring Engine échoué"
-            cat build-rse.log
-            exit 1
-          fi
+    # ── IMPORT DEFECTDOJO ─────────────────────────────────────────
+    - name: DefectDojo — Import Semgrep
+      if: always()
+      uses: ./.github/actions/dd-import
+      with:
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ steps.config.outputs.project_name }}
+        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+        scan_type:       Semgrep JSON Report
+        file:            ${{ steps.config.outputs.app_dir }}/semgrep-results.json
+        test_title:      "Semgrep SAST - ${{ matrix.project }} - ${{ github.ref_name }}"
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "sast,semgrep,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }},${{ matrix.project }}"
 
-          echo " Push Risk Scoring Engine:latest..."
-          docker push ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:latest
+    - name: DefectDojo — Import Snyk
+      if: always()
+      uses: ./.github/actions/dd-import
+      with:
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ steps.config.outputs.project_name }}
+        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+        scan_type:       Snyk Scan
+        file:            ${{ steps.config.outputs.app_dir }}/snyk-results.json
+        test_title:      "Snyk SCA - ${{ matrix.project }} - ${{ github.ref_name }}"
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "sca,snyk,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }},${{ matrix.project }}"
 
-          echo " Push Risk Scoring Engine:${{ github.sha }}..."
-          docker push ${{ env.REGISTRY }}/invisithreat/risk-scoring-engine:${{ github.sha }}
+    - name: DefectDojo — Import ZAP OpenAPI
+      if: always()
+      uses: ./.github/actions/dd-import-zap
+      with:
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ steps.config.outputs.project_name }}
+        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+        file:            ${{ steps.config.outputs.app_dir }}/zap-openapi.xml
+        test_title:      "ZAP OpenAPI - ${{ matrix.project }} - ${{ github.ref_name }}"
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "${{ steps.zap.outputs.detected_tags }},openapi,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }},${{ matrix.project }}"
 
-          echo " Risk Scoring Engine OK"
-          docker images | grep risk-scoring-engine
+    - name: DefectDojo — Import ZAP Full Scan
+      if: always()
+      uses: ./.github/actions/dd-import-zap
+      with:
+        dd_url:          ${{ env.DD_URL }}
+        dd_api_key:      ${{ secrets.DEFECTDOJO_API_KEY }}
+        engagement_id:   ${{ steps.dd_setup.outputs.engagement_id }}
+        product_name:    ${{ steps.config.outputs.project_name }}
+        engagement_name: ${{ steps.dd_setup.outputs.engagement_name }}
+        file:            ${{ steps.config.outputs.app_dir }}/zap-fullscan.xml
+        test_title:      "ZAP Full Scan - ${{ matrix.project }} - ${{ github.ref_name }}"
+        branch:          ${{ github.ref_name }}
+        sha:             ${{ github.sha }}
+        run_id:          ${{ github.run_id }}
+        tags: "${{ steps.zap.outputs.detected_tags }},fullscan,scan-auto,${{ steps.dd_setup.outputs.env_tag }},${{ github.ref_name }},${{ matrix.project }}"
 
-      - name: Build et push — Dashboard React
-        run: |
-          echo " Build Dashboard React..."
+    # ── TAGGING INTELLIGENT ───────────────────────────────────────
+    - name: DefectDojo — Tagging intelligent des findings
+      if: always()
+      continue-on-error: true
+      env:
+        DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        echo "=== TAGGING INTELLIGENT — ${{ matrix.project }} ==="
 
-          export DOCKER_BUILDKIT=0
+        python3 -m pip install requests --quiet --break-system-packages 2>/dev/null || \
+        python3 -m pip install requests --quiet 2>/dev/null || true
 
-          # Pull les 2 images
-          docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:builder 2>/dev/null || true
-          docker pull ${{ env.REGISTRY }}/invisithreat/dashboard:latest 2>/dev/null || true
+        cd risk-scoring-engine/src
+        python3 tag_findings.py \
+          --dd-url        "${{ env.DD_URL }}" \
+          --engagement-id "${{ steps.dd_setup.outputs.engagement_id }}"
 
-          # Étape 1 — build et push le stage builder
-          docker build \
-            --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:builder \
-            --target builder \
-            -t ${{ env.REGISTRY }}/invisithreat/dashboard:builder \
-            ./security-dashboard 2>&1 | tee build-dashboard.log
+        echo "Tagging terminé"
 
-          BUILD_STATUS=${PIPESTATUS[0]}
-          if [ $BUILD_STATUS -ne 0 ]; then
-            echo " Build stage builder échoué"
-            cat build-dashboard.log
-            exit 1
-          fi
+    # ── SECURITY GATE ─────────────────────────────────────────────
+    - name: Rapport final et Security Gate
+      id: security_gate
+      if: always()
+      env:
+        DD_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+      run: |
+        EID="${{ steps.dd_setup.outputs.engagement_id }}"
+        DD_BASE="${{ env.DD_URL }}"
 
-          docker push ${{ env.REGISTRY }}/invisithreat/dashboard:builder
+        RESP=$(curl -sf \
+          "$DD_BASE/api/v2/findings/?engagement=$EID&limit=500&active=true" \
+          -H "Authorization: Token $DD_API_KEY" \
+          -H "Accept: application/json" \
+          || echo '{"count":0,"results":[]}')
 
-          # Étape 2 — build final
-          docker build \
-            --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:builder \
-            --cache-from ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
-            -t ${{ env.REGISTRY }}/invisithreat/dashboard:latest \
-            -t ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }} \
-            ./security-dashboard 2>&1 | tee build-dashboard.log
+        AFTER_TOTAL=$(echo "$RESP" | jq -r '.count // 0')
+        AFTER_CRIT=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="Critical")] | length' 2>/dev/null || echo 0)
+        AFTER_HIGH=$(echo "$RESP"  | jq '[.results[]? | select(.severity=="High")]     | length' 2>/dev/null || echo 0)
+        AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
+        AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
 
-          BUILD_STATUS=${PIPESTATUS[0]}
-          if [ $BUILD_STATUS -ne 0 ]; then
-            echo " Build Dashboard échoué"
-            cat build-dashboard.log
-            exit 1
-          fi
+        NEW_CRIT=$(( AFTER_CRIT  - ${{ steps.dd_snapshot.outputs.before_critical }} ))
+        NEW_HIGH=$(( AFTER_HIGH  - ${{ steps.dd_snapshot.outputs.before_high }} ))
+        NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
+        [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
+        [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
 
-          docker push ${{ env.REGISTRY }}/invisithreat/dashboard:latest
-          docker push ${{ env.REGISTRY }}/invisithreat/dashboard:${{ github.sha }}
+        echo "new_critical=$NEW_CRIT" >> "$GITHUB_OUTPUT"
+        echo "new_high=$NEW_HIGH"     >> "$GITHUB_OUTPUT"
 
-          echo " Dashboard OK"
-          docker images | grep dashboard
+        # Lire les seuils depuis la config projet
+        FAIL_CRIT="${{ steps.config.outputs.fail_on_new_critical }}"
+        FAIL_HIGH="${{ steps.config.outputs.fail_on_new_high }}"
 
-      - name: " Résumé Build"
-        run: |
-          echo ""
-          echo "=========================================================="
-          echo "  BUILD IMAGES — RÉSUMÉ"
-          echo "=========================================================="
-          echo "  Images construites :"
-          docker images | grep invisithreat
-          echo ""
-          echo "  Registre local : ${{ env.REGISTRY }}"
-          echo "  Tag            : ${{ github.sha }}"
-          echo "=========================================================="
+        echo ""
+        echo "========================================================"
+        echo "  RAPPORT SECURITE FINAL — ${{ matrix.project }}"
+        echo "========================================================"
+        echo "  Produit    : ${{ steps.config.outputs.project_name }} (ID=${{ steps.dd_setup.outputs.product_id }})"
+        echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=$EID)"
+        echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
+        echo "  Branche    : ${{ github.ref_name }}"
+        echo "  Commit     : ${{ github.sha }}"
+        echo ""
+        echo "  SCANS :"
+        echo "    SAST  : Semgrep (${{ steps.config.outputs.semgrep_configs }})"
+        echo "    SCA   : Snyk (seuil: ${{ steps.config.outputs.snyk_threshold }})"
+        echo "    DAST  : ZAP OpenAPI + ZAP Full Scan (AJAX Spider + Active)"
+        echo "            Total alertes : ${{ steps.zap.outputs.total_alerts }}"
+        echo "            High+         : ${{ steps.zap.outputs.high_alerts }}"
+        echo ""
+        echo "  ÉVOLUTION : ${{ steps.dd_snapshot.outputs.before_total }} → $AFTER_TOTAL ($NEW_TOTAL nouveau(x))"
+        echo ""
+        echo "  FINDINGS ACTIFS :"
+        echo "    Critical : $AFTER_CRIT  (nouveaux: $NEW_CRIT)"
+        echo "    High     : $AFTER_HIGH  (nouveaux: $NEW_HIGH)"
+        echo "    Medium   : $AFTER_MED"
+        echo "    Low      : $AFTER_LOW"
+        echo ""
+        echo "  Lien : $DD_BASE/engagements/$EID/finding/"
+        echo "========================================================"
 
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 2: DEPLOY (appelle l'action composite)
-  # ═══════════════════════════════════════════════════════════════
-  deploy:
-    name: Deploy — k3s Setup + Kubernetes + ML Update
-    runs-on: self-hosted
-    needs: build-and-push
+        FAILED=false
+        [ "$FAIL_CRIT" = "true" ] && [ "$NEW_CRIT" -gt 0 ] && \
+          { echo "❌ SECURITY GATE ECHEC : $NEW_CRIT nouveau(x) Critical !"; FAILED=true; }
+        [ "$FAIL_HIGH" = "true" ] && [ "$NEW_HIGH" -gt 0 ] && \
+          { echo "❌ SECURITY GATE ECHEC : $NEW_HIGH nouveau(x) High !"; FAILED=true; }
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+        if [ "$FAILED" = "true" ]; then
+          echo "gate_passed=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        echo "gate_passed=true" >> "$GITHUB_OUTPUT"
+        echo "✅ Security Gate : OK"
 
-      - name: " Afficher les inputs"
-        run: |
-          echo "=========================================================="
-          echo "  PARAMÈTRES DE DÉPLOIEMENT"
-          echo "=========================================================="
-          echo "  Namespace           : ${{ env.NAMESPACE }}"
-          echo "  Registre            : ${{ env.REGISTRY }}"
-          echo "  SHA                 : ${{ github.sha }}"
-          echo "  Force ML Retrain    : ${{ github.event.inputs.force_retrain || 'false' }}"
-          echo "=========================================================="
-
-      - name: " Deploy to Kubernetes"
-        id: k8s
-        uses: ./.github/actions/deploy
-        with:
-          namespace:          ${{ env.NAMESPACE }}
-          registry:           ${{ env.REGISTRY }}
-          sha:                ${{ github.sha }}
-          dd_url:             ${{ env.DD_URL }}
-          run_ml_update:      ${{ github.event_name == 'push' || github.event.inputs.force_retrain == 'true' }}
-
-          # Secrets — passés depuis GitHub Secrets
-          defectdojo_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
-          postgres_password:  ${{ secrets.POSTGRES_PASSWORD }}
-          jwt_secret_key:     ${{ secrets.JWT_SECRET_KEY }}
-          api_admin_token:    ${{ secrets.API_ADMIN_TOKEN }}
-          gemini_api_key:     ${{ secrets.GEMINI_API_KEY }}
-          jira_api_token:     ${{ secrets.JIRA_API_TOKEN }}
-          jira_email:         ${{ secrets.JIRA_EMAIL }}
-          jira_server:        ${{ secrets.JIRA_SERVER }}
-          smtp_password:     ${{ secrets.SMTP_PASSWORD }}
-
-      # ── Vérifications post-deploy ─────────────────────────────
-      - name: " Vérifier les pods"
-        if: always()
-        run: |
-          echo ""
-          echo "=========================================================="
-          echo "  VÉRIFICATION — État des pods"
-          echo "=========================================================="
-          kubectl get pods -n ${{ env.NAMESPACE }} -o wide
-          echo ""
-          echo "=========================================================="
-
-      - name: " Vérifier les services"
-        if: always()
-        run: |
-          echo ""
-          echo "=========================================================="
-          echo "  VÉRIFICATION — Services exposés"
-          echo "=========================================================="
-          kubectl get services -n ${{ env.NAMESPACE }} -o wide
-          echo ""
-          echo "=========================================================="
-
-      - name: " Vérifier les events k3s"
-        if: always()
-        run: |
-          echo ""
-          echo "=========================================================="
-          echo "  VÉRIFICATION — Événements récents"
-          echo "=========================================================="
-          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp'
-          echo ""
-          echo "=========================================================="
-
-      - name: " Logs Risk Scoring Engine"
-        if: always()
-        continue-on-error: true
-        run: |
-          POD=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=risk-scoring-engine -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-          if [ -n "$POD" ]; then
-            echo ""
-            echo "=========================================================="
-            echo "  LOGS — Risk Scoring Engine Pod: $POD"
-            echo "=========================================================="
-            kubectl logs -n ${{ env.NAMESPACE }} "$POD" --tail=50 2>/dev/null || echo "❌ Pas de logs disponibles"
-            echo ""
-            echo "=========================================================="
-          fi
-
-      - name: " Logs Dashboard"
-        if: always()
-        continue-on-error: true
-        run: |
-          POD=$(kubectl get pods -n ${{ env.NAMESPACE }} -l app=dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-          if [ -n "$POD" ]; then
-            echo ""
-            echo "=========================================================="
-            echo "  LOGS — Dashboard Pod: $POD"
-            echo "=========================================================="
-            kubectl logs -n ${{ env.NAMESPACE }} "$POD" --tail=50 2>/dev/null || echo "❌ Pas de logs disponibles"
-            echo ""
-            echo "=========================================================="
-          fi
-
-      # ── Résumé final ──────────────────────────────────────────
-      - name: " Résumé final du pipeline"
-        if: always()
-        run: |
-          DASHBOARD="${{ steps.k8s.outputs.dashboard_url }}"
-          API="${{ steps.k8s.outputs.api_url }}"
-
-          echo ""
-          echo "=========================================================="
-          echo "   DÉPLOIEMENT TERMINÉ — InvisiThreat"
-          echo "=========================================================="
-          echo ""
-          echo "   Informations du déploiement :"
-          echo "    Namespace       : ${{ env.NAMESPACE }}"
-          echo "    Registre        : ${{ env.REGISTRY }}"
-          echo "    SHA             : ${{ github.sha }}"
-          echo "    Mode ML Retrain : ${{ github.event.inputs.force_retrain || 'false' }}"
-          echo ""
-          echo "   URLs d'accès :"
-          echo "    Dashboard       : ${DASHBOARD}"
-          echo "    API FastAPI     : ${API}/docs"
-          echo "    DefectDojo      : ${{ env.DD_URL }}"
-          echo ""
-          echo "   Vérifications :"
-          kubectl get deployment -n ${{ env.NAMESPACE }}
-          echo ""
-          echo "=========================================================="
-          echo ""
-
-      - name: " Test de connectivité API"
-        if: always()
-        continue-on-error: true
-        run: |
-          API="${{ steps.k8s.outputs.api_url }}"
-          
-          echo ""
-          echo " Test /health..."
-          curl -sf "${API}/health" 2>/dev/null | jq . || echo "❌ /health indisponible"
-          
-          echo ""
-          echo " Test /docs..."
-          curl -sf "${API}/docs" 2>/dev/null | head -20 || echo "❌ /docs indisponible"
+    # ── RÉSUMÉ ────────────────────────────────────────────────────
+    - name: Résumé pipeline sécurité
+      if: always()
+      run: |
+        echo "========================================================"
+        echo "  DEVSECOPS PIPELINE — ${{ steps.config.outputs.project_name }}"
+        echo "========================================================"
+        echo "  Projet     : ${{ matrix.project }}"
+        echo "  Produit    : ${{ steps.config.outputs.project_name }} (ID=${{ steps.dd_setup.outputs.product_id }})"
+        echo "  Engagement : ${{ steps.dd_setup.outputs.engagement_name }} (ID=${{ steps.dd_setup.outputs.engagement_id }})"
+        echo "  Période    : ${{ steps.dd_setup.outputs.start_date }} → ${{ steps.dd_setup.outputs.end_date }}"
+        echo "  Branche    : ${{ github.ref_name }}"
+        echo "  Env        : ${{ steps.dd_setup.outputs.env_tag }}"
+        echo "  Tags ZAP   : ${{ steps.zap.outputs.detected_tags }}"
+        echo "  Commit     : ${{ github.sha }}"
+        echo "  Run ID     : ${{ github.run_id }}"
+        echo "  Gate       : ${{ steps.security_gate.outputs.gate_passed }}"
+        echo "  Lien       : ${{ env.DD_URL }}/engagements/${{ steps.dd_setup.outputs.engagement_id }}/finding/"
+        echo "========================================================"

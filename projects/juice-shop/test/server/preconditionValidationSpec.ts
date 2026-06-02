@@ -7,7 +7,7 @@ import chai from 'chai'
 import net from 'node:net'
 import semver from 'semver'
 import sinonChai from 'sinon-chai'
-import { engines as supportedEngines } from './../../package.json'
+import { engines as supportedEngines } from '../../package.json'
 import { checkIfRunningOnSupportedNodeVersion, checkIfPortIsAvailable } from '../../lib/startup/validatePreconditions'
 
 const expect = chai.expect

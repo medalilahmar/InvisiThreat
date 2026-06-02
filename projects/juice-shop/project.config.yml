@@ -1,0 +1,21 @@
+# projects/juice-shop/project.config.yml
+
+project:
+  name: "JuiceShop"
+  description: "OWASP Juice Shop - application volontairement vulnerable"
+  type: "nodejs"
+
+app:
+  port: 3000
+  start_command: "npm start"
+  health_check_path: "/"
+  startup_wait: 15
+
+security:
+  fail_on_new_critical: true
+  fail_on_new_high: false
+  semgrep_rulesets:
+    - "p/security-audit"
+    - "p/owasp-top-ten"
+  snyk_severity_threshold: "low"
+  zap_full_scan_timeout: 30

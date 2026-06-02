@@ -1,0 +1,139 @@
+name: Load Project Config
+description: "Lit le fichier project.config.yml d'un projet et expose ses valeurs en outputs"
+
+inputs:
+  project:
+    description: "Nom du projet (ex: juice-shop)"
+    required: true
+  projects_dir:
+    description: "Dossier racine des projets (ex: projects)"
+    required: false
+    default: projects
+
+outputs:
+  project_name:
+    description: "Nom du produit dans DefectDojo"
+    value: ${{ steps.parse.outputs.project_name }}
+  project_description:
+    description: "Description du produit DefectDojo"
+    value: ${{ steps.parse.outputs.project_description }}
+  project_type:
+    description: "Type de projet (nodejs | python | java | static)"
+    value: ${{ steps.parse.outputs.project_type }}
+  app_dir:
+    description: "Chemin vers le dossier du projet"
+    value: ${{ steps.parse.outputs.app_dir }}
+  app_port:
+    description: "Port de l'application"
+    value: ${{ steps.parse.outputs.app_port }}
+  start_command:
+    description: "Commande pour démarrer l'app"
+    value: ${{ steps.parse.outputs.start_command }}
+  health_path:
+    description: "Chemin health check"
+    value: ${{ steps.parse.outputs.health_path }}
+  startup_wait:
+    description: "Secondes d'attente au démarrage"
+    value: ${{ steps.parse.outputs.startup_wait }}
+  target_url:
+    description: "URL cible pour ZAP"
+    value: ${{ steps.parse.outputs.target_url }}
+  fail_on_new_critical:
+    description: "Bloquer si nouveau Critical"
+    value: ${{ steps.parse.outputs.fail_on_new_critical }}
+  fail_on_new_high:
+    description: "Bloquer si nouveau High"
+    value: ${{ steps.parse.outputs.fail_on_new_high }}
+  semgrep_configs:
+    description: "Rulesets Semgrep séparés par virgule"
+    value: ${{ steps.parse.outputs.semgrep_configs }}
+  snyk_threshold:
+    description: "Seuil de sévérité Snyk"
+    value: ${{ steps.parse.outputs.snyk_threshold }}
+  zap_timeout:
+    description: "Timeout ZAP en minutes"
+    value: ${{ steps.parse.outputs.zap_timeout }}
+
+runs:
+  using: composite
+  steps:
+
+    - name: Vérifier que project.config.yml existe
+      shell: bash
+      run: |
+        CONFIG_FILE="${{ inputs.projects_dir }}/${{ inputs.project }}/project.config.yml"
+        if [ ! -f "$CONFIG_FILE" ]; then
+          echo "❌ ERREUR : fichier introuvable → $CONFIG_FILE"
+          exit 1
+        fi
+        echo "✅ Config trouvée : $CONFIG_FILE"
+
+    - name: Parser project.config.yml
+      id: parse
+      shell: bash
+      run: |
+        CONFIG="${{ inputs.projects_dir }}/${{ inputs.project }}/project.config.yml"
+
+        read_yaml() {
+          local file="$1"
+          local key="$2"
+          local default="$3"
+          local value
+          value=$(grep -E "^\s+${key}:" "$file" | head -1 | sed 's/.*:\s*//' | tr -d '"' | xargs)
+          echo "${value:-$default}"
+        }
+
+        PROJECT_NAME=$(read_yaml "$CONFIG" "name"        "${{ inputs.project }}")
+        PROJECT_DESC=$(read_yaml "$CONFIG" "description" "")
+        PROJECT_TYPE=$(read_yaml "$CONFIG" "type"        "nodejs")
+
+        APP_PORT=$(read_yaml     "$CONFIG" "port"                    "3000")
+        START_CMD=$(read_yaml    "$CONFIG" "start_command"           "npm start")
+        HEALTH=$(read_yaml       "$CONFIG" "health_check_path"       "/")
+        STARTUP_WAIT=$(read_yaml "$CONFIG" "startup_wait"            "15")
+        TARGET_URL="http://localhost:${APP_PORT}"
+
+        FAIL_CRIT=$(read_yaml    "$CONFIG" "fail_on_new_critical"      "true")
+        FAIL_HIGH=$(read_yaml    "$CONFIG" "fail_on_new_high"          "false")
+        SNYK_THR=$(read_yaml     "$CONFIG" "snyk_severity_threshold"   "low")
+        ZAP_TIMEOUT=$(read_yaml  "$CONFIG" "zap_full_scan_timeout"     "30")
+
+        SEMGREP_CONFIGS=$(grep -A 20 "semgrep_rulesets:" "$CONFIG" \
+          | grep -E '^\s+-\s+"' \
+          | sed 's/.*-\s*"//' | tr -d '"' | xargs | tr ' ' ',')
+        [ -z "$SEMGREP_CONFIGS" ] && SEMGREP_CONFIGS="p/security-audit"
+
+        APP_DIR="${{ inputs.projects_dir }}/${{ inputs.project }}"
+
+        echo "========================================================"
+        echo "  CONFIG CHARGÉE — ${{ inputs.project }}"
+        echo "========================================================"
+        echo "  Nom         : $PROJECT_NAME"
+        echo "  Type        : $PROJECT_TYPE"
+        echo "  Port        : $APP_PORT  →  $TARGET_URL"
+        echo "  Start cmd   : $START_CMD"
+        echo "  Health      : $HEALTH"
+        echo "  Startup     : ${STARTUP_WAIT}s"
+        echo "  Semgrep     : $SEMGREP_CONFIGS"
+        echo "  Snyk seuil  : $SNYK_THR"
+        echo "  ZAP timeout : ${ZAP_TIMEOUT}min"
+        echo "  Fail crit.  : $FAIL_CRIT"
+        echo "  Fail high   : $FAIL_HIGH"
+        echo "========================================================"
+
+        {
+          echo "project_name=$PROJECT_NAME"
+          echo "project_description=$PROJECT_DESC"
+          echo "project_type=$PROJECT_TYPE"
+          echo "app_dir=$APP_DIR"
+          echo "app_port=$APP_PORT"
+          echo "start_command=$START_CMD"
+          echo "health_path=$HEALTH"
+          echo "startup_wait=$STARTUP_WAIT"
+          echo "target_url=$TARGET_URL"
+          echo "fail_on_new_critical=$FAIL_CRIT"
+          echo "fail_on_new_high=$FAIL_HIGH"
+          echo "semgrep_configs=$SEMGREP_CONFIGS"
+          echo "snyk_threshold=$SNYK_THR"
+          echo "zap_timeout=$ZAP_TIMEOUT"
+        } >> "$GITHUB_OUTPUT"
