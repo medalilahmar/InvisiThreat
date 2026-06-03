@@ -7,6 +7,7 @@ project:
 
 app:
   port: 5000
+  install_dir: "backend"
   start_command: "node backend/app.js"
   health_check_path: "/"
   startup_wait: 10

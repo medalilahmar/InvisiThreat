@@ -25,7 +25,7 @@ on:
           - ""                 
           - "juice-shop"
           - "shadowdep"
-                 
+
       deploy:
         description: "Déployer les containers après les scans ?"
         required: false
@@ -203,7 +203,7 @@ jobs:
     - name: Cache des dépendances Node
       id: node-cache
       if: steps.config.outputs.project_type == 'nodejs'
-      working-directory: ${{ steps.config.outputs.app_dir }}
+      working-directory: ${{ steps.config.outputs.install_dir }}
       run: |
         CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
         mkdir -p "$CACHE_DIR"
@@ -229,7 +229,7 @@ jobs:
       if: >
         steps.config.outputs.project_type == 'nodejs' &&
         steps.node-cache.outputs.cache_hit != 'true'
-      working-directory: ${{ steps.config.outputs.app_dir }}
+      working-directory: ${{ steps.config.outputs.install_dir }}
       run: |
         echo "=== Installation des dépendances Node ==="
         npm install --no-audit --no-fund

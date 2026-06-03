@@ -220,3 +220,29 @@ async def get_finding_by_id(finding_id: int) -> FindingSummaryResponse:
         raise HTTPException(404, detail=f"Finding {finding_id} introuvable")
     scores_cache = get_scores_cache()
     return _finding_to_response(loader.findings_by_id[finding_id], scores_cache)
+
+
+@router.get("/defectdojo/engagements/{engagement_id}/tests")
+async def get_engagement_tests(engagement_id: int) -> List[dict]:
+    loader = require_local_loader()
+    if engagement_id not in loader.engagements:
+        raise HTTPException(404, detail=f"Engagement {engagement_id} introuvable")
+
+    raw_findings = loader.get_findings_for_engagement(engagement_id)
+
+    tests_map: dict = {}
+    for f in raw_findings:
+        tid = f.get("test_id")
+        if tid is None:
+            continue
+        tid = int(tid)
+        if tid not in tests_map:
+            tests_map[tid] = {
+                "id":             tid,
+                "title":          f.get("test_type_name") or f"Test #{tid}",
+                "test_type_name": f.get("test_type_name") or "",
+                "findings_count": 0,
+            }
+        tests_map[tid]["findings_count"] += 1
+
+    return sorted(tests_map.values(), key=lambda t: t["id"])

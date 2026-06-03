@@ -53,6 +53,9 @@ outputs:
   zap_timeout:
     description: "Timeout ZAP en minutes"
     value: ${{ steps.parse.outputs.zap_timeout }}
+  install_dir:
+    description: "Chemin vers le dossier contenant package.json"
+    value: ${{ steps.parse.outputs.install_dir }}
 
 runs:
   using: composite
@@ -105,6 +108,13 @@ runs:
 
         APP_DIR="${{ inputs.projects_dir }}/${{ inputs.project }}"
 
+        INSTALL_DIR_RAW=$(read_yaml "$CONFIG" "install_dir" "")
+        if [ -n "$INSTALL_DIR_RAW" ]; then
+          INSTALL_DIR="$APP_DIR/$INSTALL_DIR_RAW"
+        else
+          INSTALL_DIR="$APP_DIR"
+        fi
+
         echo "========================================================"
         echo "  CONFIG CHARGÉE — ${{ inputs.project }}"
         echo "========================================================"
@@ -112,6 +122,7 @@ runs:
         echo "  Type        : $PROJECT_TYPE"
         echo "  Port        : $APP_PORT  →  $TARGET_URL"
         echo "  Start cmd   : $START_CMD"
+        echo "  Install dir : $INSTALL_DIR"
         echo "  Health      : $HEALTH"
         echo "  Startup     : ${STARTUP_WAIT}s"
         echo "  Semgrep     : $SEMGREP_CONFIGS"
@@ -126,6 +137,7 @@ runs:
           echo "project_description=$PROJECT_DESC"
           echo "project_type=$PROJECT_TYPE"
           echo "app_dir=$APP_DIR"
+          echo "install_dir=$INSTALL_DIR" 
           echo "app_port=$APP_PORT"
           echo "start_command=$START_CMD"
           echo "health_path=$HEALTH"

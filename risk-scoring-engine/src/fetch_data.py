@@ -213,6 +213,7 @@ def build_lookup_table(
             "engagement_name": eng_name,
             "product_id":      prod_id,
             "product_name":    prod_name,
+            "test_type_name":  t.get("test_type_name") or t.get("title") or f"Test #{test_id}",
         }
 
     if unresolved:
@@ -237,12 +238,16 @@ def enrich_findings(findings: list[dict], lookup: dict[int, dict]) -> list[dict]
             row["product_name"]    = info["product_name"]
             row["engagement_id"]   = info["engagement_id"]
             row["engagement_name"] = info["engagement_name"]
+            row["test_type_name"]  = info.get("test_type_name", "")  
         else:
             row["product_id"]      = None
             row["product_name"]    = "Unknown"
             row["engagement_id"]   = None
             row["engagement_name"] = ""
+            row["test_type_name"]  = ""                             
             unresolved += 1
+
+        row["test_id"] = int(test_id) if test_id is not None else None  
 
         enriched.append(row)
 

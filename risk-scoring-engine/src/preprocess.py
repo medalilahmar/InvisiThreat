@@ -92,6 +92,7 @@ EXCLUDE_FROM_ML = [
 KEEP_COLS = FEATURE_COLS + [
     "id", "title", "product_id", "engagement_id",
     "product_name", "engagement_name",
+    "test_id", "test_type_name",
     "repo_url", "branch",
     "file_path", "line", "description", "mitigation",
     "sast_source_file_path", "sast_source_line",
