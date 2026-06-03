@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShadowDep — Login</title>
+  <!-- No CSP header | No X-Frame-Options | Clickjacking possible -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 400px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }
+    .logo { text-align: center; font-size: 48px; margin-bottom: 8px; }
+    h1 { text-align: center; color: #e2e8f0; font-size: 24px; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px; }
+    label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 6px; font-weight: 500; }
+    input {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; color: #e2e8f0; font-size: 15px;
+      margin-bottom: 20px; outline: none; transition: border-color .2s;
+    }
+    input:focus { border-color: #6366f1; }
+    button {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white; border: none; border-radius: 8px;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      transition: opacity .2s;
+    }
+    button:hover { opacity: 0.9; }
+    .error-box {
+      background: rgba(239,68,68,0.15);
+      border: 1px solid rgba(239,68,68,0.4);
+      border-radius: 8px; padding: 12px 16px;
+      color: #fca5a5; font-size: 14px; margin-bottom: 20px;
+    }
+    .hint {
+      text-align: center; color: #64748b; font-size: 12px; margin-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;
+    }
+    a { color: #818cf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🌑</div>
+    <h1>ShadowDep</h1>
+    <p class="subtitle">Internal Project Dashboard</p>
+
+    <%# SAST/DAST Finding: Reflected XSS — error rendered unescaped with <%-  %>
+    <%# Attacker can craft: POST /auth/login with username that causes error containing XSS %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-box"><%- error %></div><!-- FIXME: Use <%= error %> to escape -->
+    <% } %>
+
+    <form action="/auth/login" method="POST" id="loginForm">
+      <label for="username">Username</label>
+      <input type="text"     id="username" name="username" placeholder="Enter username" autocomplete="username">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password">
+      <!-- No CSRF token! CWE-352 -->
+
+      <button type="submit">Sign In</button>
+    </form>
+
+    <p style="text-align:center; margin-top:16px; color:#94a3b8; font-size:14px;">
+      No account? <a href="/auth/register">Register</a>
+    </p>
+
+    <%# SECURITY MISCONFIGURATION: Default credentials hint exposed in UI %>
+    <div class="hint">
+      💡 Default admin access: <strong>admin</strong> / <strong>admin</strong><!-- FIXME: Remove in prod -->
+    </div>
+  </div>
+</body>
+</html>

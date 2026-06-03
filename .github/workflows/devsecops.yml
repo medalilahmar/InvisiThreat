@@ -22,8 +22,10 @@ on:
         default: ""
         type: choice
         options:
-          - ""                 # ← Auto-détection par git diff
-          - "juice-shop"       # ← Ajouter ici chaque nouveau projet
+          - ""                 
+          - "juice-shop"
+          - "shadowdep"
+                 
       deploy:
         description: "Déployer les containers après les scans ?"
         required: false

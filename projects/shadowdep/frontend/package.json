@@ -1,0 +1,28 @@
+{
+  "name": "shadowdep-frontend",
+  "version": "1.0.0",
+  "description": "ShadowDep internal dashboard — React frontend",
+  "private": true,
+  "dependencies": {
+    "react": "16.8.0",
+    "react-dom": "16.8.0",
+    "react-router-dom": "5.1.2",
+    "react-scripts": "3.3.0",
+    "axios": "0.19.0",
+    "lodash": "4.17.15",
+    "event-stream": "3.3.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test":  "react-scripts test"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  },
+  "proxy": "http://localhost:5000"
+}

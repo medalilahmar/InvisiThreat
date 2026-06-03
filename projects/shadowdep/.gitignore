@@ -1,0 +1,17 @@
+# ShadowDep — .gitignore
+# NOTE: Intentionally minimal to simulate a misconfigured repo
+
+node_modules/
+
+# FIXME: .env files are NOT excluded — credentials will be committed!
+# Secure version would include:
+# .env
+# .env.local
+# .env.production
+
+# Build output
+frontend/build/
+
+# Logs
+*.log
+npm-debug.log*

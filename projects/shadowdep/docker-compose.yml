@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # ❌ SECURITY MISCONFIGURATION: Exposing database directly to host without password in some setups,
+  # or running with default credentials.
+  db:
+    image: postgres:12
+    container_name: shadowdep-db
+    environment:
+      POSTGRES_DB: shadowdep
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecretpassword123 # ❌ Hardcoded database password in VCS
+    ports:
+      - "5432:5432" # Exposes DB port to external interfaces
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # ❌ SECURITY MISCONFIGURATION: Running backend service as ROOT user inside container
+  backend:
+    build: ./backend
+    container_name: shadowdep-backend
+    user: "root" # ❌ Running as root user inside the container (privilege container escape risk)
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=supersecretpassword123
+      - DB_NAME=shadowdep
+      - JWT_SECRET=vulnerable_jwt_signing_key_change_me_immediately_12345
+      - ADMIN_API_KEY=ADMIN_SECRET_TOKEN_9988776655
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE # Leaked credentials in Docker Compose
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    depends_on:
+      - db
+    privileged: true # ❌ VULNERABLE: Over-privileged container execution (allows root on host manipulation)
+
+  # Frontend container
+  frontend:
+    build: ./frontend
+    container_name: shadowdep-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

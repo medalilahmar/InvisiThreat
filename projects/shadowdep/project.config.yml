@@ -1,0 +1,22 @@
+# projects/shadowdep/project.config.yml
+
+project:
+  name: "ShadowDep"
+  description: "ShadowDep internal dashboard - backend API server"
+  type: "nodejs"
+
+app:
+  port: 5000
+  start_command: "node backend/app.js"
+  health_check_path: "/"
+  startup_wait: 10
+
+security:
+  fail_on_new_critical: true
+  fail_on_new_high: false
+  semgrep_rulesets:
+    - "p/security-audit"
+    - "p/owasp-top-ten"
+    - "p/nodejs"
+  snyk_severity_threshold: "low"
+  zap_full_scan_timeout: 30

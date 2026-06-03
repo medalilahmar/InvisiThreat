@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%# REFLECTED XSS in title tag — unescaped query %>
+  <title>Search: <%- query %> — ShadowDep</title>
+  <!-- No CSP header — CWE-693 -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .navbar {
+      background: rgba(30,41,59,0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0 32px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .navbar-brand { font-size: 20px; font-weight: 700; color: #818cf8; text-decoration: none; }
+    .container    { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+    .search-form  { display: flex; gap: 12px; margin-bottom: 32px; }
+    .search-form input {
+      flex: 1; padding: 12px 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; color: #e2e8f0; font-size: 16px; outline: none;
+    }
+    .search-form button {
+      padding: 12px 24px; background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      color: white; border: none; border-radius: 10px; font-size: 15px; cursor: pointer;
+    }
+    .results-header { font-size: 22px; font-weight: 600; margin-bottom: 24px; }
+    .results-header span { color: #818cf8; }
+    .result-card {
+      background: rgba(30,41,59,0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 24px; margin-bottom: 16px;
+    }
+    .result-title a { color: #e2e8f0; font-size: 18px; font-weight: 600; text-decoration: none; }
+    .result-desc { color: #94a3b8; font-size: 14px; margin-top: 8px; line-height: 1.6; }
+    .result-meta { margin-top: 12px; font-size: 12px; color: #475569; }
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-active  { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge-high    { background: rgba(239,68,68,0.15);  color: #ef4444; }
+    .badge-medium  { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .badge-critical{ background: rgba(239,68,68,0.3);   color: #fca5a5; }
+    .badge-low     { background: rgba(100,116,139,0.15);color: #94a3b8; }
+    .empty { text-align: center; padding: 60px; color: #475569; }
+    .vuln-note {
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;
+      color: #fca5a5; font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/projects" class="navbar-brand">🌑 ShadowDep</a>
+    <a href="/projects" style="color:#94a3b8; font-size:14px; text-decoration:none;">← Back to Dashboard</a>
+  </nav>
+
+  <div class="container">
+
+    <%# Hint for security testing %>
+    <div class="vuln-note">
+      ⚠ <strong>Security Testing Hint:</strong>
+      Try SQL injection: <code>' UNION SELECT id,username,password,role,NULL,NULL FROM users--</code> |
+      XSS: <code>&lt;script&gt;alert(document.cookie)&lt;/script&gt;</code>
+    </div>
+
+    <form class="search-form" action="/projects/search" method="GET">
+      <%# REFLECTED XSS: query value rendered unescaped in the input value attribute %>
+      <%# Payload: ?q="><script>alert(1)</script>  %>
+      <input type="text" name="q" value="<%- query %>" placeholder="Search projects...">
+      <button type="submit">🔍 Search</button>
+    </form>
+
+    <%# ════════════════════════════════════════════════════════════ %>
+    <%# REFLECTED XSS: query rendered with <%- (unescaped) in <h2> %>
+    <%# Payload: /projects/search?q=<script>alert(document.cookie)</script> %>
+    <%# ════════════════════════════════════════════════════════════ %>
+    <h2 class="results-header">
+      Search results for: <span><%- query %></span>
+      <small style="font-size:14px; color:#475569;"> — <%= projects.length %> found</small>
+    </h2>
+
+    <% if (projects.length === 0) { %>
+      <div class="empty">
+        <p style="font-size:40px; margin-bottom:12px;">🔍</p>
+        <%# REFLECTED XSS in "No results" message %>
+        <p>No projects found for "<strong><%- query %></strong>"</p>
+      </div>
+    <% } else { %>
+      <% projects.forEach(function(project) { %>
+        <div class="result-card">
+          <div class="result-title">
+            <a href="/projects/<%= project.id %>"><%- project.name %></a>
+            <%# STORED XSS in search results: name rendered unescaped %>
+          </div>
+          <div class="result-desc">
+            <%# STORED XSS: description rendered unescaped %>
+            <%- project.description %>
+          </div>
+          <div class="result-meta">
+            <span class="badge badge-<%= project.status %>"><%= project.status %></span>
+            <span class="badge badge-<%= project.priority %>"><%= project.priority %></span>
+            <span style="margin-left:8px;">ID: #<%= project.id %></span>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+
+  </div>
+
+  <script>
+    // DOM XSS: search term echoed from URL into the page without sanitization
+    var params = new URLSearchParams(window.location.search);
+    var searchTerm = params.get('q') || '';
+    // FIXME: innerHTML with user-controlled data — DOM XSS
+    document.title = 'Search: ' + searchTerm + ' — ShadowDep'; // Reflected in title
+  </script>
+
+</body>
+</html>

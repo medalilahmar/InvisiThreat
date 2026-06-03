@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%# SAST Finding: Stored XSS — user.username rendered unescaped in <title> %>
+  <title><%- user.username || 'Dashboard' %> — ShadowDep</title>
+  <!-- No Content-Security-Policy header set — CWE-693 -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .navbar {
+      background: rgba(30,41,59,0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0 32px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .navbar-brand { font-size: 20px; font-weight: 700; color: #818cf8; }
+    .navbar-nav { display: flex; gap: 24px; align-items: center; }
+    .navbar-nav a { color: #94a3b8; text-decoration: none; font-size: 14px; transition: color .2s; }
+    .navbar-nav a:hover { color: #e2e8f0; }
+    .btn {
+      padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; text-decoration: none; border: none;
+    }
+    .btn-primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; }
+    .btn-danger  { background: #ef4444; color: white; }
+    .container   { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+    h2 { font-size: 28px; font-weight: 700; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card {
+      background: rgba(30,41,59,0.8); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 24px; text-align: center;
+    }
+    .stat-value { font-size: 36px; font-weight: 700; color: #818cf8; }
+    .stat-label { color: #64748b; font-size: 13px; margin-top: 4px; }
+    .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 20px; }
+    .project-card {
+      background: rgba(30,41,59,0.8); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 24px; transition: border-color .2s;
+    }
+    .project-card:hover { border-color: rgba(99,102,241,0.5); }
+    .project-name { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+    .project-name a { color: #e2e8f0; text-decoration: none; }
+    .project-desc { color: #94a3b8; font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .badge-active   { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-pending  { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-high     { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-medium   { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+    .badge-critical { background: rgba(239,68,68,0.3);   color: #fca5a5; border: 1px solid rgba(239,68,68,0.5); }
+    .badge-low      { background: rgba(100,116,139,0.15);color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+    .card-footer { display: flex; gap: 8px; margin-top: 16px; }
+    .search-bar { display: flex; gap: 12px; }
+    .search-bar input {
+      flex: 1; padding: 10px 16px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; color: #e2e8f0; font-size: 14px; outline: none;
+    }
+    .empty { text-align: center; padding: 60px; color: #475569; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">🌑 ShadowDep</div>
+    <div class="navbar-nav">
+      <%# SAST/DAST Finding: Reflected XSS — username rendered with <%-  (unescaped) %>
+      <%# Payload stored during registration: <script>alert(1)</script> %>
+      <span style="color:#e2e8f0;">Welcome, <strong><%- user.username || 'Guest' %></strong></span>
+      <a href="/admin/panel">⚙ Admin</a>
+      <a href="/projects/search">🔍 Search</a>
+      <a href="/auth/logout" class="btn btn-danger" style="padding:6px 14px; font-size:13px;">Logout</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="page-header">
+      <h2>📊 Projects</h2>
+      <a href="#" class="btn btn-primary" id="new-project-btn">+ New Project</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value"><%= projects.length %></div>
+        <div class="stat-label">Total Projects</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= projects.filter(p=>p.status==='active').length %></div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= projects.filter(p=>p.priority==='critical').length %></div>
+        <div class="stat-label">Critical Priority</div>
+      </div>
+    </div>
+
+    <div class="search-bar" style="margin-bottom:24px;">
+      <input id="search-input" type="text" placeholder="Search projects... (try SQL injection payloads here →)">
+      <button class="btn btn-primary" onclick="doSearch()">Search</button>
+    </div>
+
+    <% if (projects.length === 0) { %>
+      <div class="empty">
+        <p style="font-size:48px; margin-bottom:12px;">📭</p>
+        <p>No projects found. Create one above.</p>
+      </div>
+    <% } else { %>
+      <div class="project-grid">
+        <% projects.forEach(function(project) { %>
+          <div class="project-card">
+            <div class="project-name">
+              <%# STORED XSS: project.name rendered unescaped %>
+              <a href="/projects/<%= project.id %>"><%- project.name %></a>
+            </div>
+            <div class="project-desc">
+              <%# STORED XSS: description rendered unescaped — CWE-79 %>
+              <%- project.description %>
+            </div>
+            <div>
+              <span class="badge badge-<%= project.status  %>"><%= project.status  %></span>
+              <span class="badge badge-<%= project.priority %>"><%= project.priority %></span>
+            </div>
+            <div class="card-footer">
+              <a href="/projects/<%= project.id %>" class="btn btn-primary" style="font-size:13px; padding:6px 12px;">View</a>
+              <%# IDOR: ID is sequential — user can enumerate other users' projects %>
+              <button onclick="deleteProject(<%= project.id %>)" class="btn btn-danger" style="font-size:13px; padding:6px 12px;">Delete</button>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    function doSearch() {
+      var q = document.getElementById('search-input').value;
+      // DOM XSS: user input placed in URL without encoding then read back
+      window.location.href = '/projects/search?q=' + q;
+    }
+
+    function deleteProject(id) {
+      // FIXME: No CSRF protection — any site can trigger this
+      if (!confirm('Delete project ' + id + '?')) return;
+      var token = localStorage.getItem('token'); // Token from localStorage
+      fetch('/projects/' + id, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function() { location.reload(); });
+    }
+
+    // FIXME: Token stored in localStorage — vulnerable to XSS theft
+    var token = localStorage.getItem('token');
+
+    // DOM XSS: reading from URL hash without sanitization
+    if (window.location.hash) {
+      // Try: /projects#<img src=x onerror=alert(document.cookie)>
+      document.write(decodeURIComponent(window.location.hash.slice(1))); // DOM XSS
+    }
+  </script>
+
+</body>
+</html>
