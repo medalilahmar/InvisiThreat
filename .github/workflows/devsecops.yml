@@ -124,6 +124,7 @@ jobs:
           echo "Aucun projet détecté."
           echo "matrix=[]"        >> "$GITHUB_OUTPUT"
           echo "has_projects=false" >> "$GITHUB_OUTPUT"
+          echo "build_infra=false"  >> "$GITHUB_OUTPUT"
         else
           # Construire le JSON : ["juice-shop","mon-api"]
           JSON="["
@@ -136,6 +137,7 @@ jobs:
           echo "Matrice construite : $JSON"
           echo "matrix=$JSON"       >> "$GITHUB_OUTPUT"
           echo "has_projects=true"  >> "$GITHUB_OUTPUT"
+          echo "build_infra=false"  >> "$GITHUB_OUTPUT"
         fi
 
 # ─────────────────────────────────────────────────────────────────
@@ -239,11 +241,11 @@ jobs:
       working-directory: ${{ steps.config.outputs.install_dir }}
       run: |
         echo "=== Installation des dépendances Node ==="
-        npm install --no-audit --no-fund
+        npm install --no-audit --no-fund --legacy-peer-deps
 
         if [ -d "frontend" ]; then
           echo "=== Installation frontend ==="
-          cd frontend && npm install --no-audit --no-fund && cd ..
+          cd frontend && npm install --no-audit --no-fund --legacy-peer-deps && cd ..
         fi
 
         echo "=== Sauvegarde du cache ==="
@@ -494,7 +496,7 @@ jobs:
 
     # ── TAGGING INTELLIGENT ───────────────────────────────────────
     - name: DefectDojo — Tagging intelligent des findings
-      if: always()
+      if: always() && steps.dd_setup.outputs.engagement_id != ''
       continue-on-error: true
       env:
         DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
@@ -533,9 +535,13 @@ jobs:
         AFTER_MED=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Medium")]   | length' 2>/dev/null || echo 0)
         AFTER_LOW=$(echo "$RESP"   | jq '[.results[]? | select(.severity=="Low")]      | length' 2>/dev/null || echo 0)
 
-        NEW_CRIT=$(( AFTER_CRIT  - ${{ steps.dd_snapshot.outputs.before_critical }} ))
-        NEW_HIGH=$(( AFTER_HIGH  - ${{ steps.dd_snapshot.outputs.before_high }} ))
-        NEW_TOTAL=$(( AFTER_TOTAL - ${{ steps.dd_snapshot.outputs.before_total }} ))
+        BEFORE_CRIT="${{ steps.dd_snapshot.outputs.before_critical || '0' }}"
+        BEFORE_HIGH="${{ steps.dd_snapshot.outputs.before_high || '0' }}"
+        BEFORE_TOTAL="${{ steps.dd_snapshot.outputs.before_total || '0' }}"
+
+        NEW_CRIT=$(( AFTER_CRIT  - BEFORE_CRIT  ))
+        NEW_HIGH=$(( AFTER_HIGH  - BEFORE_HIGH  ))
+        NEW_TOTAL=$(( AFTER_TOTAL - BEFORE_TOTAL ))
         [ "$NEW_CRIT" -lt 0 ] && NEW_CRIT=0
         [ "$NEW_HIGH" -lt 0 ] && NEW_HIGH=0
 
@@ -766,8 +772,7 @@ jobs:
           registry:           ${{ env.REGISTRY }}
           sha:                ${{ github.sha }}
           dd_url:             ${{ env.DD_URL }}
-          run_ml_update:      ${{ needs.detect.outputs.has_projects == 'true' ||  github.event.inputs.force_retrain == 'true' }}
-
+          run_ml_update: ${{ needs.detect.outputs.has_projects == 'true' || github.event.inputs.force_retrain == 'true' }}
           # Secrets — passés depuis GitHub Secrets
           defectdojo_api_key: ${{ secrets.DEFECTDOJO_API_KEY }}
           postgres_password:  ${{ secrets.POSTGRES_PASSWORD }}
