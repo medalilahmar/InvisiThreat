@@ -9,7 +9,7 @@ app:
   port: 5001
   install_dir: "backend"
   start_command: "node backend/app.js"
-  health_check_path: "/"
+  health_check_path: "/health"
   startup_wait: 10
 
 security:
