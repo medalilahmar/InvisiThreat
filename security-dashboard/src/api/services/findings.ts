@@ -8,7 +8,13 @@ export const findingsApi = {
     apiClient.get<Finding>(`/defectdojo/findings/${id}`),
 
 
-  getAll: (limit = 2000) => apiClient.get(`/defectdojo/findings?limit=${limit}`),
+  getAll: (limit = 10000) => apiClient.get(`/defectdojo/findings?limit=${limit}`),
+
+
+  getTestsByEngagement: (engagementId: number) =>
+    apiClient.get<{ id: number; title: string; test_type_name: string; findings_count: number }[]>(
+      `/defectdojo/engagements/${engagementId}/tests`
+    ),
   
 
 };

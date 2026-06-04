@@ -13,6 +13,13 @@ import './FindingsPage.css';
 
 type SortKey = 'risk' | 'cvss' | 'age' | 'severity' | 'id';
 type FilterLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
+type TestFilter = number | null;
+interface EngagementTest {
+  id: number;
+  title: string;
+  test_type_name: string;
+  findings_count: number;
+}
 
 const PAGE_SIZE = 20;
 
@@ -156,6 +163,8 @@ export default function FindingsPage() {
   const isManager = user?.role === 'manager' || user?.role === 'admin'; 
   const [users, setUsers] = useState<{id: number; username: string; role: string}[]>([]);
   const [metadataMap, setMetadataMap] = useState<Record<number, any>>({});
+  const [selectedTest, setSelectedTest] = useState<TestFilter>(null);
+  const [testDropdownOpen, setTestDropdownOpen] = useState(false);
 
   useEffect(() => {
     apiClient.get("/findings/users/assignable")
@@ -193,12 +202,19 @@ export default function FindingsPage() {
     const score = batchResults?.results[idx];
     return {
       ...f,
-      ai_risk_class: score?.risk_class,
-      ai_risk_level: score?.risk_level,
-      ai_confidence: score?.confidence,
-      context_score: score?.context_score,
+      ai_risk_class:    f.risk_class      ?? score?.risk_class,
+      ai_risk_level:    f.risk_level      ?? score?.risk_level,
+      ai_confidence:    f.ai_confidence   ?? score?.confidence,
+      context_score:    f.context_score   ?? score?.context_score,
+      ai_score_cont:    f.ai_risk_score_cont,  // ← score 0-10 du cache
     };
   }), [rawFindings, batchResults]);
+
+  const { data: engagementTests = [] } = useQuery<EngagementTest[]>({
+    queryKey: ['tests', parsedId],
+    queryFn: () => findingsApi.getTestsByEngagement(parsedId!).then(res => res.data),
+    enabled: !!parsedId,
+  });
 
   const stats = useMemo(() => ({
     total: findings.length,
@@ -214,14 +230,15 @@ export default function FindingsPage() {
     const q = search.toLowerCase();
     return findings.filter(f => {
       const matchFilter = filter === 'all' || f.severity === filter;
+      const matchTest   = selectedTest === null || f.test_id === selectedTest;
       const matchSearch = !q ||
         f.title.toLowerCase().includes(q) ||
         (f.file_path || '').toLowerCase().includes(q) ||
         (f.tags || []).some((t: string) => t.includes(q)) ||
         String(f.id).includes(q);
-      return matchFilter && matchSearch;
+      return matchFilter && matchTest && matchSearch;
     });
-  }, [findings, filter, search]);
+  }, [findings, filter, search, selectedTest]);
 
   const sorted = useMemo(() => [...filtered].sort((a, b) => {
     const aPinned = metadataMap[a.id]?.is_pinned ? 1 : 0;
@@ -260,10 +277,28 @@ export default function FindingsPage() {
     refreshMetadata();
   }, [paginatedIds]);
 
+
+  useEffect(() => {
+    if (!testDropdownOpen) return;
+    const close = (e: MouseEvent) => {
+      const el = document.querySelector('.fp-test-dropdown');
+      if (el && !el.contains(e.target as Node)) setTestDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [testDropdownOpen]);
+
   // Reset to page 1 when filter/search/sort changes
   const handleFilter = useCallback((f: FilterLevel) => { setFilter(f); setPage(1); }, []);
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(1); }, []);
   const handleSort = useCallback((k: SortKey) => { setSortKey(k); setPage(1); }, []);
+
+
+  const handleTestFilter = useCallback((testId: TestFilter) => {
+    setSelectedTest(testId);
+    setTestDropdownOpen(false);
+    setPage(1);
+  }, []);
 
   // ── Export handlers ──
   const handleExportExcel = useCallback(async () => {
@@ -341,6 +376,49 @@ export default function FindingsPage() {
               </button>
             ))}
           </div>
+          
+          {engagementTests.length > 0 && (
+            <div className="fp-test-dropdown" style={{ position: 'relative', zIndex: 9999 }}>
+
+              <button
+                className="fp-test-btn"
+                onClick={() => setTestDropdownOpen(o => !o)}
+              >
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="13" height="13">
+                  <path d="M2 4h12M4 8h8M6 12h4" strokeLinecap="round" />
+                </svg>
+                {selectedTest === null
+                  ? 'Tous les tests'
+                  : engagementTests.find(t => t.id === selectedTest)?.title ?? `Test #${selectedTest}`}
+                <svg viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5" width="10" height="6"
+                  style={{ marginLeft: 4, transition: 'transform 0.2s', transform: testDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {testDropdownOpen && (
+                <div className="fp-test-menu">
+                  <button
+                    className={`fp-test-option${selectedTest === null ? ' active' : ''}`}
+                    onClick={() => handleTestFilter(null)}
+                  >
+                    <span className="fp-test-opt-name">Tous les tests</span>
+                    <span className="fp-test-opt-count">{findings.length}</span>
+                  </button>
+                  {engagementTests.map(test => (
+                    <button
+                      key={test.id}
+                      className={`fp-test-option${selectedTest === test.id ? ' active' : ''}`}
+                      onClick={() => handleTestFilter(test.id)}
+                    >
+                      <span className="fp-test-opt-name" title={test.title}>{test.title}</span>
+                      <span className="fp-test-opt-count">{test.findings_count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <select
             className="fp-sort-select"
@@ -458,7 +536,11 @@ export default function FindingsPage() {
                     </td>
                     <td>
                       <span className="fp-ai-score" style={{ color: RISK_COLOR[f.ai_risk_level ?? 'low'] ?? 'var(--text)' }}>
-                        {f.ai_risk_class !== undefined ? `${f.ai_risk_class}/4` : 'N/A'}
+                        {f.ai_score_cont != null
+                          ? `${f.ai_score_cont.toFixed(1)}`
+                          : f.ai_risk_class != null
+                            ? `${f.ai_risk_class}/4`
+                            : 'N/A'}
                       </span>
                     </td>
                     <td>

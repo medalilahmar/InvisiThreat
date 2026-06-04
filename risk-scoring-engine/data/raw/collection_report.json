@@ -1,16 +1,18 @@
 {
-  "timestamp": "2026-05-14T10:58:23.925748",
+  "timestamp": "2026-06-03T01:39:34.081641",
   "base_url": "http://192.168.11.170:8080",
-  "products": 5,
-  "engagements": 14,
-  "tests": 46,
-  "findings": 2267,
+  "products": 7,
+  "engagements": 16,
+  "tests": 52,
+  "findings": 2460,
   "errors": [],
-  "findings_with_cve": 657,
-  "findings_with_epss_score": 636,
+  "findings_with_cve": 779,
+  "findings_with_epss_score": 733,
   "distribution_by_product": {
     "automation-hub": 653,
     "InvisiThreat": 1020,
-    "Laboratoire d'Analyse SAST": 594
+    "Laboratoire d'Analyse SAST": 594,
+    "JuiceShop": 181,
+    "ShadowDep": 12
   }
 }

@@ -1560,3 +1560,57 @@ risk_class
 2026-05-14 10:59:04,308 [INFO] Preprocessing v9.0 termine avec succes
 2026-05-14 10:59:04,308 [INFO]   -> Prochaine etape : python src/train.py
 2026-05-14 10:59:04,308 [INFO] ======================================================================
+2026-06-03 01:40:01,322 [INFO] ======================================================================
+2026-06-03 01:40:01,323 [INFO] InvisiThreat — Preprocessing v9.0
+2026-06-03 01:40:01,324 [INFO]   [L1] Label    : severity DefectDojo -> MERGE_MAP -> 4 classes
+2026-06-03 01:40:01,324 [INFO]   [L2] Features : normalises [0,1] — cvss, epss, delay, exposure
+2026-06-03 01:40:01,325 [INFO]   [L3] Anti-leakage : severity_num / derives exclus de FEATURE_COLS
+2026-06-03 01:40:01,325 [INFO]   [L4] product_fp_rate : lissage Laplace (sum+1)/(count+2)
+2026-06-03 01:40:01,325 [INFO]   [L5] Monitoring : correlation CVSS/EPSS + distribution classes
+2026-06-03 01:40:01,325 [INFO] ======================================================================
+2026-06-03 01:40:01,325 [INFO] Repertoire racine : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine
+2026-06-03 01:40:01,561 [INFO] Donnees chargees : 2460 findings | 7 produits | 16 engagements
+2026-06-03 01:40:01,562 [INFO] Etape 1/11 : normalisation des IDs
+2026-06-03 01:40:01,587 [INFO] Etape 2/11 : resolution produits et engagements
+2026-06-03 01:40:01,602 [INFO] Etape 3/11 : features temporelles (age_days, days_to_fix)
+2026-06-03 01:40:01,639 [INFO] days_to_fix disponible : 2460/2460 (100.0%)
+2026-06-03 01:40:01,639 [INFO] Etape 4/11 : CVSS et severite
+2026-06-03 01:40:01,659 [INFO] Etape 5/11 : features binaires, CVE, tags
+2026-06-03 01:40:01,728 [INFO] CVE detectees : 777/2460 (31.6%)
+2026-06-03 01:40:01,729 [INFO] Etape 6/11 : features EPSS
+2026-06-03 01:40:01,732 [INFO] EPSS > 0 : 733/2460 findings
+2026-06-03 01:40:01,732 [INFO] Etape 7/11 : features contextuelles (product_fp_rate Laplace)
+2026-06-03 01:40:01,774 [INFO] product_fp_rate (Laplace) : min=0.0010 | max=0.0714
+2026-06-03 01:40:01,774 [INFO] Etape 8/11 : features d'interaction
+2026-06-03 01:40:01,780 [INFO] Etape 9/11 : normalisation (cvss_norm, age_norm, tags_norm)
+2026-06-03 01:40:01,785 [INFO] Etape 10/11 : exposition (exposure_norm) et delay_norm
+2026-06-03 01:40:01,790 [INFO] delay_norm : mean=0.919 | min=0.076 | max=1.000
+2026-06-03 01:40:01,791 [INFO] Etape 11/11 : label severity -> 4 classes + sample_weight
+2026-06-03 01:40:01,803 [INFO] Label : 2459 findings valides | 1 exclus (FP/OOS)
+2026-06-03 01:40:01,807 [INFO] Distribution risk_class :
+2026-06-03 01:40:01,807 [INFO]   Low        (classe 0.0) :   327 ( 13.3%)
+2026-06-03 01:40:01,807 [INFO]   Medium     (classe 1.0) :  1424 ( 57.9%)
+2026-06-03 01:40:01,807 [INFO]   High       (classe 2.0) :   654 ( 26.6%)
+2026-06-03 01:40:01,808 [INFO]   Critical   (classe 3.0) :    54 (  2.2%)
+2026-06-03 01:40:01,808 [INFO] Correlations features / risk_class :
+2026-06-03 01:40:01,812 [INFO]   severity_num         r = +0.9783  (attendu eleve — source du label)
+2026-06-03 01:40:01,813 [INFO]   cvss_score           r = +0.4008  (warning si > 0.95 (dominance structurelle))
+2026-06-03 01:40:01,814 [INFO]   epss_score           r = +0.2195  (signal secondaire)
+2026-06-03 01:40:01,815 [INFO]   delay_norm           r = +0.2070  (signal SOC comportemental)
+2026-06-03 01:40:01,815 [INFO]   cvss_score / epss_score   r = +0.2287 [OK]
+2026-06-03 01:40:01,817 [INFO] Poids de classes (plafonnes a 10.0) :
+2026-06-03 01:40:01,818 [INFO]   Low        -> 1.880
+2026-06-03 01:40:01,818 [INFO]   Medium     -> 0.432
+2026-06-03 01:40:01,818 [INFO]   High       -> 0.940
+2026-06-03 01:40:01,818 [INFO]   Critical   -> 10.000
+2026-06-03 01:40:01,825 [INFO] Preprocessing termine : 2460 lignes x 61 colonnes
+2026-06-03 01:40:01,827 [INFO] Anti-leakage : OK — aucune colonne suspecte dans FEATURE_COLS
+2026-06-03 01:40:01,828 [INFO] Correlation cvss / risk_class : r = 0.4008 [OK]
+2026-06-03 01:40:01,830 [INFO] Classes distinctes : 4 | Classe dominante : 57.9%
+2026-06-03 01:40:01,832 [INFO] delay_norm : OK [0.076, 1.000]
+2026-06-03 01:40:02,004 [INFO] Fichier sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\processed\findings_clean.csv (2460 lignes)
+2026-06-03 01:40:02,018 [INFO] Rapport JSON sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\data\processed\data_report.json
+2026-06-03 01:40:02,019 [INFO] ======================================================================
+2026-06-03 01:40:02,019 [INFO] Preprocessing v9.0 termine avec succes
+2026-06-03 01:40:02,019 [INFO]   -> Prochaine etape : python src/train.py
+2026-06-03 01:40:02,019 [INFO] ======================================================================

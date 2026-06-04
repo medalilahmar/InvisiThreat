@@ -8,6 +8,8 @@ export interface Finding {
   engagement_name?: string | null;
   product_id?: number | null;
   product_name?: string | null;
+  test_id?: number | null;
+  test_type_name?: string;
   created?: string;
   age_days?: number | null;
   file_path?: string | null;
