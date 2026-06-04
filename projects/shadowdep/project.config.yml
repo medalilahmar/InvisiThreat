@@ -6,7 +6,7 @@ project:
   type: "nodejs"
 
 app:
-  port: 5000
+  port: 5001
   install_dir: "backend"
   start_command: "node backend/app.js"
   health_check_path: "/"
