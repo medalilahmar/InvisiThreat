@@ -132,7 +132,7 @@ app.use(errorHandler);
  * START SERVER
  * FIXME: HTTP only — no TLS/HTTPS (CWE-319 — Cleartext Transmission)
  * ───────────────────────────────────────────────────────────────── */
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🌑 ShadowDep backend running on http://0.0.0.0:${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV}`);
