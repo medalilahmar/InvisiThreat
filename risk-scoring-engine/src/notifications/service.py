@@ -460,3 +460,66 @@ def notify_user_blocked(db: Session, user: User):
         subject=f"[InvisiThreat] Compte bloqué — @{user.username}",
         html_body=html,
     )
+
+
+
+# ──────────────────────────────────────────────
+# NOTIFICATION 4 — Nouveau finding détecté
+# ──────────────────────────────────────────────
+def notify_new_finding(
+    db: Session,
+    finding_title: str,
+    severity: str,
+    product_name: str = None,
+    finding_id: int = None,
+):
+    """Notifie les users avec notify_on_new_finding=True."""
+    users = db.query(User).filter(
+        User.notify_on_new_finding == True,
+        User.status == "active",
+        User.is_active == True,
+    ).all()
+
+    for user in users:
+        create_notification(
+            db=db,
+            type=NotificationType.finding_assigned,
+            title=f"New {severity.upper()} finding detected",
+            message=(
+                f"Finding '{finding_title}'"
+                + (f" in {product_name}" if product_name else "")
+                + f" flagged as {severity.upper()}."
+            ),
+            related_user_id=user.id,
+        )
+
+
+# ──────────────────────────────────────────────
+# NOTIFICATION 5 — Pull request créé
+# ──────────────────────────────────────────────
+def notify_pr_merged(
+    db: Session,
+    pr_title: str,
+    pr_url: str = None,
+    finding_id: int = None,
+):
+    """Notifie les users avec notify_on_pr_merged=True."""
+    users = db.query(User).filter(
+        User.notify_on_pr_merged == True,
+        User.status == "active",
+        User.is_active == True,
+    ).all()
+
+    for user in users:
+        create_notification(
+            db=db,
+            type=NotificationType.project_sync,
+            title=f"Auto-fix PR created: {pr_title[:60]}",
+            message=(
+                f"A security fix PR was opened"
+                + (f" for finding #{finding_id}" if finding_id else "")
+                + (f": {pr_url}" if pr_url else "")
+                + "."
+            ),
+            related_user_id=user.id,
+        )

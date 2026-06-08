@@ -47,7 +47,8 @@ from server.routers.notifications_router import router as notifications_router
 from server.routers.projects import router as projects_router
 from server.routers.findings_metadata import router as findings_metadata_router
 
-
+from sqlalchemy.orm import Session
+from database.connection import get_db
 # ── Logging ───────────────────────────────────────────────────────────────────
 Path("logs").mkdir(exist_ok=True)
 logging.basicConfig(
@@ -247,12 +248,14 @@ async def reload_model() -> Dict[str, Any]:
 
 
 @app.post("/data/refresh", tags=["Admin"])
-async def refresh_data() -> Dict[str, Any]:
+async def refresh_data(
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     from fastapi import HTTPException
     mm     = get_model_manager()
     loader = require_local_loader()
     try:
-        if loader.load():
+        if loader.load(db=db):        
             if mm.is_ready():
                 from server.cache import set_scores_cache
                 cache = score_all_findings_at_startup(loader, mm)

@@ -244,5 +244,46 @@
     "priority_note": "48h — This vulnerability is actively exploited in the wild and requires no authentication. Delaying the fix increases the risk of a mass data breach incident.",
     "from_cache": false,
     "_fallback": false
+  },
+  "0d3ae7c34755f266d0c46ed758f92179": {
+    "vulnerable_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = \" + user_id)",
+    "fixed_snippet": "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))",
+    "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+    "confidence": 0.92,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "d998fef53666c8bb72b4027910ca2532": {
+    "vulnerable_snippet": "console.log('Hello, world!');",
+    "fixed_snippet": "console.log(`Hello, ${name}!`);",
+    "explanation": "The original code used `console.log('Hello, world!')`, which logs a string to the console. This is vulnerable because it does not escape any user input, allowing an attacker to inject malicious code into the output. The fix uses template literals (`console.log(`Hello, ${name}!`)`) which automatically escapes any user input, preventing SQL injection.",
+    "confidence": 0.95,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "901c8b2483e047449f3bfedf1ba1d611": {
+    "summary": "The `No-Console-Log` vulnerability in `src/app.js` is a medium-severity issue where the application does not log any console messages, making it difficult to detect and mitigate. This lack of logging can lead to several security risks.",
+    "impact": "An attacker can exploit this vulnerability by injecting malicious scripts into user profiles or other sensitive areas of the application. These scripts could steal session cookies, hijack user sessions, perform actions on behalf of victims, or even exfiltrate personal data. If an admin account is compromised, the attacker gains elevated privileges over the entire application.",
+    "root_cause": "The `src/app.js` file contains a function that logs messages to the console using `console.log()`. However, this function is not called anywhere in the codebase, making it impossible for developers to detect or prevent the vulnerability. The lack of logging also makes it difficult for security teams to identify and respond to potential attacks.",
+    "exploitation_difficulty": "Easy — An attacker only needs to save a malicious script in their profile field; no special tools or authentication bypass is required.",
+    "priority_note": "Immediate — This vulnerability can affect every user who visits the infected page, including administrators. Delaying the fix increases the risk of a mass session hijacking incident.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "0f57f43a9433d4b74000b930339bee72": {
+    "vulnerable_snippet": "console.log('Hello, World!');",
+    "fixed_snippet": "console.log(`Hello, ${user_name}!`);",
+    "explanation": "The original code directly logged user input to the console. This is a security risk because it allows an attacker to inject malicious code into the output. The fix uses template literals which prevent any injected code from being executed by escaping special characters.",
+    "confidence": 0.95,
+    "from_cache": false,
+    "_fallback": false
+  },
+  "797525a12a0b68d3205c28e9cec89604": {
+    "vulnerable_snippet": "res.send('<p>' + comment.content + '</p>');",
+    "fixed_snippet": "res.send(`<p>${comment.content}</p>`);",
+    "explanation": "The original code directly concatenated user input into the HTML response, enabling Cross-Site Scripting (XSS). The fix uses template literals to escape any potentially malicious content in the comment's content before rendering it on the page.",
+    "confidence": 0.95,
+    "from_cache": false,
+    "_fallback": false
   }
 }

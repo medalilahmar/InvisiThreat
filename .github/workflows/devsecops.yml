@@ -27,6 +27,7 @@ on:
           - ""                 
           - "juice-shop"
           - "shadowdep"
+          
 
       deploy:
         description: "Déployer les containers après les scans ?"
@@ -208,7 +209,7 @@ jobs:
           echo "OK — jq $(jq --version)"
         fi
 
-    # ── CACHE NODE (uniquement pour projets nodejs) ───────────────
+    # ── CACHE NODE ────────────────────────────────────────────────
     - name: Cache des dépendances Node
       id: node-cache
       if: steps.config.outputs.project_type == 'nodejs'
@@ -221,15 +222,14 @@ jobs:
         echo "Hash calculé : $PKG_HASH"
 
         if [ -d "$CACHE_DIR/node_modules" ] && \
-           [ -d "$CACHE_DIR/frontend_node_modules" ] && \
            [ -f "$CACHE_DIR/.hash" ] && \
            [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
-          echo "===  CACHE HIT — Restauration ==="
-          cp -r "$CACHE_DIR/node_modules"          ./node_modules || true
-          cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules || true
+          echo "=== CACHE HIT ==="
+          cp -r "$CACHE_DIR/node_modules" ./node_modules || true
+          cp -r "$CACHE_DIR/frontend_node_modules" ./frontend/node_modules 2>/dev/null || true
           echo "cache_hit=true"     >> "$GITHUB_OUTPUT"
         else
-          echo "===  CACHE MISS ==="
+          echo "=== CACHE MISS ==="
           echo "cache_hit=false"    >> "$GITHUB_OUTPUT"
           echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
         fi
@@ -240,24 +240,142 @@ jobs:
         steps.node-cache.outputs.cache_hit != 'true'
       working-directory: ${{ steps.config.outputs.install_dir }}
       run: |
-        echo "=== Installation des dépendances Node ==="
+        echo "=== Installation Node ==="
         npm install --no-audit --no-fund --legacy-peer-deps
-
         if [ -d "frontend" ]; then
-          echo "=== Installation frontend ==="
           cd frontend && npm install --no-audit --no-fund --legacy-peer-deps && cd ..
         fi
-
-        echo "=== Sauvegarde du cache ==="
         CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
         PKG_HASH="${{ steps.node-cache.outputs.pkg_hash }}"
-        mkdir -p "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
-        rm -rf   "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
-        cp -r node_modules          "$CACHE_DIR/node_modules"          || true
+        rm -rf "$CACHE_DIR/node_modules" "$CACHE_DIR/frontend_node_modules"
+        cp -r node_modules "$CACHE_DIR/node_modules" || true
         cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
         echo "$PKG_HASH" > "$CACHE_DIR/.hash"
-        echo "===  Cache sauvegardé ==="
 
+    # ── INSTALL PYTHON ────────────────────────────────────────────
+    - name: Cache des dépendances Python
+      id: python-cache
+      if: steps.config.outputs.project_type == 'python'
+      working-directory: ${{ steps.config.outputs.install_dir }}
+      run: |
+        CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
+        mkdir -p "$CACHE_DIR"
+
+        # Hash sur requirements.txt ou pyproject.toml
+        REQ_FILE=""
+        [ -f requirements.txt ] && REQ_FILE="requirements.txt"
+        [ -f pyproject.toml ]   && REQ_FILE="pyproject.toml"
+
+        if [ -z "$REQ_FILE" ]; then
+          echo "Aucun fichier de dépendances Python trouvé"
+          echo "cache_hit=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        PKG_HASH=$(sha256sum "$REQ_FILE" | cut -d' ' -f1)
+        echo "Hash calculé : $PKG_HASH ($REQ_FILE)"
+
+        if [ -d "$CACHE_DIR/venv" ] && \
+           [ -f "$CACHE_DIR/.hash" ] && \
+           [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
+          echo "=== CACHE HIT ==="
+          cp -r "$CACHE_DIR/venv" ./venv
+          echo "cache_hit=true"     >> "$GITHUB_OUTPUT"
+        else
+          echo "=== CACHE MISS ==="
+          echo "cache_hit=false"    >> "$GITHUB_OUTPUT"
+          echo "pkg_hash=$PKG_HASH" >> "$GITHUB_OUTPUT"
+          echo "req_file=$REQ_FILE" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Installer les dépendances Python
+      if: >
+        steps.config.outputs.project_type == 'python' &&
+        steps.python-cache.outputs.cache_hit != 'true'
+      working-directory: ${{ steps.config.outputs.install_dir }}
+      run: |
+        echo "=== Installation Python ==="
+        python3 -m venv venv
+        source venv/bin/activate
+
+        REQ_FILE="${{ steps.python-cache.outputs.req_file }}"
+        if [ "$REQ_FILE" = "pyproject.toml" ]; then
+          pip install -e . --quiet
+        else
+          pip install -r requirements.txt --quiet
+        fi
+
+        echo "=== Sauvegarde cache ==="
+        CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
+        PKG_HASH="${{ steps.python-cache.outputs.pkg_hash }}"
+        rm -rf "$CACHE_DIR/venv"
+        cp -r venv "$CACHE_DIR/venv"
+        echo "$PKG_HASH" > "$CACHE_DIR/.hash"
+
+    # ── INSTALL JAVA ──────────────────────────────────────────────
+    - name: Cache des dépendances Java
+      id: java-cache
+      if: steps.config.outputs.project_type == 'java'
+      working-directory: ${{ steps.config.outputs.install_dir }}
+      run: |
+        CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
+        mkdir -p "$CACHE_DIR"
+
+        BUILD_FILE=""
+        [ -f pom.xml ]        && BUILD_FILE="pom.xml"
+        [ -f build.gradle ]   && BUILD_FILE="build.gradle"
+        [ -f build.gradle.kts ] && BUILD_FILE="build.gradle.kts"
+
+        if [ -z "$BUILD_FILE" ]; then
+          echo "Aucun fichier de build Java trouvé"
+          echo "cache_hit=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        PKG_HASH=$(sha256sum "$BUILD_FILE" | cut -d' ' -f1)
+        echo "Hash calculé : $PKG_HASH ($BUILD_FILE)"
+
+        if [ -d "$CACHE_DIR/.m2" ] && \
+           [ -f "$CACHE_DIR/.hash" ] && \
+           [ "$(cat $CACHE_DIR/.hash)" = "$PKG_HASH" ]; then
+          echo "=== CACHE HIT ==="
+          mkdir -p ~/.m2
+          cp -r "$CACHE_DIR/.m2" ~/.m2/repository 2>/dev/null || true
+          echo "cache_hit=true"       >> "$GITHUB_OUTPUT"
+        else
+          echo "=== CACHE MISS ==="
+          echo "cache_hit=false"      >> "$GITHUB_OUTPUT"
+          echo "pkg_hash=$PKG_HASH"   >> "$GITHUB_OUTPUT"
+          echo "build_file=$BUILD_FILE" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Installer les dépendances Java
+      if: >
+        steps.config.outputs.project_type == 'java' &&
+        steps.java-cache.outputs.cache_hit != 'true'
+      working-directory: ${{ steps.config.outputs.install_dir }}
+      run: |
+        echo "=== Installation Java ==="
+        BUILD_FILE="${{ steps.java-cache.outputs.build_file }}"
+
+        if [ "$BUILD_FILE" = "pom.xml" ]; then
+          mvn dependency:resolve -q -DskipTests
+        else
+          ./gradlew dependencies --quiet 2>/dev/null || \
+          gradle dependencies --quiet
+        fi
+
+        echo "=== Sauvegarde cache ==="
+        CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
+        PKG_HASH="${{ steps.java-cache.outputs.pkg_hash }}"
+        rm -rf "$CACHE_DIR/.m2"
+        cp -r ~/.m2/repository "$CACHE_DIR/.m2" 2>/dev/null || true
+        echo "$PKG_HASH" > "$CACHE_DIR/.hash"
+
+    # ── STATIC : rien à installer ─────────────────────────────────
+    - name: Projet statique — aucune installation requise
+      if: steps.config.outputs.project_type == 'static'
+      run: echo "Projet static — pas de dépendances à installer"
     # ── DEFECTDOJO SETUP ──────────────────────────────────────────
     - name: DefectDojo — Setup
       id: dd_setup
@@ -302,27 +420,51 @@ jobs:
       continue-on-error: true
       run: |
         echo "=== SEMGREP SCAN — ${{ matrix.project }} ==="
+        PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
 
-        # Construire les --config depuis la liste dans project.config.yml
-        CONFIGS="${{ steps.config.outputs.semgrep_configs }}"
+        # ── Construire les --config depuis semgrep_rulesets (CSV) ──
+        CONFIGS="${{ steps.config.outputs.semgrep_rulesets }}"
         CONFIG_ARGS=""
-        IFS=',' read -ra CFG_LIST <<< "$CONFIGS"
-        for cfg in "${CFG_LIST[@]}"; do
-          cfg=$(echo "$cfg" | xargs)   # trim espaces
-          CONFIG_ARGS="$CONFIG_ARGS --config=$cfg"
-        done
 
-        docker run --rm -v "$(pwd)":/src returntocorp/semgrep semgrep \
-          $CONFIG_ARGS \
-          --json \
-          --output=/src/semgrep-results.json \
-          /src || true
+        if [ -n "$CONFIGS" ]; then
+          IFS=',' read -ra CFG_LIST <<< "$CONFIGS"
+          for cfg in "${CFG_LIST[@]}"; do
+            cfg=$(echo "$cfg" | xargs)   # trim espaces
+            [ -n "$cfg" ] && CONFIG_ARGS="$CONFIG_ARGS --config=$cfg"
+          done
+        fi
 
+        # ── Fallback par type si aucun ruleset configuré ──
+        if [ -z "$CONFIG_ARGS" ]; then
+          echo "Aucun ruleset configuré — fallback par type : $PROJECT_TYPE"
+          case "$PROJECT_TYPE" in
+            nodejs) CONFIG_ARGS="--config=p/security-audit --config=p/owasp-top-ten --config=p/nodejs" ;;
+            python) CONFIG_ARGS="--config=p/security-audit --config=p/owasp-top-ten --config=p/python --config=p/secrets" ;;
+            java)   CONFIG_ARGS="--config=p/security-audit --config=p/owasp-top-ten --config=p/java" ;;
+            *)      CONFIG_ARGS="--config=p/security-audit" ;;
+          esac
+        fi
+
+        echo "Rulesets appliqués : $CONFIG_ARGS"
+
+        # ── Lancer Semgrep via Docker ──
+        docker run --rm \
+          -v "$(pwd)":/src \
+          returntocorp/semgrep semgrep \
+            $CONFIG_ARGS \
+            --json \
+            --output=/src/semgrep-results.json \
+            --error \
+            /src 2>/dev/null || true
+
+        # ── Fallback fichier vide ──
         [ ! -s semgrep-results.json ] && \
-          echo '{"results":[]}' > semgrep-results.json
+          echo '{"results":[],"errors":[],"paths":{"scanned":[]}}' > semgrep-results.json
 
         COUNT=$(jq '.results | length' semgrep-results.json 2>/dev/null || echo 0)
-        echo "Semgrep terminé — $COUNT résultat(s)"
+        ERRORS=$(jq '.errors | length' semgrep-results.json 2>/dev/null || echo 0)
+        echo "Semgrep terminé — $COUNT finding(s), $ERRORS erreur(s)"
+        echo "Projet : ${{ matrix.project }} | Type : $PROJECT_TYPE"
 
     # ── SCA — SNYK ────────────────────────────────────────────────
     - name: SCA — Snyk test
@@ -333,8 +475,40 @@ jobs:
       run: |
         echo "=== SNYK SCAN — ${{ matrix.project }} ==="
         THRESHOLD="${{ steps.config.outputs.snyk_threshold }}"
+        PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
 
-        npx snyk test --all-projects --severity-threshold="${THRESHOLD:-low}" \
+        case "$PROJECT_TYPE" in
+          nodejs)
+            SNYK_ARGS="--all-projects"
+            ;;
+          python)
+            if [ -f requirements.txt ]; then
+              SNYK_ARGS="--file=requirements.txt"
+            elif [ -f pyproject.toml ]; then
+              SNYK_ARGS="--file=pyproject.toml"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
+            ;;
+          java)
+            if [ -f pom.xml ]; then
+              SNYK_ARGS="--file=pom.xml"
+            elif [ -f build.gradle ]; then
+              SNYK_ARGS="--file=build.gradle"
+            elif [ -f build.gradle.kts ]; then
+              SNYK_ARGS="--file=build.gradle.kts"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
+            ;;
+          *)
+            SNYK_ARGS="--all-projects"
+            ;;
+        esac
+
+        echo "Type : $PROJECT_TYPE | Args : $SNYK_ARGS"
+
+        npx snyk test $SNYK_ARGS --severity-threshold="${THRESHOLD:-low}" \
           --json-file-output=snyk-results.json || true
 
         [ ! -s snyk-results.json ] && \
@@ -349,7 +523,23 @@ jobs:
       continue-on-error: true
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: npx snyk monitor --all-projects || true
+      run: |
+        PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
+
+        case "$PROJECT_TYPE" in
+          nodejs) SNYK_ARGS="--all-projects" ;;
+          python)
+            [ -f requirements.txt ] && SNYK_ARGS="--file=requirements.txt" || \
+            SNYK_ARGS="--file=pyproject.toml"
+            ;;
+          java)
+            [ -f pom.xml ] && SNYK_ARGS="--file=pom.xml" || \
+            SNYK_ARGS="--file=build.gradle"
+            ;;
+          *) SNYK_ARGS="--all-projects" ;;
+        esac
+
+        npx snyk monitor $SNYK_ARGS || true
 
     # ── DAST — DÉMARRAGE APP ──────────────────────────────────────
     - name: DAST — Démarrer l'application
@@ -390,9 +580,13 @@ jobs:
       id: zap
       uses: ./.github/actions/zap-scan
       with:
-        target_url:        ${{ steps.config.outputs.target_url }}
-        app_dir:           ${{ steps.config.outputs.app_dir }}
-        full_scan_timeout: ${{ steps.config.outputs.zap_timeout }}
+        target_url:           ${{ steps.config.outputs.target_url }}
+        app_dir:              ${{ steps.config.outputs.app_dir }}
+        full_scan_timeout:    ${{ steps.config.outputs.zap_timeout }}
+        jwt_login_endpoint:   ${{ steps.config.outputs.zap_jwt_login_endpoint }}
+        jwt_login_body:       ${{ steps.config.outputs.zap_jwt_login_body }}
+        jwt_token_path:       ${{ steps.config.outputs.zap_jwt_token_path }}
+        openapi_endpoint:     ${{ steps.config.outputs.zap_openapi_endpoint }}
 
     # ── DAST — ARRÊT APP ──────────────────────────────────────────
     - name: DAST — Arrêter l'application

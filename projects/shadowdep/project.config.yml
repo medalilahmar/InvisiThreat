@@ -21,3 +21,7 @@ security:
     - "p/nodejs"
   snyk_severity_threshold: "low"
   zap_full_scan_timeout: 30
+  zap_jwt_login_endpoint: ""
+  zap_jwt_login_body: ""
+  zap_jwt_token_path: ".token"
+  zap_openapi_endpoint: ""

@@ -54,8 +54,23 @@ outputs:
     description: "Timeout ZAP en minutes"
     value: ${{ steps.parse.outputs.zap_timeout }}
   install_dir:
-    description: "Chemin vers le dossier contenant package.json"
+    description: "Chemin vers le dossier d'installation (package.json / requirements.txt / pom.xml)"
     value: ${{ steps.parse.outputs.install_dir }}
+  install_command:
+    description: "Commande d'installation des dépendances"
+    value: ${{ steps.parse.outputs.install_command }}
+  zap_jwt_login_endpoint:
+    description: "Endpoint POST login pour ZAP"
+    value: ${{ steps.parse.outputs.zap_jwt_login_endpoint }}
+  zap_jwt_login_body:
+    description: "Body JSON login pour ZAP"
+    value: ${{ steps.parse.outputs.zap_jwt_login_body }}
+  zap_jwt_token_path:
+    description: "Chemin jq pour extraire le JWT"
+    value: ${{ steps.parse.outputs.zap_jwt_token_path }}
+  zap_openapi_endpoint:
+    description: "Endpoint base OpenAPI scan"
+    value: ${{ steps.parse.outputs.zap_openapi_endpoint }}
 
 runs:
   using: composite
@@ -66,10 +81,10 @@ runs:
       run: |
         CONFIG_FILE="${{ inputs.projects_dir }}/${{ inputs.project }}/project.config.yml"
         if [ ! -f "$CONFIG_FILE" ]; then
-          echo "❌ ERREUR : fichier introuvable → $CONFIG_FILE"
+          echo " ERREUR : fichier introuvable → $CONFIG_FILE"
           exit 1
         fi
-        echo "✅ Config trouvée : $CONFIG_FILE"
+        echo " Config trouvée : $CONFIG_FILE"
 
     - name: Parser project.config.yml
       id: parse
@@ -95,11 +110,17 @@ runs:
         HEALTH=$(read_yaml       "$CONFIG" "health_check_path"       "/")
         STARTUP_WAIT=$(read_yaml "$CONFIG" "startup_wait"            "15")
         TARGET_URL="http://localhost:${APP_PORT}"
+        INSTALL_CMD_RAW=$(read_yaml "$CONFIG" "install_command" "")
 
         FAIL_CRIT=$(read_yaml    "$CONFIG" "fail_on_new_critical"      "true")
         FAIL_HIGH=$(read_yaml    "$CONFIG" "fail_on_new_high"          "false")
         SNYK_THR=$(read_yaml     "$CONFIG" "snyk_severity_threshold"   "low")
         ZAP_TIMEOUT=$(read_yaml  "$CONFIG" "zap_full_scan_timeout"     "30")
+
+        ZAP_JWT_ENDPOINT=$(read_yaml "$CONFIG" "zap_jwt_login_endpoint" "")
+        ZAP_JWT_BODY=$(read_yaml     "$CONFIG" "zap_jwt_login_body"     "")
+        ZAP_JWT_PATH=$(read_yaml     "$CONFIG" "zap_jwt_token_path"     ".token")
+        ZAP_OPENAPI=$(read_yaml      "$CONFIG" "zap_openapi_endpoint"   "")
 
         SEMGREP_CONFIGS=$(grep -A 20 "semgrep_rulesets:" "$CONFIG" \
           | grep -E '^\s+-\s+"' \
@@ -113,6 +134,15 @@ runs:
           INSTALL_DIR="$APP_DIR/$INSTALL_DIR_RAW"
         else
           INSTALL_DIR="$APP_DIR"
+        fi
+
+        if [ -z "$INSTALL_CMD_RAW" ]; then
+          case "$PROJECT_TYPE" in
+            nodejs) INSTALL_CMD_RAW="npm install --no-audit --no-fund --legacy-peer-deps" ;;
+            python) INSTALL_CMD_RAW="pip install -r requirements.txt --break-system-packages" ;;
+            java)   INSTALL_CMD_RAW="mvn install -DskipTests" ;;
+            static) INSTALL_CMD_RAW="" ;;
+          esac
         fi
 
         echo "========================================================"
@@ -130,6 +160,11 @@ runs:
         echo "  ZAP timeout : ${ZAP_TIMEOUT}min"
         echo "  Fail crit.  : $FAIL_CRIT"
         echo "  Fail high   : $FAIL_HIGH"
+        echo "  ZAP JWT ep  : ${ZAP_JWT_ENDPOINT:-aucun}"
+        echo "  ZAP OpenAPI : ${ZAP_OPENAPI:-aucun}"
+        echo "  Install cmd : ${INSTALL_CMD_RAW:-aucune}"
+
+
         echo "========================================================"
 
         {
@@ -148,4 +183,10 @@ runs:
           echo "semgrep_configs=$SEMGREP_CONFIGS"
           echo "snyk_threshold=$SNYK_THR"
           echo "zap_timeout=$ZAP_TIMEOUT"
+          echo "zap_jwt_login_endpoint=$ZAP_JWT_ENDPOINT"
+          echo "zap_jwt_login_body=$ZAP_JWT_BODY"
+          echo "zap_jwt_token_path=$ZAP_JWT_PATH"
+          echo "zap_openapi_endpoint=$ZAP_OPENAPI"
+          echo "install_command=$INSTALL_CMD_RAW"
+
         } >> "$GITHUB_OUTPUT"

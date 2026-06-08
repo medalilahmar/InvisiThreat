@@ -29,13 +29,15 @@ class LocalDataLoader:
 
     # ── Public ────────────────────────────────────────────────────────────────
 
-    def load(self) -> bool:
+    def load(self, db=None) -> bool:
         if not self.csv_path.exists():
             logger.warning(f"CSV introuvable : {self.csv_path}")
             return False
         try:
+            # ── Snapshot IDs AVANT reload ─────────────────────────────────
+            old_ids = set(self.findings_by_id.keys()) if self._ready else None
+
             self.df_findings = pd.read_csv(self.csv_path, low_memory=False)
-            
             logger.info(
                 f"[LocalDataLoader] CSV chargé : "
                 f"{len(self.df_findings)} findings, "
@@ -44,6 +46,28 @@ class LocalDataLoader:
             self._build_hierarchy()
             self._loaded_at = datetime.now(timezone.utc)
             self._ready     = True
+
+            # ── Détection nouveaux findings + notification ────────────────
+            if db is not None and old_ids is not None:
+                new_ids = set(self.findings_by_id.keys()) - old_ids
+                if new_ids:
+                    logger.info(f"[LocalDataLoader] {len(new_ids)} nouveaux findings détectés")
+                    try:
+                        from notifications.service import notify_new_finding
+                        for fid in new_ids:
+                            f        = self.findings_by_id[fid]
+                            severity = f.get("severity", "info")
+                            if severity in ("critical", "high"):
+                                notify_new_finding(
+                                    db=db,
+                                    finding_title=str(f.get("title", f"Finding #{fid}")),
+                                    severity=severity,
+                                    product_name=str(f.get("product_name", "")) or None,
+                                    finding_id=fid,
+                                )
+                    except Exception as e:
+                        logger.warning(f"[NOTIF] notify_new_finding failed: {e}")
+
             logger.info(
                 f"[LocalDataLoader] Hiérarchie construite : "
                 f"{len(self.products)} produits, "

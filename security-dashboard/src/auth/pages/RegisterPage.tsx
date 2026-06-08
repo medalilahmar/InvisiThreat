@@ -3,6 +3,19 @@ import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/authService';
 import './RegisterPage.css';
 
+
+const ALLOWED_DOMAINS = new Set([
+  'mobelite.fr',
+  'mobelite.tn',
+  'mobelite.com',
+]);
+
+const isProfessionalEmail = (email: string): boolean => {
+  const domain = email.trim().toLowerCase().split('@')[1];
+  return !!domain && ALLOWED_DOMAINS.has(domain); // whitelist, pas blacklist
+};
+
+
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
@@ -33,6 +46,10 @@ export default function RegisterPage() {
     setError('');
     if (!form.username.trim()) { setError('Username is required'); return; }
     if (!form.email.trim())    { setError('Email is required'); return; }
+    if (!isProfessionalEmail(form.email)) {
+      setError('Veuillez utiliser votre adresse e-mail professionnelle pour vous inscrire');
+      return;
+    }
     if (form.password.length < 8) { setError('Password too short — minimum 8 characters'); return; }
     if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
     setStep(2);

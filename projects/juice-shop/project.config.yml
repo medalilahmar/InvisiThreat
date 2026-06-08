@@ -19,3 +19,7 @@ security:
     - "p/owasp-top-ten"
   snyk_severity_threshold: "low"
   zap_full_scan_timeout: 30
+  zap_jwt_login_endpoint: "/rest/user/login"
+  zap_jwt_login_body: '{"email":"admin@juice-sh.op","password":"admin123"}'
+  zap_jwt_token_path: ".authentication.token"
+  zap_openapi_endpoint: "/b2b/v2"

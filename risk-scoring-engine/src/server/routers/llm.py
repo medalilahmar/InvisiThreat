@@ -34,6 +34,10 @@ from server.schemas import (
     LLMRecommendationResponse,
     LLMRequest,
 )
+from database.connection import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from notifications.service import notify_pr_merged
 
 logger = logging.getLogger("invisithreat.llm")
 
@@ -348,7 +352,7 @@ def _safe_str(val, default: str = "") -> str:
     "/defectdojo/findings/{finding_id}/autofix",
     response_model=AutoFixResponse,
 )
-async def autofix_finding(finding_id: int) -> AutoFixResponse:
+async def autofix_finding(finding_id: int,db: Session = Depends(get_db),) -> AutoFixResponse:
     """
     Full automated fix workflow (sans suppression de branche).
     """
@@ -454,6 +458,17 @@ async def autofix_finding(finding_id: int) -> AutoFixResponse:
         raise HTTPException(500, f"Failed to create PR: {exc.data}")
 
     logger.info("PR #%d created: %s", pr.number, pr.html_url)
+    # ── Notification ──────────────────────────────────────────────────
+    try:
+        notify_pr_merged(
+            db=db,
+            pr_title=f"[Security Fix] #{finding_id} — {title[:60]}",
+            pr_url=pr.html_url,
+            finding_id=finding_id,
+        )
+    except Exception as e:
+        logger.warning(f"[NOTIF] notify_pr_merged failed: {e}")
+    # ──────────────────────────────────────────────────────────────────
     return AutoFixResponse(
         pr_url=pr.html_url,
         pr_number=pr.number,
