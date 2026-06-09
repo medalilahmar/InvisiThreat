@@ -8,8 +8,7 @@
 #  ► Tous les champs ont une valeur par défaut (voir commentaires inline).
 #  ► Pour désactiver une fonctionnalité, laisser la valeur vide : ""
 # ══════════════════════════════════════════════════════════════════════════════
-# Note : ce fichier est un template de configuration pour le projet "Nova", une application Python vulnérable utilisée à des fins de démonstration et de tests. Adaptez les valeurs selon les besoins spécifiques de votre projet.
-# Pour plus d'informations sur chaque champ, consultez les commentaires inline et la documentation de l'action load-config.
+
 
 
 
