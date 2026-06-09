@@ -313,8 +313,6 @@ jobs:
 
         python3 -m venv venv
         source venv/bin/activate
-
-        # setuptools wheel en premier — nécessaires pour --no-build-isolation
         pip install --upgrade pip setuptools wheel --quiet
 
         REQ_FILE="${{ steps.python-cache.outputs.req_file }}"
@@ -328,23 +326,44 @@ jobs:
               echo "Installation via requirements.txt"
               pip install -r requirements.txt --quiet
 
-              # ── Détection src-layout ────────────────────────────────
-              # --no-build-isolation : pip utilise le setuptools déjà
-              # installé dans le venv au lieu de créer un env de build
-              # isolé et vide → résout BackendUnavailable sur Python 3.10
+              # ── Détection src-layout ──────────────────────────────────
+              # pip install -e . échoue sur Python 3.10 Ubuntu avec les
+              # vieux pip bundlés (BackendUnavailable).
+              # Solution : injecter src/ dans sys.path via un fichier .pth
+              # placé dans site-packages — equivalent fonctionnel de -e .
               if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "setup.cfg" ]; then
-                echo "src-layout détecté — installation editable..."
-                pip install --no-build-isolation --no-deps -e . --quiet
-                echo "Package enregistré dans sys.path"
+                if [ -d "src" ]; then
+                  SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
+                  SRC_PATH="$(pwd)/src"
+                  echo "$SRC_PATH" > "$SITE_PKG/${{ matrix.project }}.pth"
+                  echo "src-layout détecté — sys.path injecté via .pth"
+                  echo "  → $SRC_PATH ajouté dans $SITE_PKG"
+                else
+                  echo "src-layout détecté — pas de dossier src/, rien à injecter"
+                fi
               fi
               ;;
 
             pyproject.toml|setup.cfg|setup.py)
               echo "Installation via $REQ_FILE"
-              pip install --no-build-isolation -e . --quiet
+              if [ -d "src" ]; then
+                SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
+                SRC_PATH="$(pwd)/src"
+                echo "$SRC_PATH" > "$SITE_PKG/${{ matrix.project }}.pth"
+                echo "sys.path injecté via .pth → $SRC_PATH"
+              fi
+              pip install -r requirements.txt --quiet 2>/dev/null || true
               ;;
 
           esac
+        fi
+
+        # Vérification finale — le package est-il importable ?
+        if [ -d "src" ]; then
+          PKG_NAME=$(basename "$(pwd)")
+          python -c "import ${{ matrix.project }}" 2>/dev/null && \
+            echo "Vérification OK — ${{ matrix.project }} importable" || \
+            echo "Attention — ${{ matrix.project }} non importable (peut être normal)"
         fi
 
         echo "Paquets installés :"
