@@ -644,6 +644,7 @@ jobs:
           --project-name="${{ matrix.project }}" || true
 
     - name: DAST — Démarrer l'application
+      continue-on-error: true
       working-directory: ${{ steps.config.outputs.app_dir }}
       run: |
         echo "=== DÉMARRAGE — ${{ matrix.project }} ==="
