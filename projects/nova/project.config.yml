@@ -32,14 +32,14 @@ project:
 app:
 
   # Port TCP sur lequel l'application écoute en local (défini dans src/nova/app.py).
-  port: 5000
+  port: 5001
 
   # Sous-dossier contenant les fichiers d'installation (requirements.txt).
   # Laissé vide "" car ils sont à la racine du projet.
   install_dir: ""
 
   # Commande shell pour démarrer l'application Flask.
-  start_command: "python src/nova/app.py"
+  start_command: "FLASK_APP=src/nova/app.py flask run --host=0.0.0.0 --port=5001"
 
   # Chemin HTTP pour vérifier que l'application est prête (health check).
   # La racine "/" retourne une réponse 200 et convient parfaitement.
