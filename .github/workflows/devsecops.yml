@@ -508,7 +508,9 @@ jobs:
       run: |
         THRESHOLD="${{ steps.config.outputs.snyk_threshold }}"
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
-        OUT_FILE="${{ steps.config.outputs.app_dir }}/snyk-results.json"
+
+        # Chemin absolu de sortie (garanti depuis la racine du workspace)
+        OUT_FILE="${{ github.workspace }}/${{ steps.config.outputs.app_dir }}/snyk-results.json"
         mkdir -p "$(dirname "$OUT_FILE")"
 
         # ── Activer venv Python ──
