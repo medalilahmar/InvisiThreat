@@ -8,8 +8,7 @@
 #  ► Tous les champs ont une valeur par défaut (voir commentaires inline).
 #  ► Pour désactiver une fonctionnalité, laisser la valeur vide : ""
 # ══════════════════════════════════════════════════════════════════════════════
-# Exemple de configuration pour un projet Python avec une application Flask vulnérable.
-# Les champs sont pré-remplis avec des valeurs adaptées à ce projet, mais doivent être ajustés pour d'autres projets.
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

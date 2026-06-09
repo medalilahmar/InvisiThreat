@@ -123,8 +123,12 @@ runs:
         ZAP_OPENAPI=$(read_yaml      "$CONFIG" "zap_openapi_endpoint"   "")
 
         SEMGREP_CONFIGS=$(grep -A 20 "semgrep_rulesets:" "$CONFIG" \
-          | grep -E '^\s+-\s+"' \
-          | sed 's/.*-\s*"//' | tr -d '"' | xargs | tr ' ' ',')
+          | grep -E '^\s+-\s+' \
+          | sed 's/^\s*-\s*//' \
+          | tr -d '"' \
+          | sed 's/#.*//' \
+          | xargs \
+          | tr ' ' ',')
         [ -z "$SEMGREP_CONFIGS" ] && SEMGREP_CONFIGS="p/security-audit"
 
         APP_DIR="${{ inputs.projects_dir }}/${{ inputs.project }}"
