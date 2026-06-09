@@ -1,4 +1,5 @@
 # projects/shadowdep/project.config.yml
+#  ► Un fichier par projet, placé dans : projects/<nom-projet>/project.config.yml
 
 project:
   name: "ShadowDep"
