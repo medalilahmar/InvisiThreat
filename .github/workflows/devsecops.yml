@@ -344,7 +344,7 @@ jobs:
         [ -n "$PKG_HASH" ] && echo "$PKG_HASH" > "$CACHE_DIR/.hash"
         echo "Cache sauvegardé"
 
-        
+
     # ── INSTALL JAVA ──────────────────────────────────────────────
     - name: Cache des dépendances Java
       id: java-cache
@@ -506,49 +506,38 @@ jobs:
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
-        echo "=== SNYK SCAN — ${{ matrix.project }} ==="
         THRESHOLD="${{ steps.config.outputs.snyk_threshold }}"
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
 
+        # Activer venv Python avant Snyk
+        if [ "$PROJECT_TYPE" = "python" ]; then
+          [ -f venv/bin/activate ] && source venv/bin/activate
+        fi
+
         case "$PROJECT_TYPE" in
-          nodejs)
-            SNYK_ARGS="--all-projects"
-            ;;
+          nodejs) SNYK_ARGS="--all-projects" ;;
           python)
-            if [ -f requirements.txt ]; then
-              SNYK_ARGS="--file=requirements.txt"
-            elif [ -f pyproject.toml ]; then
-              SNYK_ARGS="--file=pyproject.toml"
-            else
-              SNYK_ARGS="--all-projects"
-            fi
+            [ -f requirements.txt ] && SNYK_ARGS="--file=requirements.txt" || \
+            [ -f pyproject.toml ]   && SNYK_ARGS="--file=pyproject.toml"   || \
+            SNYK_ARGS="--all-projects"
             ;;
           java)
-            if [ -f pom.xml ]; then
-              SNYK_ARGS="--file=pom.xml"
-            elif [ -f build.gradle ]; then
-              SNYK_ARGS="--file=build.gradle"
-            elif [ -f build.gradle.kts ]; then
-              SNYK_ARGS="--file=build.gradle.kts"
-            else
-              SNYK_ARGS="--all-projects"
-            fi
-            ;;
-          *)
+            [ -f pom.xml ]          && SNYK_ARGS="--file=pom.xml"          || \
+            [ -f build.gradle ]     && SNYK_ARGS="--file=build.gradle"      || \
             SNYK_ARGS="--all-projects"
             ;;
+          *) SNYK_ARGS="--all-projects" ;;
         esac
 
-        echo "Type : $PROJECT_TYPE | Args : $SNYK_ARGS"
+        npx snyk test $SNYK_ARGS \
+          --severity-threshold="${THRESHOLD:-low}" \
+          --json-file-output="${{ steps.config.outputs.app_dir }}/snyk-results.json" || true
 
-        npx snyk test $SNYK_ARGS --severity-threshold="${THRESHOLD:-low}" \
-          --json-file-output=snyk-results.json || true
+        [ ! -s "${{ steps.config.outputs.app_dir }}/snyk-results.json" ] && \
+          echo '{"vulnerabilities":[]}' > "${{ steps.config.outputs.app_dir }}/snyk-results.json"
 
-        [ ! -s snyk-results.json ] && \
-          echo '{"vulnerabilities":[]}' > snyk-results.json
-
-        COUNT=$(jq '[.[] | .vulnerabilities // [] | length] | add // 0' snyk-results.json 2>/dev/null || \
-                jq '.vulnerabilities | length' snyk-results.json 2>/dev/null || echo 0)
+        COUNT=$(jq '.vulnerabilities | length' \
+          "${{ steps.config.outputs.app_dir }}/snyk-results.json" 2>/dev/null || echo 0)
         echo "Snyk terminé — $COUNT vulnérabilité(s)"
 
     - name: SCA — Snyk monitor
@@ -558,17 +547,13 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
+        [ "$PROJECT_TYPE" = "python" ] && \
+          [ -f venv/bin/activate ] && source venv/bin/activate
 
         case "$PROJECT_TYPE" in
-          nodejs) SNYK_ARGS="--all-projects" ;;
           python)
-            if [ -f requirements.txt ]; then
-              SNYK_ARGS="--file=requirements.txt"
-            elif [ -f pyproject.toml ]; then
-              SNYK_ARGS="--file=pyproject.toml"
-            else
-              SNYK_ARGS="--all-projects"
-            fi
+            [ -f requirements.txt ] && SNYK_ARGS="--file=requirements.txt" || \
+            SNYK_ARGS="--file=pyproject.toml"
             ;;
           java)
             [ -f pom.xml ] && SNYK_ARGS="--file=pom.xml" || \
@@ -592,12 +577,21 @@ jobs:
         HEALTH="${{ steps.config.outputs.health_path }}"
 
         if [ "$PROJECT_TYPE" = "python" ]; then
-          VENV="${{ steps.config.outputs.install_dir }}/venv/bin/activate"
-          if [ -f "$VENV" ]; then
-            source "$VENV"
-            echo "venv activé"
-          else
-            echo "AVERTISSEMENT : venv introuvable"
+          # Chercher le venv dans plusieurs emplacements possibles
+          for VENV_PATH in \
+            "${{ steps.config.outputs.install_dir }}/venv/bin/activate" \
+            "${{ steps.config.outputs.app_dir }}/venv/bin/activate" \
+            "${{ steps.config.outputs.install_dir }}/.venv/bin/activate"; do
+            if [ -f "$VENV_PATH" ]; then
+              source "$VENV_PATH"
+              echo "venv activé : $VENV_PATH"
+              break
+            fi
+          done
+
+          if [ -z "$VIRTUAL_ENV" ]; then
+            echo "ERREUR : aucun venv trouvé — impossible de démarrer l'application Python"
+            exit 1
           fi
         fi
 
