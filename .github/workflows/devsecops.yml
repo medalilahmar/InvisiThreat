@@ -253,7 +253,6 @@ jobs:
         cp -r frontend/node_modules "$CACHE_DIR/frontend_node_modules" 2>/dev/null || true
         echo "$PKG_HASH" > "$CACHE_DIR/.hash"
 
-    # ── INSTALL PYTHON ────────────────────────────────────────────
     - name: Cache des dépendances Python
       id: python-cache
       if: steps.config.outputs.project_type == 'python'
@@ -262,12 +261,17 @@ jobs:
         CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
         mkdir -p "$CACHE_DIR"
 
-        # Détecter le fichier de dépendances (structure quelconque)
+        # Priorité stricte : requirements.txt > pyproject.toml > setup.cfg > setup.py
         REQ_FILE=""
-        [ -f requirements.txt ] && REQ_FILE="requirements.txt"
-        [ -f pyproject.toml ]   && REQ_FILE="pyproject.toml"
-        [ -f setup.py ]         && REQ_FILE="setup.py"
-        [ -f setup.cfg ]        && REQ_FILE="setup.cfg"
+        if [ -f requirements.txt ]; then
+          REQ_FILE="requirements.txt"
+        elif [ -f pyproject.toml ]; then
+          REQ_FILE="pyproject.toml"
+        elif [ -f setup.cfg ]; then
+          REQ_FILE="setup.cfg"
+        elif [ -f setup.py ]; then
+          REQ_FILE="setup.py"
+        fi
 
         if [ -z "$REQ_FILE" ]; then
           echo "Aucun fichier de dépendances Python trouvé dans $(pwd)"
@@ -276,8 +280,9 @@ jobs:
           exit 0
         fi
 
+        echo "Fichier détecté : $REQ_FILE"
         PKG_HASH=$(sha256sum "$REQ_FILE" | cut -d' ' -f1)
-        echo "Hash calculé : $PKG_HASH ($REQ_FILE)"
+        echo "Hash calculé : $PKG_HASH"
 
         if [ -d "$CACHE_DIR/venv" ] && \
            [ -f "$CACHE_DIR/.hash" ] && \
@@ -300,19 +305,17 @@ jobs:
       run: |
         echo "=== Installation Python — ${{ matrix.project }} ==="
 
-        # ── Installer python3-venv si absent (Ubuntu/Debian) ──
+        # Installer python3-venv si absent
         if ! python3 -m ensurepip --version >/dev/null 2>&1; then
           echo "python3-venv absent — installation..."
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-venv python3-pip
         fi
 
-        # ── Créer le venv ──
         python3 -m venv venv
         source venv/bin/activate
-        pip install --upgrade pip --quiet
+        pip install --upgrade pip setuptools wheel --quiet
 
-        # ── Installer les dépendances selon le fichier détecté ──
         REQ_FILE="${{ steps.python-cache.outputs.req_file }}"
 
         if [ -z "$REQ_FILE" ]; then
@@ -323,12 +326,9 @@ jobs:
               echo "Installation via requirements.txt"
               pip install -r requirements.txt --quiet
               ;;
-            pyproject.toml)
-              echo "Installation via pyproject.toml (editable)"
-              pip install -e . --quiet
-              ;;
-            setup.py|setup.cfg)
+            pyproject.toml|setup.cfg|setup.py)
               echo "Installation via $REQ_FILE"
+              pip install --upgrade setuptools wheel --quiet
               pip install -e . --quiet
               ;;
           esac
@@ -337,7 +337,6 @@ jobs:
         echo "Paquets installés :"
         pip list --format=columns 2>/dev/null | head -20
 
-        # ── Sauvegarde cache ──
         CACHE_DIR="${RUNNER_TEMP}/${{ matrix.project }}-cache"
         PKG_HASH="${{ steps.python-cache.outputs.pkg_hash }}"
         rm -rf "$CACHE_DIR/venv"
@@ -345,6 +344,7 @@ jobs:
         [ -n "$PKG_HASH" ] && echo "$PKG_HASH" > "$CACHE_DIR/.hash"
         echo "Cache sauvegardé"
 
+        
     # ── INSTALL JAVA ──────────────────────────────────────────────
     - name: Cache des dépendances Java
       id: java-cache
