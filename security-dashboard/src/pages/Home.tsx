@@ -173,21 +173,21 @@ export default function Home() {
   }, [])
 
   const archSteps = [
-    { icon: '👨‍💻', label: 'Developer Push',  sub: 'git commit',        color: 'var(--accent)' },
+    { icon: '👨‍💻', label: 'Push Développeur',  sub: 'git commit',        color: 'var(--accent)' },
     { icon: '🔍', label: 'Scanners',          sub: 'SAST · DAST · SCA', color: 'var(--accent3)' },
     { icon: '🗄️', label: 'DefectDojo',        sub: 'Findings DB',       color: 'var(--orange)' },
-    { icon: '🏷️', label: 'Tag Engine',        sub: 'Context tagging',   color: 'var(--green)' },
-    { icon: '🤖', label: 'AI Scorer',         sub: 'LightGBM',          color: 'var(--accent)' },
-    { icon: '🚦', label: 'Security Gate',     sub: 'Block / Allow',     color: 'var(--accent2)' },
+    { icon: '🏷️', label: 'Moteur de Tags',        sub: 'Étiquetage contextuel',   color: 'var(--green)' },
+    { icon: '🤖', label: 'Scoreur IA',         sub: 'LightGBM',          color: 'var(--accent)' },
+    { icon: '🚦', label: 'Porte de Sécurité',     sub: 'Bloquer / Autoriser',     color: 'var(--accent2)' },
   ]
 
   const features = [
-    { icon: '🔬', color: 'var(--accent)', title: 'AI Risk Scoring',     desc: 'XGBoost · LightGBM · RandomForest ensemble. Each finding gets a 0–4 risk score weighted by business context, not just CVSS severity.' },
-    { icon: '🏷️', color: 'var(--green)', title: 'Intelligent Tagging', desc: 'Automatic detection of production, external-facing, sensitive, and urgent findings. Tags feed directly into the ML scoring pipeline.' },
-    { icon: '⚡', color: 'var(--accent3)', title: 'Security Gate',       desc: 'CI/CD integration automatically blocks deployments when any finding scores ≥ 3 (High or Critical). Zero-touch protection.' },
-    { icon: '🧠', color: 'var(--orange)', title: 'SHAP Explainability', desc: 'Every AI decision is fully explained. See which features drove the score — no black boxes, full transparency for your security team.' },
-    { icon: '📡', color: 'var(--accent2)', title: 'Scanner Unification', desc: 'Semgrep (SAST), OWASP ZAP (DAST), and Snyk (SCA) results unified via DefectDojo. One prioritized source of truth.' },
-    { icon: '📊', color: 'var(--purple)', title: 'Live Dashboard',      desc: 'Real-time metrics, trend charts, scanner breakdown, and pipeline event feed. Full visibility over your security posture.' },
+    { icon: '🔬', color: 'var(--accent)', title: 'Notation de Risque par IA',     desc: 'Ensemble XGBoost · LightGBM · RandomForest. Chaque finding reçoit un score de risque de 0 à 4 pondéré par le contexte métier, et non seulement par la sévérité CVSS.' },
+    { icon: '🏷️', color: 'var(--green)', title: 'Étiquetage Intelligent', desc: 'Détection automatique des findings en production, exposés publiquement, sensibles et urgents. Les tags alimentent directement le pipeline de scoring ML.' },
+    { icon: '⚡', color: 'var(--accent3)', title: 'Porte de Sécurité',       desc: 'L’intégration CI/CD bloque automatiquement les déploiements lorsque un finding atteint un score ≥ 3 (High ou Critical). Protection zéro intervention' },
+    { icon: '🧠', color: 'var(--orange)', title: 'Explicabilité SHAP', desc: 'Chaque décision de l’IA est entièrement expliquée. Voyez quelles caractéristiques ont influencé le score — pas de boîte noire, transparence totale pour votre équipe de sécurité.' },
+    { icon: '📡', color: 'var(--accent2)', title: 'Unification des Scanners', desc: 'Résultats Semgrep (SAST), OWASP ZAP (DAST) et Snyk (SCA) unifiés via DefectDojo. Une seule source de vérité priorisée' },
+    { icon: '📊', color: 'var(--purple)', title: 'Tableau de Bord en Temps Réel',      desc: 'Métriques en temps réel, graphiques de tendances, répartition des scanners et flux d’événements pipeline. Visibilité complète sur votre posture de sécurité' },
   ]
 
   const termLines = [
@@ -244,7 +244,7 @@ export default function Home() {
         </ul>
         <div className="navbar-actions">
           <ThemeToggle />
-          <Link to="/login" className="navbar-cta">Open Dashboard →</Link>
+          <Link to="/login" className="navbar-cta">Ouvrir le Tableau de Bord →</Link>
         </div>
       </nav>
 
@@ -252,32 +252,30 @@ export default function Home() {
       <section className="hero">
         <div className="hero-badge">
           <div className="hero-badge-dot" />
-          <span className="hero-badge-text">AI-POWERED DEVSECOPS INTELLIGENCE PLATFORM</span>
+          <span className="hero-badge-text">PLATEFORME D’INTELLIGENCE DEVSECOPS PILOTÉE PAR IA</span>
         </div>
         <h1 className="hero-headline">
-          <span className="hero-headline-plain">Make Every</span>
-          <span className="hero-headline-shimmer">Threat Visible.</span>
+          <span className="hero-headline-plain">Rendez Chaque</span>
+          <span className="hero-headline-shimmer">Menace Visible.</span>
         </h1>
         <div className="hero-typewriter">
           <TypeWriter texts={[
-            'Scoring vulnerabilities with AI.',
-            'SAST · DAST · SCA — unified.',
-            'Context-aware risk analysis.',
+            'Notation des vulnérabilités avec l’IA.',
+            'SAST · DAST · SCA — unifiés.',
+            'Analyse de risque contextuelle',
             'LightGBM · F1=0.8937 · 23 features.',
-            'Block critical threats before they ship.',
+            'Bloquez les menaces critiques avant leur mise en production.',
           ]} />
         </div>
         <p className="hero-description">
-          InvisiThreat assigns AI-generated risk scores to every security finding from your scanners,
-          factoring in production exposure, sensitive data context, and business impact —
-          so your team acts on what truly matters.
+          InvisiThreat attribue des scores de risque générés par IA à chaque finding de sécurité provenant de vos scanners, en tenant compte de l’exposition en production, du contexte de données sensibles et de l’impact métier — pour que votre équipe se concentre sur ce qui compte vraiment
         </p>
         <div className="hero-cta-group" id="launch">
           <button className="btn-primary" onClick={() => alert('Run: python main.py serve --port 8000\nthen: npm run dev')}>
-            <span>🚀</span> Launch Dashboard
+            <span></span> Lancer le Tableau de Bord
           </button>
           <button className="btn-ghost" onClick={() => scrollTo('architecture')}>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>▶</span> How it works
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>▶</span> Comment ça marche
           </button>
         </div>
         <div className="hero-tech-pills">
@@ -295,10 +293,10 @@ export default function Home() {
       <div className="stats-ticker">
         <div className="stats-ticker-inner">
           {[
-            { to: 1311, suffix: '',  label: 'Findings Analyzed', color: 'var(--accent)'  },
-            { to: 90,   suffix: '%', label: 'Model Accuracy',    color: 'var(--green)'   },
-            { to: 1125, suffix: '',  label: 'Findings Tagged',   color: 'var(--orange)'  },
-            { to: 23,   suffix: '',  label: 'ML Features',       color: 'var(--accent3)' },
+            { to: 1311, suffix: '',  label: 'Findings analysés', color: 'var(--accent)'  },
+            { to: 90,   suffix: '%', label: 'Précision du modèle',    color: 'var(--green)'   },
+            { to: 1125, suffix: '',  label: 'Findings étiquetés',   color: 'var(--orange)'  },
+            { to: 23,   suffix: '',  label: 'Caractéristiques ML',       color: 'var(--accent3)' },
           ].map(({ to, suffix, label, color }) => (
             <div key={label} className="stat-item">
               <div className="stat-value" style={{ color }}><Counter to={to} suffix={suffix} /></div>
@@ -312,9 +310,9 @@ export default function Home() {
       <section className="section" id="features">
         <div className="section-inner">
           <div className="section-header">
-            <div className="section-label">Capabilities</div>
-            <h2 className="section-title">Everything your security team<br /><span>actually needs.</span></h2>
-            <p className="section-subtitle">From raw scanner output to prioritized, context-aware risk scores — automatically, in seconds.</p>
+            <div className="section-label">Fonctionnalités</div>
+            <h2 className="section-title">Tout ce que votre équipe de sécurité<br /><span>a réellement besoin.</span></h2>
+            <p className="section-subtitle">Des résultats bruts des scanners jusqu’à des scores de risque priorisés et contextuels — automatiquement, en quelques secondes.</p>
           </div>
           <div className="features-grid">
             {features.map((f, i) => <FeatureCard key={f.title} {...f} delay={i * 90} />)}
@@ -327,8 +325,8 @@ export default function Home() {
         <div className="section-inner">
           <div className="section-header">
             <div className="section-label">Architecture</div>
-            <h2 className="section-title">How <span>InvisiThreat</span> works</h2>
-            <p className="section-subtitle">A fully automated pipeline from code commit to risk-scored findings — zero manual steps.</p>
+            <h2 className="section-title">Comment <span>InvisiThreat</span> fonctionne</h2>
+            <p className="section-subtitle">Un pipeline entièrement automatisé du commit de code jusqu’aux findings notés par risque — zéro étape manuelle</p>
           </div>
           <div className="arch-flow">
             {archSteps.map((step, i) => (
@@ -354,10 +352,10 @@ export default function Home() {
       <section className="model-section" id="model">
         <div className="model-section-inner">
           <div className="model-text-side">
-            <div className="section-label">Model Performance</div>
-            <h2 className="model-title">Production-grade AI.<br /><span>Not just a proof of concept.</span></h2>
+            <div className="section-label">Performance du Modèle</div>
+            <h2 className="model-title">IA de niveau production.<br /><span>Pas juste une preuve de concept.</span></h2>
             <p className="model-description">
-              Trained on 1 311 real-world security findings with 23 engineered features.
+              Entraîné sur 1 311 findings de sécurité réels avec 23 caractéristiques élaborées.
               The LightGBM model was selected automatically via cross-validation,
               outperforming XGBoost and RandomForest on all metrics.
             </p>
@@ -400,17 +398,18 @@ export default function Home() {
       {/* ── PIPELINE TERMINAL ── */}
       <section className="pipeline-section" id="pipeline">
         <div className="pipeline-section-inner">
-          <div className="section-label">CI/CD Integration</div>
+          <div className="section-label">Intégration CI/CD</div>
           <h2 className="section-title" style={{ textAlign: 'center' }}>
-            Zero-touch <span style={{ color: 'var(--accent3)' }}>security automation.</span>
+            Automatisation de la sécurité <span style={{ color: 'var(--accent3)' }}>sans contact.</span>
           </h2>
           <p className="section-subtitle" style={{ margin: '0 auto' }}>
-            Push code — scanners run, AI scores every finding, deploy is blocked if risk ≥ 3. No human intervention required.
+            Push de code — les scanners s’exécutent, l’IA note chaque finding, le déploiement est bloqué si le risque ≥ 3. 
+      Aucune intervention humaine requise.
           </p>
           <div className="terminal">
             <div className="terminal-header">
               {['var(--accent2)','var(--accent3)','var(--green)'].map((bg, i) => <div key={i} className="terminal-dot" style={{ background: bg, opacity: 0.82 }} />)}
-              <span className="terminal-title">github-actions / security-pipeline.yml — main branch</span>
+              <span className="terminal-title">github-actions / security-pipeline.yml — branche main</span>
             </div>
             <div className="terminal-body">
               {termLines.map((line, i) => (
@@ -426,10 +425,10 @@ export default function Home() {
       {/* ── FINAL CTA ── */}
       <section className="cta-section">
         <div className="cta-glow-orb" />
-        <div className="section-label">Get Started</div>
-        <h2 className="cta-title">Ready to see your<br /><span>threats clearly?</span></h2>
+        <div className="section-label">Commencer</div>
+        <h2 className="cta-title">Prêt à voir vos<br /><span>menaces clairement?</span></h2>
         <p className="cta-desc">
-          Start the backend, open the dashboard, and get AI-powered risk scores on every vulnerability — in under 60 seconds.
+          Démarrez le backend, ouvrez le dashboard, et obtenez des scores de risque alimentés par l'IA sur chaque vulnérabilité — en moins de 60 secondes.
         </p>
         <div className="cta-steps">
           {[

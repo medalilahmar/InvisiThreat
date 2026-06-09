@@ -28,6 +28,7 @@ on:
           - "juice-shop"
           - "shadowdep"
           - "nova"
+          - "campusConnect"
 
           
 
@@ -326,45 +327,43 @@ jobs:
               echo "Installation via requirements.txt"
               pip install -r requirements.txt --quiet
 
-              # ── Détection src-layout ──────────────────────────────────
-              # pip install -e . échoue sur Python 3.10 Ubuntu avec les
-              # vieux pip bundlés (BackendUnavailable).
-              # Solution : injecter src/ dans sys.path via un fichier .pth
-              # placé dans site-packages — equivalent fonctionnel de -e .
-              if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "setup.cfg" ]; then
+              HAS_PKG_FILE=false
+              [ -f "pyproject.toml" ] && HAS_PKG_FILE=true
+              [ -f "setup.py" ]       && HAS_PKG_FILE=true
+              [ -f "setup.cfg" ]      && HAS_PKG_FILE=true
+
+              if [ "$HAS_PKG_FILE" = "true" ]; then
+                SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
                 if [ -d "src" ]; then
-                  SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
-                  SRC_PATH="$(pwd)/src"
-                  echo "$SRC_PATH" > "$SITE_PKG/${{ matrix.project }}.pth"
-                  echo "src-layout détecté — sys.path injecté via .pth"
-                  echo "  → $SRC_PATH ajouté dans $SITE_PKG"
+                  echo "$(pwd)/src" > "$SITE_PKG/${{ matrix.project }}.pth"
+                  echo "src-layout → sys.path : $(pwd)/src"
                 else
-                  echo "src-layout détecté — pas de dossier src/, rien à injecter"
+                  echo "$(pwd)" > "$SITE_PKG/${{ matrix.project }}.pth"
+                  echo "flat-layout → sys.path : $(pwd)"
                 fi
               fi
               ;;
 
             pyproject.toml|setup.cfg|setup.py)
               echo "Installation via $REQ_FILE"
-              if [ -d "src" ]; then
-                SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
-                SRC_PATH="$(pwd)/src"
-                echo "$SRC_PATH" > "$SITE_PKG/${{ matrix.project }}.pth"
-                echo "sys.path injecté via .pth → $SRC_PATH"
-              fi
               pip install -r requirements.txt --quiet 2>/dev/null || true
+
+              SITE_PKG=$(python -c "import site; print(site.getsitepackages()[0])")
+              if [ -d "src" ]; then
+                echo "$(pwd)/src" > "$SITE_PKG/${{ matrix.project }}.pth"
+                echo "src-layout → sys.path : $(pwd)/src"
+              else
+                echo "$(pwd)" > "$SITE_PKG/${{ matrix.project }}.pth"
+                echo "flat-layout → sys.path : $(pwd)"
+              fi
               ;;
 
           esac
         fi
 
-        # Vérification finale — le package est-il importable ?
-        if [ -d "src" ]; then
-          PKG_NAME=$(basename "$(pwd)")
-          python -c "import ${{ matrix.project }}" 2>/dev/null && \
-            echo "Vérification OK — ${{ matrix.project }} importable" || \
-            echo "Attention — ${{ matrix.project }} non importable (peut être normal)"
-        fi
+        python -c "import ${{ matrix.project }}" 2>/dev/null && \
+          echo "Vérification OK — ${{ matrix.project }} importable" || \
+          echo "Attention — ${{ matrix.project }} non importable (peut être normal)"
 
         echo "Paquets installés :"
         pip list --format=columns 2>/dev/null | head -20

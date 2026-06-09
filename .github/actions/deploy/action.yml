@@ -523,9 +523,9 @@ runs:
         echo " Cache AI scores copié"
 
         # Reload du cache via l'API (sans restart)
-        kubectl exec -n "${NS}" "${POD}" -- \
-          curl -sf -X POST http://localhost:8081/data/refresh || true
-        echo " Cache rechargé"
+        # kubectl exec -n "${NS}" "${POD}" -- \
+        #   curl -sf -X POST http://localhost:8081/data/refresh || true
+        # echo " Cache rechargé"
 
 
 
