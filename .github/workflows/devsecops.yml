@@ -27,6 +27,7 @@ on:
           - ""                 
           - "juice-shop"
           - "shadowdep"
+          - "nova"
 
           
 

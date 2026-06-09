@@ -1,0 +1,12 @@
+# Production Dependencies (Outdated / Vulnerable for SCA testing)
+Flask==2.0.1
+Jinja2==3.0.1
+requests==2.25.1
+urllib3==1.26.5
+PyYAML==5.3.1
+
+# Dev / Testing tools
+pytest>=7.0.0
+pytest-cov>=4.0.0
+ruff>=0.1.0
+mypy>=1.0.0
