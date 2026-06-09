@@ -242,7 +242,8 @@ runs:
         # Utiliser le fichier swagger local patché comme cible (-t)
         zap_run "$JWT" \
           zap-api-scan.py \
-          -t "/zap/wrk/$SWAGGER_FILE" \
+          -t "$TARGET" \
+          -d "/zap/wrk/$SWAGGER_FILE" \
           -f openapi \
           -x /zap/wrk/zap-openapi.xml \
           -J /zap/wrk/zap-openapi.json \
@@ -278,7 +279,8 @@ runs:
           -t "$TARGET" \
           -x /zap/wrk/zap-fullscan.xml \
           -J /zap/wrk/zap-fullscan.json \
-          -z "-addoninstall pscanrulesBeta -config spider.maxDuration=$TIMEOUT" \
+          -z "-addoninstall pscanrulesBeta" \
+          -z "-config spider.maxDuration=$TIMEOUT" \
           -T "$TIMEOUT" \
           -I
 

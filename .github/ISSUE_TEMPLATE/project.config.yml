@@ -1,0 +1,174 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  project.config.yml — Configuration d'un projet pour le pipeline DevSecOps
+#
+#  Ce fichier est lu par l'action load-config (.github/actions/load-config)
+#  et pilote l'ensemble du pipeline : installation, démarrage, scans sécurité.
+#
+#  ► Un fichier par projet, placé dans : projects/<nom-projet>/project.config.yml
+#  ► Tous les champs ont une valeur par défaut (voir commentaires inline).
+#  ► Pour désactiver une fonctionnalité, laisser la valeur vide : ""
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SECTION 1 — IDENTITÉ DU PROJET
+#  Utilisée pour nommer le produit et l'engagement dans DefectDojo.
+# ─────────────────────────────────────────────────────────────────────────────
+project:
+
+  # Nom affiché dans DefectDojo (produit + engagement).
+  # Doit être unique par projet dans votre organisation.
+  # Défaut : nom du dossier dans projects/
+  name: ""
+
+  # Description courte du projet — visible dans DefectDojo.
+  # Utile pour identifier rapidement le contexte métier du projet.
+  # Défaut : ""
+  description: ""
+
+  # Type de projet — détermine le gestionnaire de dépendances utilisé.
+  # Valeurs possibles :
+  #   nodejs  → npm install  (détecte package.json)
+  #   python  → pip install  (détecte requirements.txt / pyproject.toml)
+  #   java    → mvn / gradle (détecte pom.xml / build.gradle)
+  #   static  → aucune installation (HTML, assets purs)
+  # Défaut : "nodejs"
+  type: "nodejs"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SECTION 2 — APPLICATION
+#  Paramètres de démarrage de l'application pour le DAST (ZAP).
+#  L'application doit être accessible en local pendant le scan.
+# ─────────────────────────────────────────────────────────────────────────────
+app:
+
+  # Port TCP sur lequel l'application écoute en local.
+  # L'URL cible ZAP sera construite automatiquement : http://localhost:<port>
+  # Défaut : 3000
+  port: 5001
+
+  # Sous-dossier contenant les fichiers d'installation (package.json, pom.xml...).
+  # Relatif à la racine du projet (projects/<nom>/).
+  # Laisser vide "" si les fichiers sont à la racine du projet.
+  # Exemple nodejs  : "backend"  → installe dans projects/<nom>/backend/
+  # Exemple python  : "src"      → installe dans projects/<nom>/src/
+  # Défaut : "" (racine du projet)
+  install_dir: "backend"
+
+  # Commande shell pour démarrer l'application.
+  # Exécutée depuis la racine du projet (projects/<nom>/).
+  # Exemples par type :
+  #   nodejs  : "node backend/app.js"
+  #   python  : "uvicorn main:app --host 0.0.0.0 --port 8000"
+  #             "python -m flask run --port 5000"
+  #             "gunicorn app:app --bind 0.0.0.0:8000"
+  #   java    : "java -jar target/app.jar"
+  #             "mvn spring-boot:run"
+  # Défaut : "npm start"
+  start_command: "node backend/app.js"
+
+  # Chemin HTTP pour vérifier que l'application est prête (health check).
+  # Le pipeline effectue des requêtes GET sur http://localhost:<port><path>
+  # jusqu'à obtenir une réponse 200, avant de lancer ZAP.
+  # Exemples : "/health", "/api/status", "/ping", "/"
+  # Défaut : "/"
+  health_check_path: "/health"
+
+  # Délai d'attente initial (en secondes) avant les tentatives de health check.
+  # Augmenter pour les applications lentes au démarrage (ex: JVM, ML models).
+  # Recommandations :
+  #   nodejs  : 10s
+  #   python  : 15s
+  #   java    : 30-60s (JVM + Spring Boot)
+  # Défaut : 15
+  startup_wait: 10
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SECTION 3 — SÉCURITÉ
+#  Configure les outils de scan et les seuils du Security Gate.
+#  Le Security Gate bloque le pipeline si de nouvelles vulnérabilités
+#  dépassent les seuils définis ci-dessous.
+# ─────────────────────────────────────────────────────────────────────────────
+security:
+
+  # ── Security Gate ──────────────────────────────────────────────────────────
+
+  # Bloquer le pipeline si au moins 1 nouveau finding Critical est détecté.
+  # Recommandé : true en production, false en phase de découverte initiale.
+  # Défaut : true
+  fail_on_new_critical: true
+
+  # Bloquer le pipeline si au moins 1 nouveau finding High est détecté.
+  # Moins strict que critical — adapter selon la maturité du projet.
+  # Défaut : false
+  fail_on_new_high: false
+
+  # ── SAST — Semgrep ─────────────────────────────────────────────────────────
+
+  # Liste des rulesets Semgrep à appliquer lors du scan SAST.
+  # Format : liste YAML de chaînes, chaque valeur est un --config=<ruleset>.
+  # Rulesets disponibles : https://semgrep.dev/r
+  # Recommandations par type :
+  #   nodejs  : p/security-audit, p/owasp-top-ten, p/nodejs
+  #   python  : p/security-audit, p/owasp-top-ten, p/python
+  #   java    : p/security-audit, p/owasp-top-ten, p/java
+  #   tous    : p/secrets  (détection de secrets hardcodés)
+  # Défaut : ["p/security-audit"]
+  semgrep_rulesets:
+    - "p/security-audit"   # Règles génériques de sécurité (tous langages)
+    - "p/owasp-top-ten"    # Couverture des 10 risques OWASP les plus critiques
+    - "p/nodejs"           # Règles spécifiques Node.js (prototype pollution, etc.)
+
+  # ── SCA — Snyk ─────────────────────────────────────────────────────────────
+
+  # Seuil de sévérité minimum pour que Snyk remonte une vulnérabilité.
+  # Valeurs possibles (du plus permissif au plus strict) :
+  #   "low"      → remonte tout (low, medium, high, critical)
+  #   "medium"   → ignore les low
+  #   "high"     → ignore low et medium
+  #   "critical" → remonte uniquement les critical
+  # Défaut : "low"
+  snyk_severity_threshold: "low"
+
+  # ── DAST — ZAP ─────────────────────────────────────────────────────────────
+
+  # Durée maximale (en minutes) du ZAP Full Scan (AJAX Spider + Active Scan).
+  # Augmenter pour les applications volumineuses avec beaucoup d'endpoints.
+  # Recommandations :
+  #   Application simple  : 15-20 min
+  #   Application moyenne : 30 min
+  #   Application complexe: 60+ min
+  # Défaut : 30
+  zap_full_scan_timeout: 30
+
+  # Endpoint POST pour obtenir un JWT avant le scan ZAP authentifié.
+  # Laisser vide "" pour désactiver l'authentification ZAP.
+  # Exemples : "/api/auth/login", "/rest/user/login", "/api/v1/token"
+  # Défaut : "" (pas d'auth)
+  zap_jwt_login_endpoint: ""
+
+  # Body JSON envoyé à zap_jwt_login_endpoint pour obtenir le token.
+  # Doit être une chaîne JSON valide sur une seule ligne.
+  # Exemples :
+  #   '{"email":"admin@test.com","password":"Admin1234!"}'
+  #   '{"username":"admin","password":"secret"}'
+  # Défaut : ""
+  zap_jwt_login_body: ""
+
+  # Chemin jq pour extraire le token JWT depuis la réponse du login.
+  # Exemples selon l'API :
+  #   ".token"              → { "token": "eyJ..." }
+  #   ".access_token"       → { "access_token": "eyJ..." }
+  #   ".data.jwt"           → { "data": { "jwt": "eyJ..." } }
+  #   ".authentication"     → Juice Shop
+  # Défaut : ".token"
+  zap_jwt_token_path: ".token"
+
+  # Endpoint de base pour le ZAP OpenAPI Scan (scan des routes REST documentées).
+  # Combiné avec target_url : http://localhost:<port><endpoint>
+  # Laisser vide "" pour désactiver le scan OpenAPI (si pas de Swagger/OpenAPI).
+  # Exemples : "/api/v1", "/b2b/v2", "/rest"
+  # Défaut : "" (scan OpenAPI ignoré)
+  zap_openapi_endpoint: ""

@@ -27,6 +27,7 @@ on:
           - ""                 
           - "juice-shop"
           - "shadowdep"
+
           
 
       deploy:
@@ -49,7 +50,6 @@ env:
   DD_URL: http://localhost:8080     
   PROJECTS_DIR: projects
   APP_NAME: InvisiThreat
-  APP_DIR: ./juice-shop
   NAMESPACE: invisithreat
   REGISTRY: localhost:5000
 
@@ -423,7 +423,7 @@ jobs:
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
 
         # ── Construire les --config depuis semgrep_rulesets (CSV) ──
-        CONFIGS="${{ steps.config.outputs.semgrep_rulesets }}"
+        CONFIGS="${{ steps.config.outputs.semgrep_configs }}"
         CONFIG_ARGS=""
 
         if [ -n "$CONFIGS" ]; then
@@ -468,7 +468,7 @@ jobs:
 
     # ── SCA — SNYK ────────────────────────────────────────────────
     - name: SCA — Snyk test
-      working-directory: ${{ steps.config.outputs.app_dir }}
+      working-directory: ${{ steps.config.outputs.install_dir }}
       continue-on-error: true
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -519,7 +519,7 @@ jobs:
         echo "Snyk terminé — $COUNT vulnérabilité(s)"
 
     - name: SCA — Snyk monitor
-      working-directory: ${{ steps.config.outputs.app_dir }}
+      working-directory: ${{ steps.config.outputs.install_dir }}
       continue-on-error: true
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -529,8 +529,13 @@ jobs:
         case "$PROJECT_TYPE" in
           nodejs) SNYK_ARGS="--all-projects" ;;
           python)
-            [ -f requirements.txt ] && SNYK_ARGS="--file=requirements.txt" || \
-            SNYK_ARGS="--file=pyproject.toml"
+            if [ -f requirements.txt ]; then
+              SNYK_ARGS="--file=requirements.txt"
+            elif [ -f pyproject.toml ]; then
+              SNYK_ARGS="--file=pyproject.toml"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
             ;;
           java)
             [ -f pom.xml ] && SNYK_ARGS="--file=pom.xml" || \
@@ -548,9 +553,20 @@ jobs:
         echo "=== DÉMARRAGE — ${{ matrix.project }} ==="
 
         START_CMD="${{ steps.config.outputs.start_command }}"
+        PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
         TARGET="${{ steps.config.outputs.target_url }}"
         WAIT="${{ steps.config.outputs.startup_wait }}"
         HEALTH="${{ steps.config.outputs.health_path }}"
+
+        if [ "$PROJECT_TYPE" = "python" ]; then
+          VENV="${{ steps.config.outputs.install_dir }}/venv/bin/activate"
+          if [ -f "$VENV" ]; then
+            source "$VENV"
+            echo "venv activé"
+          else
+            echo "AVERTISSEMENT : venv introuvable"
+          fi
+        fi
 
         eval "$START_CMD" &
         echo $! > app.pid

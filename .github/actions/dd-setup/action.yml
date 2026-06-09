@@ -45,6 +45,9 @@ outputs:
   period:
     description: Période trimestrielle (Q1/Q2/Q3/Q4)
     value: ${{ steps.engagement.outputs.period }}
+  env_tag:
+    description: "Tag environnement (prod | staging | dev)"
+    value: ${{ steps.engagement.outputs.env_tag }}
 
 runs:
   using: composite
