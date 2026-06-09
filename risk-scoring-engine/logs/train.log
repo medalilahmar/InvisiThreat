@@ -2910,3 +2910,150 @@ weighted avg       0.91      0.85      0.86       381
 2026-04-27 15:14:12,520 [INFO] Calibration         : none
 2026-04-27 15:14:12,521 [INFO] Rapport HTML        : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
 2026-04-27 15:14:12,521 [INFO] ======================================================================
+2026-06-09 14:30:51,411 [INFO] ======================================================================
+2026-06-09 14:30:51,412 [INFO] InvisiThreat AI Risk Engine — Training v8.0
+2026-06-09 14:30:51,412 [INFO]   [T1] FEATURE_COLS alignee sur preprocess.py v9.0
+2026-06-09 14:30:51,412 [INFO]   [T2] SHAP class_index resolu depuis base_model.classes_
+2026-06-09 14:30:51,413 [INFO]   [T3] StackingClassifier stack_method=predict_proba
+2026-06-09 14:30:51,413 [INFO]   [T4] sample_weight applique a tous les modeles (RF inclus)
+2026-06-09 14:30:51,413 [INFO]   [T5] CV fixe k=5 stratifie
+2026-06-09 14:30:51,413 [INFO]   [T6] Feature importance normalisee (sum=1)
+2026-06-09 14:30:51,413 [INFO]   [T7] Audit leakage Mutual Information
+2026-06-09 14:30:51,413 [INFO]   [T8] Seed global numpy + random = 42
+2026-06-09 14:30:51,413 [INFO]   [T9] Seuil correlation warning a 0.95
+2026-06-09 14:30:51,413 [INFO]   [T10] Calibration ignoree pour StackingClassifier
+2026-06-09 14:30:51,413 [INFO] ======================================================================
+2026-06-09 14:30:51,515 [INFO] Donnees chargees : 2821 lignes | features disponibles : 22/22
+2026-06-09 14:30:51,516 [INFO] Findings valides : 2820 | Exclus (FP/OOS) : 1
+2026-06-09 14:30:51,518 [INFO] Distribution cible complete :
+2026-06-09 14:30:51,518 [INFO]   Low        (classe 0) :   343  ( 12.2%)
+2026-06-09 14:30:51,518 [INFO]   Medium     (classe 1) :  1651  ( 58.5%)
+2026-06-09 14:30:51,519 [INFO]   High       (classe 2) :   764  ( 27.1%)
+2026-06-09 14:30:51,519 [INFO]   Critical   (classe 3) :    62  (  2.2%)
+2026-06-09 14:30:51,522 [INFO] Matrice features : (2820, 22) | Cible : (2820,)
+2026-06-09 14:30:51,530 [INFO] Split : 2256 train | 564 test
+2026-06-09 14:30:51,530 [INFO] Distribution train :
+2026-06-09 14:30:51,531 [INFO]   Low        (classe 0) :   274  ( 12.1%)
+2026-06-09 14:30:51,531 [INFO]   Medium     (classe 1) :  1321  ( 58.6%)
+2026-06-09 14:30:51,531 [INFO]   High       (classe 2) :   611  ( 27.1%)
+2026-06-09 14:30:51,531 [INFO]   Critical   (classe 3) :    50  (  2.2%)
+2026-06-09 14:30:51,532 [INFO] Distribution test :
+2026-06-09 14:30:51,532 [INFO]   Low        (classe 0) :    69  ( 12.2%)
+2026-06-09 14:30:51,532 [INFO]   Medium     (classe 1) :   330  ( 58.5%)
+2026-06-09 14:30:51,532 [INFO]   High       (classe 2) :   153  ( 27.1%)
+2026-06-09 14:30:51,532 [INFO]   Critical   (classe 3) :    12  (  2.1%)
+2026-06-09 14:30:51,532 [INFO] Audit leakage — Mutual Information (top 10) :
+2026-06-09 14:30:51,807 [INFO]   tag_urgent                             MI=0.6084
+2026-06-09 14:30:51,807 [INFO]   cvss_score_norm                        MI=0.3604
+2026-06-09 14:30:51,807 [INFO]   cvss_score                             MI=0.3453
+2026-06-09 14:30:51,808 [INFO]   cvss_x_has_cve                         MI=0.3134
+2026-06-09 14:30:51,808 [INFO]   age_x_cvss                             MI=0.2847
+2026-06-09 14:30:51,808 [INFO]   epss_percentile                        MI=0.2220
+2026-06-09 14:30:51,808 [INFO]   tags_count_norm                        MI=0.2202
+2026-06-09 14:30:51,809 [INFO]   tags_count                             MI=0.2107
+2026-06-09 14:30:51,809 [INFO]   epss_score                             MI=0.1993
+2026-06-09 14:30:51,809 [INFO]   epss_x_cvss                            MI=0.1881
+2026-06-09 14:30:51,809 [INFO] Audit correlations Pearson features/cible (top 10) :
+2026-06-09 14:30:51,819 [INFO]   has_cwe                                r=+nan
+2026-06-09 14:30:51,819 [INFO]   tag_urgent                             r=+0.8526
+2026-06-09 14:30:51,819 [INFO]   cvss_score                             r=+0.4031
+2026-06-09 14:30:51,819 [INFO]   cvss_score_norm                        r=+0.4031
+2026-06-09 14:30:51,819 [INFO]   tags_count                             r=+0.3866
+2026-06-09 14:30:51,819 [INFO]   tags_count_norm                        r=+0.3866
+2026-06-09 14:30:51,820 [INFO]   cvss_x_has_cve                         r=+0.3531
+2026-06-09 14:30:51,820 [INFO]   age_x_cvss                             r=+0.2443
+2026-06-09 14:30:51,820 [INFO]   has_cve                                r=+0.2419
+2026-06-09 14:30:51,820 [INFO]   tag_external                           r=+0.2203
+2026-06-09 14:30:51,821 [INFO] Sample weights (plafond=10.0) :
+2026-06-09 14:30:51,821 [INFO]   Low        -> 2.058
+2026-06-09 14:30:51,821 [INFO]   Medium     -> 0.427
+2026-06-09 14:30:51,821 [INFO]   High       -> 0.923
+2026-06-09 14:30:51,821 [INFO]   Critical   -> 10.000
+2026-06-09 14:30:51,821 [INFO] ============================================================
+2026-06-09 14:30:51,821 [INFO] Entrainement des modeles de base pour Stacking...
+2026-06-09 14:30:51,822 [INFO] ============================================================
+2026-06-09 14:30:51,822 [INFO] Hyperopt RandomForest — 5-fold stratifie, 20 iterations...
+2026-06-09 14:31:10,413 [INFO]   RandomForest meilleur F1-weighted CV : 0.8027
+2026-06-09 14:31:10,413 [INFO] ============================================================
+2026-06-09 14:31:10,413 [INFO] Hyperopt XGBoost — 5-fold stratifie, 20 iterations...
+2026-06-09 14:31:27,346 [INFO]   XGBoost meilleur F1-weighted CV : 0.8942
+2026-06-09 14:31:27,347 [INFO] ============================================================
+2026-06-09 14:31:27,350 [INFO] Hyperopt LightGBM — 5-fold stratifie, 20 iterations...
+2026-06-09 14:33:30,235 [INFO]   LightGBM meilleur F1-weighted CV : 0.8930
+2026-06-09 14:33:30,242 [INFO] Comparaison modeles de base :
+2026-06-09 14:33:30,243 [INFO]   #1 XGBoost         CV F1=0.8942
+2026-06-09 14:33:30,243 [INFO]   #2 LightGBM        CV F1=0.8930
+2026-06-09 14:33:30,243 [INFO]   #3 RandomForest    CV F1=0.8027
+2026-06-09 14:33:30,260 [INFO] Fit StackingClassifier (stack_method=predict_proba)...
+2026-06-09 14:33:59,236 [INFO] StackingClassifier F1-train : 0.9053 | F1-CV (3-fold) : 0.8895
+2026-06-09 14:33:59,238 [INFO] StackingClassifier detecte — calibration ignoree (final_estimator LogisticRegression est deja calibre)
+2026-06-09 14:33:59,576 [INFO] ============================================================
+2026-06-09 14:33:59,577 [INFO] EVALUATION FINALE
+2026-06-09 14:33:59,577 [INFO]   F1-weighted  (test)  : 0.8765
+2026-06-09 14:33:59,578 [INFO]   F1-weighted  (train) : 0.9053
+2026-06-09 14:33:59,579 [INFO]   Surapprentissage D   : +0.0288  [OK]
+2026-06-09 14:33:59,579 [INFO]   F1-macro             : 0.8344
+2026-06-09 14:33:59,579 [INFO]   Balanced Accuracy    : 0.8960
+2026-06-09 14:33:59,579 [INFO]   Recall (Critical)    : 0.9167
+2026-06-09 14:33:59,579 [INFO]   F1     (Critical)    : 0.8462
+2026-06-09 14:33:59,602 [INFO] 
+              precision    recall  f1-score   support
+
+         Low       0.48      0.88      0.63        69
+      Medium       0.97      0.80      0.88       330
+        High       0.99      0.98      0.99       153
+    Critical       0.79      0.92      0.85        12
+
+    accuracy                           0.86       564
+   macro avg       0.81      0.90      0.83       564
+weighted avg       0.91      0.86      0.88       564
+
+2026-06-09 14:33:59,647 [INFO]   ROC-AUC OvR (weighted) : 0.9802
+2026-06-09 14:33:59,808 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-06-09 14:34:00,807 [INFO] Confusion matrix sauvegardee
+2026-06-09 14:34:01,198 [INFO] Top 10 Feature Importance (normalisee) :
+2026-06-09 14:34:01,198 [INFO]    1. tag_urgent                             0.2998
+2026-06-09 14:34:01,199 [INFO]    2. cvss_score_norm                        0.1455
+2026-06-09 14:34:01,199 [INFO]    3. cvss_score                             0.1185
+2026-06-09 14:34:01,199 [INFO]    4. cvss_x_has_cve                         0.0812
+2026-06-09 14:34:01,199 [INFO]    5. tags_count                             0.0567
+2026-06-09 14:34:01,199 [INFO]    6. tags_count_norm                        0.0524
+2026-06-09 14:34:01,199 [INFO]    7. age_x_cvss                             0.0483
+2026-06-09 14:34:01,199 [INFO]    8. age_days                               0.0270
+2026-06-09 14:34:01,200 [INFO]    9. age_days_norm                          0.0263
+2026-06-09 14:34:01,200 [INFO]   10. product_fp_rate                        0.0255
+2026-06-09 14:34:01,234 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-06-09 14:34:03,146 [INFO] SHAP : bar plot + dot plot sauvegardes
+2026-06-09 14:34:03,146 [INFO] SHAP Feature Ranking (mean |SHAP|) :
+2026-06-09 14:34:03,146 [INFO]    1. tag_urgent                             0.1559
+2026-06-09 14:34:03,146 [INFO]    2. cvss_score_norm                        0.0452
+2026-06-09 14:34:03,146 [INFO]    3. cvss_score                             0.0366
+2026-06-09 14:34:03,146 [INFO]    4. cvss_x_has_cve                         0.0262
+2026-06-09 14:34:03,147 [INFO]    5. tags_count                             0.0255
+2026-06-09 14:34:03,147 [INFO]    6. tags_count_norm                        0.0247
+2026-06-09 14:34:03,147 [INFO]    7. exposure_norm                          0.0189
+2026-06-09 14:34:03,147 [INFO]    8. context_score                          0.0163
+2026-06-09 14:34:03,147 [INFO]    9. age_x_cvss                             0.0120
+2026-06-09 14:34:03,147 [INFO]   10. product_fp_rate                        0.0108
+2026-06-09 14:34:03,147 [INFO]   11. age_days                               0.0098
+2026-06-09 14:34:03,147 [INFO]   12. age_days_norm                          0.0093
+2026-06-09 14:34:03,147 [INFO]   13. tag_in_production                      0.0090
+2026-06-09 14:34:03,147 [INFO]   14. tag_external                           0.0075
+2026-06-09 14:34:03,147 [INFO]   15. tag_sensitive                          0.0061
+2026-06-09 14:34:03,157 [INFO] Rapport HTML sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-06-09 14:34:03,871 [INFO] Modele de base extrait pour SHAP/importance : SimpleImputer(strategy='median') (RandomForestClassifier)
+2026-06-09 14:34:03,873 [INFO] Modele sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models/pipeline_20260609_143051.pkl
+2026-06-09 14:34:03,874 [INFO] Meta sauvegardee  : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\models/pipeline_latest_meta.json
+2026-06-09 14:34:03,876 [INFO] Historique run sauvegarde : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\logs\train_run_20260609_143051.json
+2026-06-09 14:34:03,876 [INFO] ======================================================================
+2026-06-09 14:34:03,877 [INFO] Modele final        : StackingClassifier
+2026-06-09 14:34:03,878 [INFO] F1-weighted (test)  : 0.8765
+2026-06-09 14:34:03,879 [INFO] F1-weighted (train) : 0.9053
+2026-06-09 14:34:03,879 [INFO] Surapprentissage D  : +0.0288
+2026-06-09 14:34:03,879 [INFO] Balanced Accuracy   : 0.896
+2026-06-09 14:34:03,879 [INFO] ROC-AUC OvR         : 0.9802
+2026-06-09 14:34:03,879 [INFO] Recall (Critical)   : 0.9167
+2026-06-09 14:34:03,879 [INFO] F1     (Critical)   : 0.8462
+2026-06-09 14:34:03,880 [INFO] Calibration         : none
+2026-06-09 14:34:03,880 [INFO] Rapport HTML        : C:\Users\ASUS\OneDrive\Bureau\InvisiThreat\risk-scoring-engine\reports\report.html
+2026-06-09 14:34:03,880 [INFO] ======================================================================

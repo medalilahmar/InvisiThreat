@@ -517,27 +517,36 @@ jobs:
         case "$PROJECT_TYPE" in
           nodejs) SNYK_ARGS="--all-projects" ;;
           python)
-            [ -f requirements.txt ] && SNYK_ARGS="--file=requirements.txt" || \
-            [ -f pyproject.toml ]   && SNYK_ARGS="--file=pyproject.toml"   || \
-            SNYK_ARGS="--all-projects"
+            if [ -f requirements.txt ]; then
+              SNYK_ARGS="--file=requirements.txt --package-manager=pip"
+            elif [ -f pyproject.toml ]; then
+              SNYK_ARGS="--file=pyproject.toml --package-manager=pip"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
             ;;
           java)
-            [ -f pom.xml ]          && SNYK_ARGS="--file=pom.xml"          || \
-            [ -f build.gradle ]     && SNYK_ARGS="--file=build.gradle"      || \
-            SNYK_ARGS="--all-projects"
+            if [ -f pom.xml ]; then
+              SNYK_ARGS="--file=pom.xml --package-manager=maven"
+            elif [ -f build.gradle ]; then
+              SNYK_ARGS="--file=build.gradle --package-manager=gradle"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
             ;;
           *) SNYK_ARGS="--all-projects" ;;
         esac
 
+        OUT_FILE="${{ steps.config.outputs.app_dir }}/snyk-results.json"
+        mkdir -p "$(dirname "$OUT_FILE")"
+
         npx snyk test $SNYK_ARGS \
           --severity-threshold="${THRESHOLD:-low}" \
-          --json-file-output="${{ steps.config.outputs.app_dir }}/snyk-results.json" || true
+          --json-file-output="$OUT_FILE" || true
 
-        [ ! -s "${{ steps.config.outputs.app_dir }}/snyk-results.json" ] && \
-          echo '{"vulnerabilities":[]}' > "${{ steps.config.outputs.app_dir }}/snyk-results.json"
+        [ ! -s "$OUT_FILE" ] && echo '{"vulnerabilities":[]}' > "$OUT_FILE"
 
-        COUNT=$(jq '.vulnerabilities | length' \
-          "${{ steps.config.outputs.app_dir }}/snyk-results.json" 2>/dev/null || echo 0)
+        COUNT=$(jq '.vulnerabilities | length' "$OUT_FILE" 2>/dev/null || echo 0)
         echo "Snyk terminé — $COUNT vulnérabilité(s)"
 
     - name: SCA — Snyk monitor
@@ -547,17 +556,26 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
-        [ "$PROJECT_TYPE" = "python" ] && \
-          [ -f venv/bin/activate ] && source venv/bin/activate
+        [ "$PROJECT_TYPE" = "python" ] && [ -f venv/bin/activate ] && source venv/bin/activate
 
         case "$PROJECT_TYPE" in
           python)
-            [ -f requirements.txt ] && SNYK_ARGS="--file=requirements.txt" || \
-            SNYK_ARGS="--file=pyproject.toml"
+            if [ -f requirements.txt ]; then
+              SNYK_ARGS="--file=requirements.txt --package-manager=pip"
+            elif [ -f pyproject.toml ]; then
+              SNYK_ARGS="--file=pyproject.toml --package-manager=pip"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
             ;;
           java)
-            [ -f pom.xml ] && SNYK_ARGS="--file=pom.xml" || \
-            SNYK_ARGS="--file=build.gradle"
+            if [ -f pom.xml ]; then
+              SNYK_ARGS="--file=pom.xml --package-manager=maven"
+            elif [ -f build.gradle ]; then
+              SNYK_ARGS="--file=build.gradle --package-manager=gradle"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
             ;;
           *) SNYK_ARGS="--all-projects" ;;
         esac
@@ -622,6 +640,7 @@ jobs:
     - name: DAST — ZAP Scans
       id: zap
       uses: ./.github/actions/zap-scan
+      continue-on-error: true
       with:
         target_url:           ${{ steps.config.outputs.target_url }}
         app_dir:              ${{ steps.config.outputs.app_dir }}

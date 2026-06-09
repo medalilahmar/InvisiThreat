@@ -40,7 +40,7 @@ app:
   install_dir: ""
 
   # Commande shell pour démarrer l'application Flask.
-  start_command: "python -m flask run --host=0.0.0.0 --port=5001"
+  start_command: "python src/nova/app.py"
 
   # Chemin HTTP pour vérifier que l'application est prête (health check).
   # La racine "/" retourne une réponse 200 et convient parfaitement.
