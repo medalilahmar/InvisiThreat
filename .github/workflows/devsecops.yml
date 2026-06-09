@@ -508,19 +508,36 @@ jobs:
       run: |
         THRESHOLD="${{ steps.config.outputs.snyk_threshold }}"
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
+        OUT_FILE="${{ steps.config.outputs.app_dir }}/snyk-results.json"
+        mkdir -p "$(dirname "$OUT_FILE")"
 
-        # Activer venv Python avant Snyk
+        # ── Activer venv Python ──
         if [ "$PROJECT_TYPE" = "python" ]; then
-          [ -f venv/bin/activate ] && source venv/bin/activate
+          for VENV_PATH in "venv/bin/activate" ".venv/bin/activate"; do
+            [ -f "$VENV_PATH" ] && source "$VENV_PATH" && echo "venv activé : $VENV_PATH" && break
+          done
         fi
 
+        # ── Détecter le fichier de dépendances ──
         case "$PROJECT_TYPE" in
-          nodejs) SNYK_ARGS="--all-projects" ;;
+          nodejs)
+            if [ -f package-lock.json ]; then
+              SNYK_ARGS="--file=package-lock.json --package-manager=npm"
+            elif [ -f yarn.lock ]; then
+              SNYK_ARGS="--file=yarn.lock --package-manager=yarn"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
+            ;;
           python)
             if [ -f requirements.txt ]; then
               SNYK_ARGS="--file=requirements.txt --package-manager=pip"
             elif [ -f pyproject.toml ]; then
               SNYK_ARGS="--file=pyproject.toml --package-manager=pip"
+            elif [ -f setup.cfg ]; then
+              SNYK_ARGS="--file=setup.cfg --package-manager=pip"
+            elif [ -f setup.py ]; then
+              SNYK_ARGS="--file=setup.py --package-manager=pip"
             else
               SNYK_ARGS="--all-projects"
             fi
@@ -528,26 +545,40 @@ jobs:
           java)
             if [ -f pom.xml ]; then
               SNYK_ARGS="--file=pom.xml --package-manager=maven"
+            elif [ -f build.gradle.kts ]; then
+              SNYK_ARGS="--file=build.gradle.kts --package-manager=gradle"
             elif [ -f build.gradle ]; then
               SNYK_ARGS="--file=build.gradle --package-manager=gradle"
             else
               SNYK_ARGS="--all-projects"
             fi
             ;;
+          static)
+            echo "Projet static — Snyk ignoré"
+            echo '{"vulnerabilities":[]}' > "$OUT_FILE"
+            exit 0
+            ;;
           *) SNYK_ARGS="--all-projects" ;;
         esac
 
-        OUT_FILE="${{ steps.config.outputs.app_dir }}/snyk-results.json"
-        mkdir -p "$(dirname "$OUT_FILE")"
+        echo "=== SNYK TEST — ${{ matrix.project }} ==="
+        echo "Type        : $PROJECT_TYPE"
+        echo "Args        : $SNYK_ARGS"
+        echo "Seuil       : ${THRESHOLD:-low}"
+        echo "Output      : $OUT_FILE"
 
         npx snyk test $SNYK_ARGS \
           --severity-threshold="${THRESHOLD:-low}" \
           --json-file-output="$OUT_FILE" || true
 
-        [ ! -s "$OUT_FILE" ] && echo '{"vulnerabilities":[]}' > "$OUT_FILE"
+        # ── Fallback fichier vide si Snyk n'a rien écrit ──
+        if [ ! -s "$OUT_FILE" ]; then
+          echo '{"vulnerabilities":[]}' > "$OUT_FILE"
+          echo "WARN : Snyk n'a produit aucun fichier — fallback vide"
+        fi
 
         COUNT=$(jq '.vulnerabilities | length' "$OUT_FILE" 2>/dev/null || echo 0)
-        echo "Snyk terminé — $COUNT vulnérabilité(s)"
+        echo "Snyk test terminé — $COUNT vulnérabilité(s)"
 
     - name: SCA — Snyk monitor
       working-directory: ${{ steps.config.outputs.install_dir }}
@@ -556,14 +587,34 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
         PROJECT_TYPE="${{ steps.config.outputs.project_type }}"
-        [ "$PROJECT_TYPE" = "python" ] && [ -f venv/bin/activate ] && source venv/bin/activate
 
+        # ── Activer venv Python ──
+        if [ "$PROJECT_TYPE" = "python" ]; then
+          for VENV_PATH in "venv/bin/activate" ".venv/bin/activate"; do
+            [ -f "$VENV_PATH" ] && source "$VENV_PATH" && break
+          done
+        fi
+
+        # ── Même logique de détection que snyk test ──
         case "$PROJECT_TYPE" in
+          nodejs)
+            if [ -f package-lock.json ]; then
+              SNYK_ARGS="--file=package-lock.json --package-manager=npm"
+            elif [ -f yarn.lock ]; then
+              SNYK_ARGS="--file=yarn.lock --package-manager=yarn"
+            else
+              SNYK_ARGS="--all-projects"
+            fi
+            ;;
           python)
             if [ -f requirements.txt ]; then
               SNYK_ARGS="--file=requirements.txt --package-manager=pip"
             elif [ -f pyproject.toml ]; then
               SNYK_ARGS="--file=pyproject.toml --package-manager=pip"
+            elif [ -f setup.cfg ]; then
+              SNYK_ARGS="--file=setup.cfg --package-manager=pip"
+            elif [ -f setup.py ]; then
+              SNYK_ARGS="--file=setup.py --package-manager=pip"
             else
               SNYK_ARGS="--all-projects"
             fi
@@ -571,18 +622,25 @@ jobs:
           java)
             if [ -f pom.xml ]; then
               SNYK_ARGS="--file=pom.xml --package-manager=maven"
+            elif [ -f build.gradle.kts ]; then
+              SNYK_ARGS="--file=build.gradle.kts --package-manager=gradle"
             elif [ -f build.gradle ]; then
               SNYK_ARGS="--file=build.gradle --package-manager=gradle"
             else
               SNYK_ARGS="--all-projects"
             fi
             ;;
+          static)
+            echo "Projet static — Snyk monitor ignoré"
+            exit 0
+            ;;
           *) SNYK_ARGS="--all-projects" ;;
         esac
 
-        npx snyk monitor $SNYK_ARGS || true
+        echo "=== SNYK MONITOR — ${{ matrix.project }} ==="
+        npx snyk monitor $SNYK_ARGS \
+          --project-name="${{ matrix.project }}" || true
 
-    # ── DAST — DÉMARRAGE APP ──────────────────────────────────────
     - name: DAST — Démarrer l'application
       working-directory: ${{ steps.config.outputs.app_dir }}
       run: |
@@ -593,47 +651,68 @@ jobs:
         TARGET="${{ steps.config.outputs.target_url }}"
         WAIT="${{ steps.config.outputs.startup_wait }}"
         HEALTH="${{ steps.config.outputs.health_path }}"
+        INSTALL_DIR="${{ steps.config.outputs.install_dir }}"
 
         if [ "$PROJECT_TYPE" = "python" ]; then
-          # Chercher le venv dans plusieurs emplacements possibles
+          # install_dir est absolu (ex: projects/nova, projects/nova/backend)
+          # Le venv a été créé là par le step d'installation
+          VENV_FOUND=false
           for VENV_PATH in \
-            "${{ steps.config.outputs.install_dir }}/venv/bin/activate" \
-            "${{ steps.config.outputs.app_dir }}/venv/bin/activate" \
-            "${{ steps.config.outputs.install_dir }}/.venv/bin/activate"; do
+            "${INSTALL_DIR}/venv/bin/activate" \
+            "${INSTALL_DIR}/.venv/bin/activate" \
+            "venv/bin/activate" \
+            ".venv/bin/activate"; do
             if [ -f "$VENV_PATH" ]; then
               source "$VENV_PATH"
               echo "venv activé : $VENV_PATH"
+              VENV_FOUND=true
               break
             fi
           done
 
-          if [ -z "$VIRTUAL_ENV" ]; then
-            echo "ERREUR : aucun venv trouvé — impossible de démarrer l'application Python"
+          if [ "$VENV_FOUND" = "false" ]; then
+            echo "ERREUR : aucun venv trouvé dans :"
+            echo "  - ${INSTALL_DIR}/venv"
+            echo "  - ${INSTALL_DIR}/.venv"
+            echo "  - $(pwd)/venv"
+            echo "  - $(pwd)/.venv"
             exit 1
           fi
         fi
 
-        eval "$START_CMD" &
-        echo $! > app.pid
-        echo "PID : $(cat app.pid)"
+        if [ "$PROJECT_TYPE" = "java" ]; then
+          # Vérifier que java est disponible
+          if ! command -v java &>/dev/null; then
+            echo "ERREUR : java non trouvé"
+            exit 1
+          fi
+          echo "Java : $(java -version 2>&1 | head -1)"
+        fi
 
-        echo "Attente initiale de ${WAIT}s..."
+        echo "Démarrage : $START_CMD"
+        eval "$START_CMD" &
+        APP_PID=$!
+        echo $APP_PID > app.pid
+        echo "PID : $APP_PID"
+
+        echo "Attente initiale de ${WAIT:-15}s..."
         sleep "${WAIT:-15}"
 
         MAX_RETRIES=30
         for i in $(seq 1 $MAX_RETRIES); do
           if ! kill -0 $(cat app.pid) 2>/dev/null; then
-            echo " ERREUR : processus mort (crash au démarrage)"
+            echo "ERREUR : processus mort (crash au démarrage)"
             exit 1
           fi
           if curl -sf "${TARGET}${HEALTH}" >/dev/null 2>&1; then
-            echo " Application prête (tentative $i)"
+            echo "Application prête (tentative $i)"
             exit 0
           fi
           sleep 3
           echo "Attente... $i/$MAX_RETRIES"
         done
-        echo " ERREUR : application non disponible"
+
+        echo "ERREUR : application non disponible après $((MAX_RETRIES * 3 + WAIT))s"
         exit 1
 
     # ── DAST — ZAP ────────────────────────────────────────────────
