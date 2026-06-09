@@ -305,7 +305,6 @@ jobs:
       run: |
         echo "=== Installation Python — ${{ matrix.project }} ==="
 
-        # Installer python3-venv si absent
         if ! python3 -m ensurepip --version >/dev/null 2>&1; then
           echo "python3-venv absent — installation..."
           sudo apt-get update -qq
@@ -314,8 +313,6 @@ jobs:
 
         python3 -m venv venv
         source venv/bin/activate
-
-        # setuptools en premier — requis pour les builds editables
         pip install --upgrade pip setuptools wheel --quiet
 
         REQ_FILE="${{ steps.python-cache.outputs.req_file }}"
@@ -329,26 +326,23 @@ jobs:
               echo "Installation via requirements.txt"
               pip install -r requirements.txt --quiet
 
-              # ── Détection src-layout ──────────────────────────────────
-              # Si un pyproject.toml / setup.py / setup.cfg est présent
-              # en plus du requirements.txt, le projet est un package
-              # installable. On l'installe en mode editable SANS réinstaller
-              # les dépendances (--no-deps) pour préserver les versions
-              # fixées dans requirements.txt (important pour le SCA).
               if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "setup.cfg" ]; then
                 echo "src-layout détecté — installation editable (--no-deps)..."
+
+                # Le build backend PEP 517 (pyproject_hooks) tourne hors venv
+                # → setuptools doit être disponible au niveau système
+                pip install --upgrade setuptools wheel --break-system-packages --quiet 2>/dev/null || \
+                sudo pip3 install --upgrade setuptools wheel --quiet 2>/dev/null || true
+
                 pip install --no-deps -e . --quiet
                 echo "Package enregistré dans sys.path"
               fi
               ;;
 
             pyproject.toml|setup.cfg|setup.py)
-              # Pas de requirements.txt → pyproject.toml est la seule
-              # source de vérité. On installe tout via pip install -e .
-              # SANS --no-deps car les dépendances ne sont pas encore
-              # installées.
               echo "Installation via $REQ_FILE"
-              pip install --upgrade setuptools wheel --quiet
+              pip install --upgrade setuptools wheel --break-system-packages --quiet 2>/dev/null || \
+              sudo pip3 install --upgrade setuptools wheel --quiet 2>/dev/null || true
               pip install -e . --quiet
               ;;
 
