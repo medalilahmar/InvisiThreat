@@ -29,6 +29,7 @@ on:
           - "shadowdep"
           - "nova"
           - "campusConnect"
+          - "secureVault-API"
 
           
 

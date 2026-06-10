@@ -1,0 +1,59 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  project.config.yml — Configuration d'un projet pour le pipeline DevSecOps
+#
+#  Ce fichier est lu par l'action load-config (.github/actions/load-config)
+#  et pilote l'ensemble du pipeline : installation, démarrage, scans sécurité.
+#
+#  ► Un fichier par projet, placé dans : projects/<nom-projet>/project.config.yml
+#  ► Tous les champs ont une valeur par défaut (voir commentaires inline).
+#  ► Pour désactiver une fonctionnalité, laisser la valeur vide : ""
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SECTION 1 — IDENTITÉ DU PROJET
+# ─────────────────────────────────────────────────────────────────────────────
+project:
+  name: "SecureVault API"
+  description: "Enterprise Password & Secrets Management Platform — Projet de démonstration DevSecOps"
+  type: "nodejs"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SECTION 2 — APPLICATION
+# ─────────────────────────────────────────────────────────────────────────────
+app:
+  port: 3000
+  install_dir: ""
+  start_command: "node src/app.js"
+  health_check_path: "/"
+  startup_wait: 10
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SECTION 3 — SÉCURITÉ
+# ─────────────────────────────────────────────────────────────────────────────
+security:
+
+  # ── Security Gate ──────────────────────────────────────────────────────────
+  fail_on_new_critical: true
+  fail_on_new_high: false
+
+  # ── SAST — Semgrep ─────────────────────────────────────────────────────────
+  semgrep_rulesets:
+    - "p/security-audit"
+    - "p/owasp-top-ten"
+    - "p/nodejs"
+    - "p/secrets"
+
+  # ── SCA — Snyk ─────────────────────────────────────────────────────────────
+  snyk_severity_threshold: "low"
+
+  # ── DAST — ZAP ─────────────────────────────────────────────────────────────
+  zap_full_scan_timeout: 30
+
+  zap_jwt_login_endpoint: "/api/auth/login"
+  zap_jwt_login_body: '{"username":"admin","password":"admin123"}'
+  zap_jwt_token_path: ".token"
+
+  zap_openapi_endpoint: ""

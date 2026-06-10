@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SecureVault - Enterprise Secrets Manager</title>
+  <!-- ⚠️ VULN: No CSP header defined (MEDIUM) -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 2.5rem; width: 420px; }
+    .logo { text-align: center; margin-bottom: 2rem; }
+    .logo h1 { font-size: 1.8rem; color: #38bdf8; font-weight: 700; }
+    .logo p { color: #64748b; font-size: 0.85rem; margin-top: 0.3rem; }
+    input { width: 100%; padding: 0.75rem 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 1rem; }
+    input:focus { outline: none; border-color: #38bdf8; }
+    button { width: 100%; padding: 0.85rem; background: #0ea5e9; border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    button:hover { background: #0284c7; }
+    .error { background: #450a0a; border: 1px solid #991b1b; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; color: #fca5a5; font-size: 0.875rem; display: none; }
+    .links { text-align: center; margin-top: 1.5rem; font-size: 0.85rem; color: #64748b; }
+    .links a { color: #38bdf8; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <h1>🔐 SecureVault</h1>
+      <p>Enterprise Password & Secrets Management</p>
+    </div>
+    <div class="error" id="errorMsg"></div>
+    <input type="text" id="username" placeholder="Username" autocomplete="off">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Sign In</button>
+    <div class="links">
+      <a href="/forgot">Forgot password?</a> &nbsp;|&nbsp;
+      <a href="/register">Create account</a>
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ VULN: Token stored in localStorage (MEDIUM)
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (data.token) {
+        // VULN: JWT in localStorage - vulnerable to XSS theft
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect') || '/dashboard';
+        window.location.href = redirect;  // ⚠️ VULN: Open redirect
+      } else {
+        const errorMsg = document.getElementById('errorMsg');
+        errorMsg.style.display = 'block';
+        // ⚠️ VULN: Error message rendered as innerHTML (DOM XSS)
+        errorMsg.innerHTML = data.message || 'Login failed';
+      }
+    }
+  </script>
+</body>
+</html>
