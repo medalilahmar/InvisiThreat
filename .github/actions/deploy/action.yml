@@ -357,15 +357,15 @@ runs:
         echo "Données propres : $(wc -l < data/processed/findings_clean.csv) lignes"
         echo "::endgroup::"
 
-    - name: "[ml] Étape 3 — Entraînement du modèle"
-      if: inputs.run_ml_update == 'true'
-      shell: bash
-      working-directory: risk-scoring-engine
-      run: |
-        echo "::group::train.py"
-        python3 src/train.py
-        echo "Modèle entraîné : $(ls -lh models/pipeline_latest.pkl)"
-        echo "::endgroup::"
+    # - name: "[ml] Étape 3 — Entraînement du modèle"
+    #   if: inputs.run_ml_update == 'true'
+    #   shell: bash
+    #   working-directory: risk-scoring-engine
+    #   run: |
+    #     echo "::group::train.py"
+    #     python3 src/train.py
+    #     echo "Modèle entraîné : $(ls -lh models/pipeline_latest.pkl)"
+    #     echo "::endgroup::"
 
     - name: "[ml] Upload artefacts ML"
       if: inputs.run_ml_update == 'true'
@@ -408,6 +408,15 @@ runs:
         POD: ${{ steps.get_pod.outputs.pod_name }}
         NS:  ${{ inputs.namespace }}
       run: |
+        # ── Vérification fichiers locaux ──
+        [ ! -f models/pipeline_latest.pkl ] && \
+          echo "::error::pipeline_latest.pkl introuvable !" && exit 1
+        [ ! -f models/pipeline_latest_meta.json ] && \
+          echo "::warning::pipeline_latest_meta.json introuvable — skip meta"
+        [ ! -f data/processed/findings_clean.csv ] && \
+          echo "::error::findings_clean.csv introuvable !" && exit 1
+        echo "Fichiers locaux OK "
+
         echo "::group::Préparation des répertoires cibles"
         kubectl exec -n "${NS}" "${POD}" -- mkdir -p /app/data/processed
         echo "::endgroup::"
@@ -430,6 +439,11 @@ runs:
           mv /app/data/processed/findings_clean.csv.tmp /app/data/processed/findings_clean.csv
         echo "Transfert atomique terminé"
         echo "::endgroup::"
+
+        # ── Vérification finale dans le pod ──
+        kubectl exec -n "${NS}" "${POD}" -- ls -lh /app/models/pipeline_latest.pkl
+        kubectl exec -n "${NS}" "${POD}" -- ls -lh /app/data/processed/findings_clean.csv
+        echo "Copie confirmée "
 
     - name: "[ml] Restart RSE pour charger le nouveau modèle en mémoire"
       if: inputs.run_ml_update == 'true'

@@ -251,8 +251,15 @@ export default function ScoreHistoryChart({ findingId }: Props) {
       }}>
         <div>
           {/* Label section */}
-          <div className="label" style={{ marginBottom: "6px" }}>
-            Historique du score IA
+          <div style={{
+            fontFamily:    "var(--font-mono)",
+            fontSize:      "9px",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color:         "var(--dimmed)",
+            marginBottom:  "6px",
+          }}>
+            HISTORIQUE · SCORE IA
           </div>
 
           {/* Score courant + badge niveau */}
@@ -308,7 +315,12 @@ export default function ScoreHistoryChart({ findingId }: Props) {
             fontSize:   "12px",
             fontWeight: 700,
           }}>
-            {trend > 0 ? "▲" : trend < 0 ? "▼" : "→"}
+            {trend > 0
+              ? <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 1l4 8H1z"/></svg>
+              : trend < 0
+              ? <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 9L1 1h8z"/></svg>
+              : <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 5h8M6 2l3 3-3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            }
           </span>
           <span style={{
             color:      trend > 0 ? "var(--severity-critical)" : trend < 0 ? "var(--severity-low)" : "var(--dimmed)",

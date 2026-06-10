@@ -286,6 +286,20 @@ export default function FindingDetailPage() {
             <span className="fdp-bc-sep">/</span>
             <span className="fdp-bc-active">#{finding.id}</span>
           </div>
+
+          {/* ── Actions rapides ── */}
+          {finding && (
+            <div className="fdp-topbar-actions">
+              <FindingActions
+                findingId={finding.id}
+                findingTitle={finding.title}
+                productName={String(finding.product_name || "")}
+                severity={finding.severity}
+                aiRiskScore={aiScore?.risk_class}
+                users={users}
+              />
+            </div>
+          )}
         </div>
 
         <header className="fdp-hero fu1">
@@ -633,37 +647,16 @@ export default function FindingDetailPage() {
 
 
 
-        {/* ── Actions (épingler / assigner / statut) ── */}
-          {finding && (
-            <div className="fdp-card fu5" style={{ marginBottom: "16px" }}>
-              <div className="fdp-card-header">
-                <div className="fdp-card-icon" style={{ background: "var(--accent-muted)" }}>
-                  📍
-                </div>
-                <div>
-                  <div className="fdp-card-title">Actions</div>
-                  <div className="fdp-card-subtitle">ÉPINGLAGE · ASSIGNATION · STATUT</div>
-                </div>
-              </div>
-              <div style={{ padding: "8px 0" }}>
-                <FindingActions
-                  findingId={finding.id}
-                  findingTitle={finding.title}
-                  productName={String(finding.product_name || "")}
-                  severity={finding.severity}
-                  aiRiskScore={aiScore?.risk_class}
-                  users={users}
-                />
-              </div>
-            </div>
-          )}
+        
 
           {/* ── Historique des scores IA ── */}
           {finding && (
-            <div className="fdp-card fu5" style={{ marginBottom: "16px" }}>
+            <div className="fdp-card fu5">
               <div className="fdp-card-header">
                 <div className="fdp-card-icon" style={{ background: "var(--glass-purple)" }}>
-                  📊
+                  <svg width="14" height="14" viewBox="0 0 15 15" fill="none" stroke="var(--purple)" strokeWidth="1.4">
+                    <polyline points="1.5,11 5,6 8,8.5 11.5,3.5 13.5,5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </div>
                 <div>
                   <div className="fdp-card-title">Évolution du score IA</div>

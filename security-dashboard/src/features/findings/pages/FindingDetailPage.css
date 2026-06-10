@@ -1189,3 +1189,237 @@
   .fdp-tech-grid      { grid-template-columns: 1fr; }
   .fdp-risk-score-row { grid-template-columns: 1fr; }
 }
+
+/* ─── ADDITIONS FindingDetailPage.css ────────────────────────────────────── */
+/* À coller à la fin du fichier existant                                       */
+
+/* ── Topbar restructuré ──────────────────────────────────────────────────── */
+.fdp-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.fdp-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.fdp-topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: center;
+}
+
+/* Actions rapides dans le topbar — wrapper compact pour FindingActions */
+.fdp-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Quand FindingActions reçoit compact=true, il doit render 3 icônes seules.
+   Ces styles conditionnent l'apparence dans ce contexte : */
+.fdp-topbar-actions .finding-actions-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fdp-topbar-actions .finding-action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--dimmed);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+.fdp-topbar-actions .finding-action-icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--glass-cyan);
+}
+.fdp-topbar-actions .finding-action-icon-btn.active {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--glass-cyan);
+}
+.fdp-topbar-actions .finding-action-icon-btn[data-status="open"]     { color: var(--muted); }
+.fdp-topbar-actions .finding-action-icon-btn[data-status="resolved"] { color: var(--severity-low); border-color: var(--severity-low-border); background: var(--severity-low-bg); }
+.fdp-topbar-actions .finding-action-icon-btn[data-status="wontfix"]  { color: var(--dimmed); }
+
+/* Séparateur vertical entre les groupes du topbar */
+.fdp-topbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  opacity: 0.5;
+}
+
+/* ── Labels de sections ───────────────────────────────────────────────────── */
+.fdp-section {
+  margin-bottom: 14px;
+}
+
+.fdp-section-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dimmed);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.fdp-section-label svg {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* ── Hero simplifié (meta-row seul, plus de hero-footer) ─────────────────── */
+.fdp-hero .fdp-meta-row {
+  margin-top: 0;
+}
+
+/* ── SHAP styles propres ─────────────────────────────────────────────────── */
+.fdp-shap-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  width: 100%;
+  background: var(--glass-purple);
+  border: 1px solid var(--severity-info-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--purple);
+  transition: all var(--transition-fast);
+}
+.fdp-shap-toggle-btn:hover {
+  background: color-mix(in srgb, var(--purple) 12%, transparent);
+  border-color: var(--purple);
+}
+
+.fdp-shap-container {
+  margin-top: 12px;
+}
+
+.fdp-shap-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.fdp-shap-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.fdp-shap-item:last-child { border-bottom: none; }
+
+.fdp-shap-dir {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  min-width: 14px;
+}
+.fdp-shap-dir[data-dir="+"] { color: var(--severity-low); }
+.fdp-shap-dir[data-dir="-"] { color: var(--severity-critical); }
+
+.fdp-shap-feat {
+  flex: 1;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.fdp-shap-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--severity-medium);
+  min-width: 36px;
+  text-align: right;
+}
+
+.fdp-shap-empty {
+  font-size: 12px;
+  color: var(--dimmed);
+  margin-top: 10px;
+  font-family: var(--font-body);
+}
+
+/* ── Carte historique chart dans la sidebar ──────────────────────────────── */
+.fdp-card-chart .fdp-card-header {
+  margin-bottom: 12px;
+}
+.fdp-card-chart .recharts-wrapper,
+.fdp-card-chart .score-history-chart {
+  width: 100% !important;
+}
+
+/* ── Section correction automatique ─────────────────────────────────────── */
+.fdp-solution-wrapper {
+  margin: 0;
+  width: 100%;
+}
+
+/* ── Responsive topbar ───────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .fdp-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .fdp-topbar-center {
+    justify-content: flex-start;
+  }
+  .fdp-topbar-actions {
+    align-self: flex-start;
+  }
+}
+/* ── Actions dans le topbar ── */
+.fdp-topbar {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.fdp-topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Espacement cohérent entre les cartes en bas de page ── */
+.fdp-solution-wrapper,
+.fdp-card.fu5 {
+  margin-bottom: 25px;
+}
+
+.fdp-card.fu5:last-child {
+  margin-bottom: 0;
+}

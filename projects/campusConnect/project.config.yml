@@ -1,7 +1,3 @@
-# ══════════════════════════════════════════════════════════════════════════════
-#  project.config.yml — Configuration d'un projet pour le pipeline DevSecOps
-# ══════════════════════════════════════════════════════════════════════════════
-
 project:
   name: "CampusConnect"
   description: "Projet de test Java (Spring Boot) contenant des vulnérabilités volontaires pour valider les outils SAST, DAST et SCA."
@@ -9,8 +5,9 @@ project:
 
 app:
   port: 8090
-  install_dir: ""
-  start_command: "mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8090"
+  install_dir: "projects/campusConnect"
+  app_dir: "projects/campusConnect"          
+  start_command: "mvn spring-boot:run -f pom.xml -Dspring-boot.run.arguments=--server.port=8090"
   health_check_path: "/api/v1/users/health"
   startup_wait: 30
 
@@ -26,7 +23,7 @@ security:
 
   snyk_severity_threshold: "low"
 
-  zap_full_scan_timeout: 15
+  zap_full_scan_timeout: 5
   zap_jwt_login_endpoint: ""
   zap_jwt_login_body: ""
   zap_jwt_token_path: ".token"

@@ -285,5 +285,14 @@
     "confidence": 0.95,
     "from_cache": false,
     "_fallback": false
+  },
+  "302b648d24a6e07ddf48494cc00274e3": {
+    "summary": "The Prototype Pollution vulnerability in lodash affects versions <4.17.12, allowing an attacker to inject arbitrary JavaScript into any object that is passed as a parameter to a function. This can lead to code execution and potentially full control over the application.",
+    "impact": "An attacker can exploit this vulnerability by crafting a malicious payload that sets up a prototype chain in a way that allows them to execute arbitrary JavaScript code. This can be used to steal session cookies, hijack user sessions, or perform other malicious actions on behalf of victims. If an admin account is compromised, the attacker gains elevated privileges over the entire application.",
+    "root_cause": "The lodash library uses the `_.assign` function to merge objects, which can lead to prototype pollution if the source object contains a constructor property that is not properly sanitized.",
+    "exploitation_difficulty": "Easy — An attacker only needs to craft a malicious payload that sets up a prototype chain in a way that allows them to execute arbitrary JavaScript code. No special tools or authentication bypass is required.",
+    "priority_note": "Immediate — Prototype Pollution vulnerabilities can affect every user who visits the affected page, including administrators. Delaying the fix increases the risk of a mass session hijacking incident.",
+    "from_cache": false,
+    "_fallback": false
   }
 }
