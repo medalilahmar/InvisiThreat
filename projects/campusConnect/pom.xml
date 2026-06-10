@@ -25,6 +25,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Dépendance Spring Security (nécessaire pour WebSecurityConfig) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <!-- SCA Test: Outdated and vulnerable database connector -->
         <dependency>
             <groupId>com.h2database</groupId>
