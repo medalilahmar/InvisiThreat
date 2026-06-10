@@ -1152,6 +1152,7 @@ jobs:
           jira_email:         ${{ secrets.JIRA_EMAIL }}
           jira_server:        ${{ secrets.JIRA_SERVER }}
           smtp_password:     ${{ secrets.SMTP_PASSWORD }}
+          github_token: ${{ secrets.MY_SUPER_TOKEN }}
 
       # ── Vérifications post-deploy ─────────────────────────────
       - name: " Vérifier les pods"
