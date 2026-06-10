@@ -5,7 +5,7 @@ project:
 
 app:
   port: 8090
-  install_dir: ""
+  install_dir: "projects/campusConnect"
   start_command: "mvn spring-boot:run -f pom.xml -Dspring-boot.run.arguments=--server.port=8090"
   health_check_path: "/api/v1/users/health"
   startup_wait: 30
