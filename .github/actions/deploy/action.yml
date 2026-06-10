@@ -52,6 +52,9 @@ inputs:
   smtp_password:
     description: Mot de passe SMTP (Gmail App Password)
     required: true
+  github_token:
+    description: Token GitHub
+    required: true
   
 
 outputs:
@@ -184,6 +187,8 @@ runs:
         JIRA_EMAIL:         ${{ inputs.jira_email }}
         JIRA_SERVER:        ${{ inputs.jira_server }}
         SMTP_PASSWORD:      ${{ inputs.smtp_password }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+
       run: |
         kubectl create secret generic invisithreat-secrets \
           --namespace="${NS}" \
@@ -206,6 +211,7 @@ runs:
           --from-literal=SMTP_PASSWORD="${SMTP_PASSWORD}" \
           --from-literal=ADMIN_EMAIL="medalilahmar00@gmail.com" \
           --from-literal=FRONTEND_URL="http://invisithreat.local" \
+          --from-literal=GITHUB_TOKEN="${GITHUB_TOKEN}" \
         | kubectl apply -f -
         echo " Secret Kubernetes appliqué"
         

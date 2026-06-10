@@ -1,14 +1,18 @@
+# ──────────────────────────────────────────────────────────────────────
+#  campusConnect — project.config.yml
+# ──────────────────────────────────────────────────────────────────────
+
 project:
   name: "CampusConnect"
-  description: "Projet de test Java (Spring Boot) contenant des vulnérabilités volontaires pour valider les outils SAST, DAST et SCA."
+  description: "Spring Boot vulnérable — SAST/SCA/DAST (Log4Shell, SQLi, XSS, Deserialization)"
   type: "java"
 
 app:
   port: 8090
   install_dir: ""
-  start_command: "mvn spring-boot:run -f pom.xml -Dspring-boot.run.arguments=--server.port=8090"
+  start_command: "mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8090 -q"
   health_check_path: "/api/v1/users/health"
-  startup_wait: 30
+  startup_wait: 60
 
 security:
   fail_on_new_critical: false
@@ -22,7 +26,7 @@ security:
 
   snyk_severity_threshold: "low"
 
-  zap_full_scan_timeout: 5
+  zap_full_scan_timeout: 10
   zap_jwt_login_endpoint: ""
   zap_jwt_login_body: ""
   zap_jwt_token_path: ".token"
