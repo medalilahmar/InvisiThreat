@@ -55,6 +55,10 @@ inputs:
   github_token:
     description: Token GitHub
     required: true
+  database_url:
+    description: URL de connexion PostgreSQL
+    required: false
+    default: ""
   
 
 outputs:
@@ -503,6 +507,7 @@ runs:
       env:
         DEFECTDOJO_URL:     ${{ inputs.dd_url }}
         DEFECTDOJO_API_KEY: ${{ inputs.defectdojo_api_key }}
+        DATABASE_URL:       ${{ inputs.database_url }}
       run: |
         echo "::group::predict_live.py — scoring CSV"
         python3 src/predict_live.py \
