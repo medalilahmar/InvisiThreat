@@ -1,5 +1,6 @@
 # projects/shadowdep/project.config.yml
 #  ► Un fichier par projet, placé dans : projects/<nom-projet>/project.config.yml
+#  ► Tous les champs ont une valeur par défaut (voir commentaires inline).
 
 project:
   name: "ShadowDep"
