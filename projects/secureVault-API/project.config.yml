@@ -50,7 +50,7 @@ security:
   snyk_severity_threshold: "low"
 
   # ── DAST — ZAP ─────────────────────────────────────────────────────────────
-  zap_full_scan_timeout: 30
+  zap_full_scan_timeout: 5
 
   zap_jwt_login_endpoint: "/api/auth/login"
   zap_jwt_login_body: '{"username":"admin","password":"admin123"}'

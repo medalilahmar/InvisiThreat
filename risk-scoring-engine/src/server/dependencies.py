@@ -86,6 +86,32 @@ async def lifespan(app: FastAPI):
                 f"{len(_local_data_loader.findings_by_id)} findings"
             )
             logger.info("Utilisation du cache IA existant (data/ai_scores_cache.json)")
+                    # ── Synchronisation de l'historique vers PostgreSQL ──
+            from server.cache import get_scores_cache
+            from database.connection import SessionLocal
+            from database.models import FindingScoreHistory
+
+            cache = get_scores_cache()   # <-- ADAPTEZ selon votre code
+            if cache:
+                db = SessionLocal()
+                try:
+                    for finding_id_str, data in cache.items():
+                        db.merge(FindingScoreHistory(
+                            finding_id=int(finding_id_str),
+                            finding_title=data.get("finding_title", "")[:200],
+                            ai_risk_score=data.get("ai_risk_score", 0),
+                            risk_level=data.get("ai_risk_level", ""),
+                            confidence=data.get("ai_confidence", 0),
+                            severity=data.get("severity", ""),
+                            model_version=data.get("model_version", "latest"),
+                        ))
+                    db.commit()
+                    logger.info(f"✅ Historique synchronisé depuis le cache ({len(cache)} findings)")
+                except Exception as e:
+                    db.rollback()
+                    logger.warning(f"⚠️ Synchronisation historique échouée : {e}")
+                finally:
+                    db.close()
         else:
             logger.warning("⚠️  LocalDataLoader : CSV non accessible, mode dégradé")
     except Exception as e:

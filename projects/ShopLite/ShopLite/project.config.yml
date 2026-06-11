@@ -1,0 +1,37 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  project.config.yml — ShopLite
+# ══════════════════════════════════════════════════════════════════════════════
+
+project:
+  name: "ShopLite API"
+  description: "Lightweight E-commerce REST API — Démonstration DevSecOps"
+  type: "nodejs"
+
+app:
+  port: 3000
+  install_dir: ""
+  start_command: "node src/app.js"
+  health_check_path: "/"
+  startup_wait: 10
+
+security:
+
+  fail_on_new_critical: true
+  fail_on_new_high: false
+
+  semgrep_rulesets:
+    - "p/security-audit"
+    - "p/owasp-top-ten"
+    - "p/nodejs"
+    - "p/secrets"
+
+  snyk_severity_threshold: "low"
+
+  zap_full_scan_timeout: 5
+
+  # Pas de JWT — session cookie uniquement
+  zap_jwt_login_endpoint: ""
+  zap_jwt_login_body: ""
+  zap_jwt_token_path: ".token"
+
+  zap_openapi_endpoint: ""

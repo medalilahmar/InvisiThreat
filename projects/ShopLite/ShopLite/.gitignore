@@ -1,0 +1,4 @@
+# ⚠️ VULN: .env non listé ici — secrets commités dans git
+node_modules/
+*.log
+coverage/

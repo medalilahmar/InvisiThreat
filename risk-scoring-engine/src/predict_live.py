@@ -885,7 +885,7 @@ class ResultPublisher:
             json.dump(payload, fh, indent=2, ensure_ascii=False, default=str)
         logger.info("Predictions saved: %s (%d findings)", output_path, len(results))
         model_version = results[0].model_version if results else "latest"
-        ResultPublisher._save_scores_to_history(results, model_version)
+        #ResultPublisher._save_scores_to_history(results, model_version)
 
     @staticmethod
     def _build_note(result: PredictionResult) -> str:
