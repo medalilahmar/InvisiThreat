@@ -521,7 +521,7 @@ jobs:
             --json \
             --output=/src/semgrep-results.json \
             --error \
-            /src 2>/dev/null || true
+            /src 
 
         # ── Fallback fichier vide ──
         [ ! -s semgrep-results.json ] && \

@@ -31,6 +31,14 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Health check — requis par le pipeline (ZAP health check)
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', app: 'ShopLite API', version: '1.0.0' });
+});
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);

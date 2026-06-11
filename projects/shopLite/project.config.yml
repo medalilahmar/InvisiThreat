@@ -11,7 +11,7 @@ app:
   port: 3000
   install_dir: ""
   start_command: "node src/app.js"
-  health_check_path: "/"
+  health_check_path: "/health"
   startup_wait: 10
 
 security:
@@ -27,7 +27,7 @@ security:
 
   snyk_severity_threshold: "low"
 
-  zap_full_scan_timeout: 5
+  zap_full_scan_timeout: 10
 
   # Pas de JWT — session cookie uniquement
   zap_jwt_login_endpoint: ""
