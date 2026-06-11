@@ -30,6 +30,7 @@ on:
           - "nova"
           - "campusConnect"
           - "secureVault-API"
+          - "shopLite"
 
           
 
