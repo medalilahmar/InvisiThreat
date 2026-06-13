@@ -28,7 +28,7 @@ security:
 
   snyk_severity_threshold: "low"
 
-  zap_full_scan_timeout: 10
+  zap_full_scan_timeout: 1
 
   # Pas de JWT — session cookie uniquement
   zap_jwt_login_endpoint: ""
