@@ -128,7 +128,7 @@ def _base_email(
     secondary_url: str = None,
     secondary_label: str = None,
 ) -> str:
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    frontend_url = os.getenv("FRONTEND_URL", "http://invisithreat.local/login")
     cta_href = cta_url if cta_url.startswith("http") else f"{frontend_url}{cta_url}"
 
     secondary_btn = ""

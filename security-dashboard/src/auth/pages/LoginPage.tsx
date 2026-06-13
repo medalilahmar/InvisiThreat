@@ -44,7 +44,7 @@ export default function LoginPage() {
 
       if (code === 'ACCOUNT_LOCKED') {
         const minutes = err?.minutesLeft ?? 30;
-        setError(`🔒 Account locked. Try again in ${minutes} minutes.`);
+        setError(`🔒 Compte verrouillé. Veuillez réessayer dans ${minutes} minutes.`);
 
       } else if (code === 'ACCOUNT_PENDING') {
         navigate('/auth/pending', { replace: true });
@@ -55,10 +55,10 @@ export default function LoginPage() {
         return;
 
       } else if (code === 'INVALID_CREDENTIALS') {
-        setError('Invalid username or password');
+        setError('Nom d’utilisateur ou mot de passe incorrect');
 
       } else {
-        setError(message || 'An error occurred. Please try again.');
+        setError(message || 'Une erreur s’est produite. Veuillez réessayer.');
       }
 
       setLoading(false);
@@ -82,34 +82,34 @@ export default function LoginPage() {
             Invisi<span>Threat</span>
           </h1>
           <p className="lp-brand-desc">
-            Security Intelligence Platform for modern SOC teams. Monitor,
-            analyze and respond to threats in real time.
+            Plateforme d’Intelligence de Sécurité pour les équipes SOC modernes.
+            Surveillez, analysez et répondez aux menaces en temps réel.
           </p>
 
           <div className="lp-stats">
             <div className="lp-stat">
               <span className="lp-stat-value">99.9%</span>
-              <span className="lp-stat-label">Uptime</span>
+              <span className="lp-stat-label">Disponibilité</span>
             </div>
             <div className="lp-stat-divider" />
             <div className="lp-stat">
               <span className="lp-stat-value">24/7</span>
-              <span className="lp-stat-label">Monitoring</span>
+              <span className="lp-stat-label">Surveillance</span>
             </div>
             <div className="lp-stat-divider" />
             <div className="lp-stat">
               <span className="lp-stat-value">TLS 1.3</span>
-              <span className="lp-stat-label">Encrypted</span>
+              <span className="lp-stat-label">Chiffré</span>
             </div>
           </div>
 
           <div className="lp-system-status">
             <span className="lp-status-dot" />
-            All systems operational
+            Tous les systèmes sont opérationnels
           </div>
         </div>
 
-        <div className="lp-left-version">v2.4.1 · SOC Command Center</div>
+        <div className="lp-left-version">v2.4.1 · Centre de Commandement SOC</div>
       </div>
 
       {/* ── Panel droit — Formulaire ── */}
@@ -118,23 +118,23 @@ export default function LoginPage() {
 
           <div className="lp-form-header">
             <Link to="/" className="lp-back-home">
-              ← Home
+              ← Accueil
             </Link>
-            <h2 className="lp-form-title">Welcome back</h2>
-            <p className="lp-form-subtitle">Sign in to your account to continue</p>
+            <h2 className="lp-form-title">Bienvenue </h2>
+            <p className="lp-form-subtitle">Connectez-vous à votre compte pour continuer</p>
           </div>
 
           <form className="lp-form" onSubmit={handleSubmit}>
 
             <div className="lp-field">
-              <label className="lp-label" htmlFor="username">Username</label>
+              <label className="lp-label" htmlFor="username">Nom d’utilisateur</label>
               <input
                 id="username"
                 className="lp-input"
                 type="text"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="Enter your username"
+                placeholder="Entrez votre nom d’utilisateur"
                 required
                 autoFocus
                 autoComplete="username"
@@ -143,7 +143,7 @@ export default function LoginPage() {
 
             <div className="lp-field">
               <div className="lp-label-row">
-                <label className="lp-label" htmlFor="password">Password</label>
+                <label className="lp-label" htmlFor="password">Mot de passe</label>
               </div>
               <div className="lp-input-wrap">
                 <input
@@ -176,17 +176,17 @@ export default function LoginPage() {
 
             <button type="submit" className="lp-btn" disabled={loading}>
               {loading ? (
-                <><span className="lp-spinner" /> Authenticating…</>
+                <><span className="lp-spinner" /> Authentification en cours…</>
               ) : (
-                'Sign in'
+                'Se connecter'
               )}
             </button>
 
           </form>
 
           <p className="lp-footer-text">
-            Don't have an account?{' '}
-            <Link to="/register" className="lp-footer-link">Create access →</Link>
+            Vous n'avez pas de compte?{' '}
+            <Link to="/register" className="lp-footer-link">Créer un compte →</Link>
           </p>
 
         </div>

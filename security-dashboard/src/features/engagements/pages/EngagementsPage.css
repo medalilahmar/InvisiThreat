@@ -4,73 +4,118 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ─── Page wrapper ───────────────────────────────────────────────────────── */
 .engagements-page {
-  padding: 2rem;
+  min-height: 100vh;
+  position:   relative;
+  overflow-x: hidden;
+}
+
+.ep-inner {
+  position:  relative;
+  z-index:   var(--z-content);
+  padding:   var(--space-8) var(--space-6);
+  max-width: var(--content-max);
+  margin:    0 auto;
   animation: fadeInUp 0.6s ease;
+}
+
+/* ─── States ─────────────────────────────────────────────────────────────── */
+.ep-state {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             var(--space-3);
+  min-height:      40vh;
+  font-family:     var(--font-mono);
+  font-size:       13px;
+  letter-spacing:  .06em;
+}
+
+.ep-state--loading { color: var(--dimmed); }
+.ep-state--error   { color: var(--severity-critical); }
+
+.ep-spinner {
+  width:            14px;
+  height:           14px;
+  border:           2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius:    50%;
+  animation:        spin .8s linear infinite;
+  flex-shrink:      0;
 }
 
 /* ─── Grid ───────────────────────────────────────────────────────────────── */
 .engagements-grid {
-  display: grid;
+  display:               grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.8rem;
-  margin-top: 2rem;
+  gap:                   var(--space-6);
+  margin-top:            var(--space-8);
 }
 
 /* ─── Card ───────────────────────────────────────────────────────────────── */
 .engagement-card {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 1.8rem;
+  background:      var(--bg3);
+  border:          1px solid var(--border);
+  border-radius:   var(--radius-xl);
+  padding:         var(--space-6);
   text-decoration: none;
-  display: flex;
-  flex-direction: column;
-  transition: all var(--transition-normal);
-  cursor: pointer;
+  display:         flex;
+  flex-direction:  column;
+  transition:      all var(--transition-normal);
+  cursor:          pointer;
 }
 
 .engagement-card:hover {
-  transform: translateY(-6px);
-  background: var(--bg2);
+  transform:    translateY(-6px);
+  background:   var(--bg2);
   border-color: var(--border2);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  box-shadow:   var(--shadow-lg);
 }
 
 .engagement-card-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-  line-height: 1;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           52px;
+  height:          52px;
+  border-radius:   var(--radius-lg);
+  background:      var(--accent-muted);
+  border:          1px solid var(--accent-border);
+  color:           var(--accent);
+  margin-bottom:   var(--space-4);
+  flex-shrink:     0;
+  transition:      all var(--transition-normal);
+}
+
+.engagement-card:hover .engagement-card-icon {
+  background: var(--accent-muted);
+  box-shadow: var(--shadow-glow-cyan);
 }
 
 .engagement-card-name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: var(--text);
-  margin-bottom: 0.8rem;
-  word-break: break-word;
+  font-family:  var(--font-display);
+  font-weight:  700;
+  font-size:    1.15rem;
+  color:        var(--text);
+  margin-bottom: var(--space-3);
+  word-break:   break-word;
+  letter-spacing: -.01em;
 }
 
 .engagement-card-meta {
-  display: flex;
+  display:      flex;
   flex-direction: column;
-  gap: 0.3rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--dimmed);
-  border-top: 1px solid var(--border);
-  padding-top: 0.8rem;
-  margin-top: auto;
+  gap:          var(--space-1);
+  font-family:  var(--font-mono);
+  font-size:    0.72rem;
+  color:        var(--dimmed);
+  border-top:   1px solid var(--border);
+  padding-top:  var(--space-3);
+  margin-top:   auto;
+  letter-spacing: .04em;
 }

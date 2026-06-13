@@ -338,8 +338,8 @@ export default function FindingDetailPage() {
         <div className="fdp-stats-grid fu2">
           <StatCard label="CVSS Score"     value={finding.cvss_score ?? 'N/A'} unit="/10"  color="var(--severity-critical)" />
           <StatCard label="Âge"            value={finding.age_days ?? 'N/A'}   unit="jours" color="var(--severity-medium)" />
-          <StatCard label="Confiance IA"   value={aiScore?.confidence ? `${(aiScore.confidence * 100).toFixed(0)}` : 'N/A'} unit="%" color="var(--severity-info)" />
-          <StatCard label="Score Contexte" value={aiScore?.context_score ?? 'N/A'} unit="/10" color="var(--accent)" />
+          <StatCard label="EPSS Score" value={finding.epss_score != null ? (finding.epss_score * 100).toFixed(1) : 'N/A'} unit="%" color="var(--severity-info)" />
+          <StatCard label="Score Contexte" value={aiScore?.context_score ?? 'N/A'} unit="/5" color="var(--accent)" />
           <StatCard label="CVE"            value={(finding as any).cve ?? (finding.has_cve ? 'Présent' : '—')} color={finding.has_cve ? 'var(--severity-critical)' : undefined} textSize />
           <div className="fdp-stat-card" style={{ '--acc-color': 'var(--severity-low)' } as React.CSSProperties}>
             <div className="fdp-stat-label">TAGS</div>

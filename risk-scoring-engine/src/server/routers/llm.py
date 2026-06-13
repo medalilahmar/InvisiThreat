@@ -103,16 +103,16 @@ def _explanation_fallback(
     """Return a minimal explanation response when the LLM cannot be reached."""
     return LLMExplanationResponse(
         finding_id=fid,
-        summary=f"Vulnerability {severity.upper()}: {title}",
-        impact=f"Severity {severity} (CVSS: {cvss or 'N/A'}) — security risk requiring review.",
-        root_cause="Automatic analysis unavailable.",
-        exploitation_difficulty="Medium",
+        summary=f"Vulnérabilité {severity.upper()} : {title}",
+        impact=f"Sévérité {severity} (CVSS : {cvss or 'N/A'}) — risque de sécurité nécessitant une révision.",
+        root_cause="Analyse automatique indisponible.",
+        exploitation_difficulty="Moyen",
         priority_note=(
-            "Immediate"
+            "Immédiat"
             if severity.lower() in ("critical", "high")
-            else "Week"
+            else "Semaine"
             if severity.lower() == "medium"
-            else "Month"
+            else "Mois"
         ),
     )
 
@@ -121,16 +121,16 @@ def _recommendation_fallback(fid: int) -> LLMRecommendationResponse:
     """Return a generic remediation plan when the LLM cannot be reached."""
     return LLMRecommendationResponse(
         finding_id=fid,
-        title="General Remediation Recommendations",
+        title="Recommandations générales de remédiation",
         recommendations=[
-            "Review the source code around the affected file and identify all occurrences of the vulnerable pattern.",
-            "Apply the OWASP-recommended fix for this vulnerability class following your language and framework guidelines.",
-            "Write tests covering both normal use cases and adversarial inputs to prevent regressions.",
-            "Re-run the security scanner after applying the fix to confirm the finding is resolved.",
+            "Examiner le code source autour du fichier affecté et identifier toutes les occurrences du pattern vulnérable.",
+            "Appliquer le correctif recommandé par l'OWASP pour cette classe de vulnérabilité en suivant les directives de votre langage et framework.",
+            "Écrire des tests couvrant les cas d'usage normaux et les entrées adversariales pour prévenir les régressions.",
+            "Relancer le scanner de sécurité après application du correctif pour confirmer que le constat est résolu.",
         ],
         references=["https://owasp.org/www-project-top-ten/"],
-        verification="Re-run the SAST scanner and confirm zero findings for this vulnerability class.",
-        prevention="Integrate a SAST rule in the CI/CD pipeline to catch this class of vulnerability in future pull requests.",
+        verification="Relancer le scanner SAST et confirmer l'absence de constats pour cette classe de vulnérabilité.",
+        prevention="Intégrer une règle SAST dans le pipeline CI/CD pour détecter cette classe de vulnérabilité dans les futures pull requests.",
     )
 
 
@@ -143,8 +143,8 @@ def _solution_fallback(
         vulnerable_snippet=None,
         fixed_snippet=None,
         explanation=(
-            f"Automatic code fix unavailable for '{title}' ({severity}). "
-            "Verify that the finding is a SAST type with file_path and line populated."
+            f"Correctif automatique indisponible pour '{title}' ({severity}). "
+            "Vérifiez que le constat est de type SAST avec file_path et line renseignés."
         ),
         confidence=0.0,
         has_file=False,
@@ -234,7 +234,7 @@ async def recommend_with_llm(request: LLMRequest) -> LLMRecommendationResponse:
         return _recommendation_fallback(request.finding_id)
     return LLMRecommendationResponse(
         finding_id=request.finding_id,
-        title=result.get("title", "AI Recommendations"),
+        title=result.get("title", "Recommandations IA"),
         recommendations=result.get("recommendations", []),
         references=result.get("references", []),
         verification=result.get("verification"),

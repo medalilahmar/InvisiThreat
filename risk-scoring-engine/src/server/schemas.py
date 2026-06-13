@@ -259,6 +259,8 @@ class FindingSummaryResponse(BaseModel):
     model_base_score:    Optional[float]             = None
     business_nudge:      Optional[float]             = None
     shap_features:       Optional[List[Dict[str, Any]]] = None
+    epss_score: Optional[float] = None
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════

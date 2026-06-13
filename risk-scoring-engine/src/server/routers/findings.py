@@ -48,6 +48,7 @@ def _finding_to_response(f: Dict, scores_cache: Dict) -> FindingSummaryResponse:
 
     severity_raw = f.get("severity")
     cve_value    = safe_str(f.get("cve"))
+    epss_score = safe_float(f.get("epss_score"), 0.0)
 
     if severity_raw is None or (not isinstance(severity_raw, str) and pd.isna(severity_raw)):
         sev_num = f.get("severity_num")
@@ -107,6 +108,8 @@ def _finding_to_response(f: Dict, scores_cache: Dict) -> FindingSummaryResponse:
         model_base_score   = model_base,
         business_nudge     = nudge,
         shap_features      = shap_feats,
+        epss_score = epss_score,
+
     )
 
 

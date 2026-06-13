@@ -12,6 +12,7 @@ export interface Finding {
   test_type_name?: string;
   created?: string;
   age_days?: number | null;
+  epss_score?: number | null;
   file_path?: string | null;
   line?: number | null;
   has_cve?: number | null;

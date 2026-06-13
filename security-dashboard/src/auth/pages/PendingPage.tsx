@@ -15,28 +15,28 @@ export default function PendingPage() {
         </div>
 
         {/* Titre */}
-        <h2 className="pp-title">Account pending approval</h2>
+        <h2 className="pp-title">Validation du compte en attente</h2>
         <p className="pp-desc">
-          Your account has been created successfully. An administrator
-          must validate your access and assign you to your projects
-          before you can sign in.
+          Votre compte a été créé avec succès. Un administrateur
+          doit valider votre accès et vous assigner à vos projets
+          avant de pouvoir vous connecter.
         </p>
 
         {/* Info box */}
         <div className="pp-info">
           <span className="pp-info-icon">💡</span>
-          <span>You will be notified once your account is approved by the security team.</span>
+          <span>Vous serez notifié une fois que votre compte sera approuvé par l'équipe de sécurité.</span>
         </div>
 
         {/* Status */}
         <div className="pp-status">
           <span className="pp-status-dot" />
-          <span className="pp-status-text">Awaiting administrator review</span>
+          <span className="pp-status-text">En attente de révision de l'administrateur</span>
         </div>
 
         {/* Lien retour */}
         <Link to="/login" className="pp-back">
-          ← Back to sign in
+          ← Retour à la page de connexion
         </Link>
       </div>
     </div>

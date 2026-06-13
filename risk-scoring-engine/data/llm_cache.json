@@ -294,5 +294,69 @@
     "priority_note": "Immediate — Prototype Pollution vulnerabilities can affect every user who visits the affected page, including administrators. Delaying the fix increases the risk of a mass session hijacking incident.",
     "from_cache": false,
     "_fallback": false
+  },
+  "6656452fb28cf098d6598a9525834e43": {
+    "summary": "The `juice-shop@19.1.1` package contains an RCE vulnerability in the `vm2` module, which can be exploited to execute arbitrary code with whitelisted Node.js built-in modules. This vulnerability is particularly dangerous because it allows attackers to inject malicious JavaScript that executes in the context of other users' browsers. The affected page is accessible to all authenticated users.",
+    "impact": "An attacker can steal session cookies and hijack authenticated user sessions, gaining full access to their accounts. Malicious scripts can also be used to perform actions on behalf of victims, such as changing passwords or exfiltrating personal data. If an admin account is compromised, the attacker gains elevated privileges over the entire application. This can lead to a full account takeover incident affecting all users of the platform.",
+    "root_cause": "The `vm2` module renders user-supplied profile data directly into the HTML template without encoding special characters. The developer used innerHTML instead of textContent, which allows HTML tags and script elements to be interpreted by the browser.",
+    "exploitation_difficulty": "Easy — An attacker only needs to save a malicious script in their profile field; no special tools or authentication bypass is required.",
+    "priority_note": "Immediate — Stored XSS vulnerabilities can affect every user who visits the infected page, including administrators. Delaying the fix increases the risk of a mass session hijacking incident.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "80babc477f7040267990725dc0e442b1": {
+    "title": "Fix Remote Code Execution in juice-shop@19.1.1 by Sanitizing Inputs",
+    "recommendations": [
+      "Replace all innerHTML assignments with textContent or use DOMPurify to sanitize HTML before rendering, preventing the browser from executing injected script tags.",
+      "Apply server-side output encoding on all user-supplied fields using a library such as OWASP Java Encoder or Python's html.escape() before inserting data into HTML templates.",
+      "Implement a strict Content Security Policy (CSP) header with 'script-src self' to block execution of injected inline scripts even if encoding is missed in one location.",
+      "Add server-side input validation to reject inputs containing HTML tags or JavaScript event handlers in fields that are not expected to contain markup."
+    ],
+    "references": [
+      "https://owasp.org/www-community/attacks/xss/",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+      "https://cwe.mitre.org/data/definitions/79.html"
+    ],
+    "verification": "Re-run the SAST scanner and DAST tool against the fixed endpoint and confirm zero RCE findings remain. Manually test by attempting to execute a command injection payload in the input field and verify it is rendered as plain text.",
+    "prevention": "Add a SAST rule in the CI/CD pipeline that fails pull requests containing innerHTML assignments or unencoded template variables. Require all developers to complete OWASP XSS training and enforce output encoding as a mandatory code review checklist item.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "3978084ea23117c2a6cd88622e2d8f6b": {
+    "title": "Remplacement du tamponage des entrées par encodage de sortie et CSP",
+    "recommendations": [
+      "Remplacer tous les usages de innerHTML par textContent ou utiliser DOMPurify pour assainir le HTML avant le rendu, empêchant le navigateur d'interpréter les balises script injectées.",
+      "Appliquer un encodage de sortie côté serveur sur tous les champs utilisateur via une bibliothèque comme html.escape() en Python avant d'insérer les données dans les templates HTML.",
+      "Mettre en place un en-tête Content Security Policy strict avec 'script-src self' pour bloquer l'exécution de scripts inline injectés même si l'encodage est manqué à un endroit.",
+      "Ajouter une validation serveur pour rejeter les entrées contenant des balises HTML ou des gestionnaires d'événements JavaScript dans les champs qui ne doivent pas contenir de balisage.",
+      "Auditer tous les templates pour détecter d'autres instances de données utilisateur non encodées et appliquer le même correctif de manière cohérente dans toute la base de code."
+    ],
+    "references": [
+      "https://owasp.org/www-community/attacks/xss/",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+      "https://cwe.mitre.org/data/definitions/79.html"
+    ],
+    "verification": "Relancer le scanner SAST et l'outil DAST sur l'endpoint corrigé et confirmer qu'aucune vulnérabilité XSS ne subsiste. Tester manuellement en tentant d'enregistrer un payload <script>alert(1)</script> et vérifier qu'il est affiché en texte brut.",
+    "prevention": "Ajouter une règle SAST dans le pipeline CI/CD qui bloque les pull requests contenant des usages de innerHTML ou des variables de template non encodées. Exiger une formation OWASP XSS pour tous les développeurs et intégrer l'encodage de sortie dans la checklist de revue de code.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "d54fd23999bfe781aeb5f18bc2ef298b": {
+    "summary": "Cette vulnérabilité XSS existe sur la page d'inscription utilisateur où les données non filtrées sont injectées directement dans le DOM HTML. Elle permet à un attaquant d'exécuter du JavaScript arbitraire dans le navigateur d'autres utilisateurs. La page affectée est accessible à tous les utilisateurs authentifiés, ce qui amplifie la surface d'attaque.",
+    "impact": "Un attaquant peut voler les cookies de session et détourner des comptes authentifiés. Des scripts malveillants peuvent effectuer des actions au nom des victimes, comme changer leur mot de passe ou exfiltrer des données personnelles. Si un compte administrateur est compromis, l'attaquant obtient des privilèges élevés sur toute l'application. Cela peut conduire à une compromission massive de comptes utilisateurs.",
+    "root_cause": "L'application insère les données utilisateur directement dans le template HTML sans encodage des caractères spéciaux. Le développeur a utilisé innerHTML au lieu de textContent, permettant au navigateur d'interpréter les balises HTML et les scripts injectés.",
+    "exploitation_difficulty": "Facile — Un attaquant n'a besoin que d'enregistrer un script malveillant dans son champ de profil ; aucun outil spécial ni contournement d'authentification n'est requis.",
+    "priority_note": "Immédiat — Les vulnérabilités XSS stockées peuvent affecter chaque utilisateur visitant la page infectée, y compris les administrateurs. Tout délai dans la correction augmente le risque de détournement de sessions en masse.",
+    "from_cache": false,
+    "_fallback": false
+  },
+  "d1e313d4c901752ab4a83f7c19d49361": {
+    "summary": "Cette vulnérabilité No-Console-Log existe sur le fichier server.js, dans la fonction `logError` qui affiche un message d'erreur à l'écran. Elle permet à un attaquant de voir les messages d'erreur en production, ce qui peut être utile pour comprendre les problèmes sous-jacents.",
+    "impact": "Un attaquant peut identifier des erreurs techniques et les corriger rapidement. Cela pourrait réduire la complexité du développement et améliorer la qualité de l'applicatif. Si un problème critique est identifié, le développeur peut corriger rapidement pour éviter une défaillance.",
+    "root_cause": "Le code utilise `console.log` pour afficher les messages d'erreur à l'écran. Cela n'est pas sécurisé car les messages peuvent être capturés par un attaquant et analysés pour comprendre les problèmes sous-jacents.",
+    "exploitation_difficulty": "Facile — Un attaquant peut facilement identifier la fonction `logError` dans le code source. Il peut ensuite utiliser des outils de développement web comme DevTools pour voir les messages d'erreur.",
+    "priority_note": "48h — Les vulnérabilités No-Console-Log stockées peuvent affecter chaque utilisateur visitant l'application, y compris les administrateurs. Tout délai dans la correction augmente le risque de défaillance.",
+    "from_cache": false,
+    "_fallback": false
   }
 }

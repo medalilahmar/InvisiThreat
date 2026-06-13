@@ -29,35 +29,110 @@ interface Props {
   users:        AppUser[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  open:        "#666",
-  in_progress: "#ffa502",
-  resolved:    "#2ed573",
-  wont_fix:    "#ff4757",
+const STATUS_CLASSES: Record<string, string> = {
+  open:        'fa-status--open',
+  in_progress: 'fa-status--progress',
+  resolved:    'fa-status--resolved',
+  wont_fix:    'fa-status--wont-fix',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  open:        "⬜ Ouvert",
-  in_progress: "🔄 En cours",
-  resolved:    "✅ Résolu",
-  wont_fix:    "🚫 Won't fix",
+  open:        'Ouvert',
+  in_progress: 'En cours',
+  resolved:    'Résolu',
+  wont_fix:    "Won't fix",
 };
 
-export default function FindingActions({
-  findingId, findingTitle, productName, severity, aiRiskScore, users
-}: Props) {
+/* ── SVG icons ────────────────────────────────────────────────────────────── */
 
-  const [metadata,      setMetadata]      = useState<Metadata | null>(null);
-  const [loading,       setLoading]       = useState(true);
+function IconPin() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  );
+}
+
+function IconUser() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
+function IconChevron() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  );
+}
+
+function IconStatus() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+}
+
+function IconRemove() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6"  y1="6" x2="18" y2="18"/>
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  );
+}
+
+function IconError() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8"  x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  );
+}
+
+/* ── Component ────────────────────────────────────────────────────────────── */
+
+export default function FindingActions({
+  findingId, findingTitle, productName, severity, aiRiskScore, users,
+}: Props) {
+  const [metadata,       setMetadata]       = useState<Metadata | null>(null);
+  const [loading,        setLoading]        = useState(true);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [actionLoading,  setActionLoading]  = useState(false);
-  const [message,        setMessage]        = useState<string | null>(null);
+  const [message,        setMessage]        = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Fetch unique au montage — 1 seul finding, pas de problème de rate limit
-  useEffect(() => {
-    fetchMetadata();
-  }, [findingId]);
+  useEffect(() => { fetchMetadata(); }, [findingId]);
 
   const fetchMetadata = async () => {
     try {
@@ -65,14 +140,14 @@ export default function FindingActions({
       const res = await apiClient.get(`/findings/${findingId}/metadata`);
       setMetadata(res.data);
     } catch (err) {
-      console.error("Erreur metadata", err);
+      console.error('Erreur metadata', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const showMsg = (msg: string) => {
-    setMessage(msg);
+  const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
+    setMessage({ text, type });
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -81,19 +156,19 @@ export default function FindingActions({
       setActionLoading(true);
       if (metadata?.is_pinned) {
         await apiClient.delete(`/findings/${findingId}/pin`);
-        showMsg("Finding désépinglé");
+        showMsg('Finding désépinglé');
       } else {
         await apiClient.post(`/findings/${findingId}/pin`, {
-          finding_title:   findingTitle,
-          product_name:    productName,
+          finding_title: findingTitle,
+          product_name:  productName,
           severity,
-          ai_risk_score:   aiRiskScore,
+          ai_risk_score: aiRiskScore,
         });
-        showMsg("Finding épinglé 📌");
+        showMsg('Finding épinglé');
       }
       await fetchMetadata();
     } catch (err: any) {
-      showMsg(`❌ ${err.response?.data?.detail || err.message}`);
+      showMsg(err.response?.data?.detail || err.message, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -110,10 +185,10 @@ export default function FindingActions({
         severity,
         ai_risk_score:  aiRiskScore,
       });
-      showMsg(`✅ Assigné à ${username}`);
+      showMsg(`Assigné à ${username}`);
       await fetchMetadata();
     } catch (err: any) {
-      showMsg(`❌ ${err.response?.data?.detail || err.message}`);
+      showMsg(err.response?.data?.detail || err.message, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -124,10 +199,10 @@ export default function FindingActions({
       setActionLoading(true);
       setShowAssignMenu(false);
       await apiClient.delete(`/findings/${findingId}/assign`);
-      showMsg("Assignation retirée");
+      showMsg('Assignation retirée');
       await fetchMetadata();
     } catch (err: any) {
-      showMsg(`❌ ${err.response?.data?.detail || err.message}`);
+      showMsg(err.response?.data?.detail || err.message, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -138,10 +213,10 @@ export default function FindingActions({
       setActionLoading(true);
       setShowStatusMenu(false);
       await apiClient.patch(`/findings/${findingId}/status`, { status });
-      showMsg(`Statut → ${STATUS_LABELS[status]}`);
+      showMsg(`Statut mis à jour : ${STATUS_LABELS[status]}`);
       await fetchMetadata();
     } catch (err: any) {
-      showMsg(`❌ ${err.response?.data?.detail || err.message}`);
+      showMsg(err.response?.data?.detail || err.message, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -149,139 +224,74 @@ export default function FindingActions({
 
   if (loading) {
     return (
-      <div style={{ color: "#666", fontSize: "13px" }}>
-        Chargement...
+      <div className="fa-loading">
+        <div className="fa-loading-spinner" />
+        <span>Chargement...</span>
       </div>
     );
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+  const currentStatus = metadata?.status || 'open';
 
-      {/* Message feedback */}
+  return (
+    <div className="fa-root">
+
+      {/* ── Message feedback ── */}
       {message && (
-        <div style={{
-          padding:      "8px 14px",
-          background:   "rgba(0,212,255,0.1)",
-          border:       "1px solid rgba(0,212,255,0.3)",
-          borderRadius: "8px",
-          color:        "#00d4ff",
-          fontSize:     "13px",
-        }}>
-          {message}
+        <div className={`fa-message fa-message--${message.type}`}>
+          {message.type === 'success' ? <IconCheck /> : <IconError />}
+          {message.text}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+      <div className="fa-actions-row">
 
         {/* ── Épingler ── */}
         <button
           onClick={handlePin}
           disabled={actionLoading}
-          style={{
-            display:      "flex",
-            alignItems:   "center",
-            gap:          "6px",
-            padding:      "8px 16px",
-            background:   metadata?.is_pinned
-              ? "rgba(255,165,0,0.15)"
-              : "rgba(255,255,255,0.05)",
-            border:       `1px solid ${metadata?.is_pinned
-              ? "rgba(255,165,0,0.5)"
-              : "rgba(255,255,255,0.1)"}`,
-            borderRadius: "8px",
-            color:        metadata?.is_pinned ? "#ffa502" : "#aaa",
-            fontSize:     "13px",
-            cursor:       actionLoading ? "not-allowed" : "pointer",
-            transition:   "all 0.2s",
-          }}
+          className={`fa-btn${metadata?.is_pinned ? ' fa-btn--pinned' : ''}`}
         >
-          📌 {metadata?.is_pinned ? "Désépingler" : "Épingler"}
+          <IconPin />
+          {metadata?.is_pinned ? 'Désépingler' : 'Épingler'}
         </button>
 
         {/* ── Assigner ── */}
-        <div style={{ position: "relative" }}>
+        <div className="fa-dropdown-wrap">
           <button
             onClick={() => { setShowAssignMenu(!showAssignMenu); setShowStatusMenu(false); }}
             disabled={actionLoading}
-            style={{
-              display:      "flex",
-              alignItems:   "center",
-              gap:          "6px",
-              padding:      "8px 16px",
-              background:   metadata?.assigned_to
-                ? "rgba(46,213,115,0.15)"
-                : "rgba(255,255,255,0.05)",
-              border:       `1px solid ${metadata?.assigned_to
-                ? "rgba(46,213,115,0.5)"
-                : "rgba(255,255,255,0.1)"}`,
-              borderRadius: "8px",
-              color:        metadata?.assigned_to ? "#2ed573" : "#aaa",
-              fontSize:     "13px",
-              cursor:       actionLoading ? "not-allowed" : "pointer",
-            }}
+            className={`fa-btn${metadata?.assigned_to ? ' fa-btn--assigned' : ''}`}
           >
-            👤 {metadata?.assigned_to
-              ? `Assigné : ${metadata.assigned_to}`
-              : "Assigner"
-            }
+            <IconUser />
+            {metadata?.assigned_to ? `Assigné : ${metadata.assigned_to}` : 'Assigner'}
+            <IconChevron />
           </button>
 
           {showAssignMenu && (
-            <div style={{
-              position:     "absolute",
-              top:          "calc(100% + 6px)",
-              left:         0,
-              background:   "#0d1117",
-              border:       "1px solid rgba(255,255,255,0.15)",
-              borderRadius: "10px",
-              minWidth:     "220px",
-              zIndex:       100,
-              overflow:     "hidden",
-              boxShadow:    "0 12px 40px rgba(0,0,0,0.5)",
-            }}>
+            <div className="fa-dropdown">
               {metadata?.assigned_to && (
                 <div
+                  className="fa-dropdown-item fa-dropdown-item--danger"
                   onClick={handleUnassign}
-                  style={{
-                    padding:      "10px 14px",
-                    color:        "#ff4757",
-                    fontSize:     "13px",
-                    cursor:       "pointer",
-                    borderBottom: "1px solid rgba(255,255,255,0.07)",
-                  }}
                 >
-                  ✕ Retirer l'assignation
+                  <IconRemove />
+                  Retirer l'assignation
                 </div>
               )}
               {users.map(user => (
                 <div
                   key={user.id}
+                  className="fa-dropdown-item"
                   onClick={() => handleAssign(user.id, user.username)}
-                  style={{
-                    padding:        "10px 14px",
-                    color:          "#ddd",
-                    fontSize:       "13px",
-                    cursor:         "pointer",
-                    display:        "flex",
-                    justifyContent: "space-between",
-                    alignItems:     "center",
-                  }}
                 >
-                  <span>👤 {user.username}</span>
-                  <span style={{
-                    fontSize:     "10px",
-                    color:        "#666",
-                    background:   "rgba(255,255,255,0.05)",
-                    padding:      "2px 6px",
-                    borderRadius: "4px",
-                  }}>
-                    {user.role}
-                  </span>
+                  <IconUser />
+                  <span className="fa-dropdown-username">{user.username}</span>
+                  <span className="fa-dropdown-role">{user.role}</span>
                 </div>
               ))}
               {users.length === 0 && (
-                <div style={{ padding: "12px", color: "#555", fontSize: "13px" }}>
+                <div className="fa-dropdown-empty">
                   Aucun développeur disponible
                 </div>
               )}
@@ -290,82 +300,61 @@ export default function FindingActions({
         </div>
 
         {/* ── Statut ── */}
-        <div style={{ position: "relative" }}>
+        <div className="fa-dropdown-wrap">
           <button
             onClick={() => { setShowStatusMenu(!showStatusMenu); setShowAssignMenu(false); }}
             disabled={actionLoading}
-            style={{
-              display:      "flex",
-              alignItems:   "center",
-              gap:          "6px",
-              padding:      "8px 16px",
-              background:   "rgba(255,255,255,0.05)",
-              border:       "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "8px",
-              color:        STATUS_COLORS[metadata?.status || "open"],
-              fontSize:     "13px",
-              cursor:       actionLoading ? "not-allowed" : "pointer",
-            }}
+            className={`fa-btn fa-btn--status ${STATUS_CLASSES[currentStatus]}`}
           >
-            {STATUS_LABELS[metadata?.status || "open"]}
+            <IconStatus />
+            {STATUS_LABELS[currentStatus]}
+            <IconChevron />
           </button>
 
           {showStatusMenu && (
-            <div style={{
-              position:     "absolute",
-              top:          "calc(100% + 6px)",
-              left:         0,
-              background:   "#0d1117",
-              border:       "1px solid rgba(255,255,255,0.15)",
-              borderRadius: "10px",
-              minWidth:     "180px",
-              zIndex:       100,
-              overflow:     "hidden",
-              boxShadow:    "0 12px 40px rgba(0,0,0,0.5)",
-            }}>
+            <div className="fa-dropdown">
               {Object.entries(STATUS_LABELS).map(([key, label]) => (
                 <div
                   key={key}
+                  className={`fa-dropdown-item fa-dropdown-item--status ${STATUS_CLASSES[key]}${currentStatus === key ? ' fa-dropdown-item--active' : ''}`}
                   onClick={() => handleStatus(key)}
-                  style={{
-                    padding:    "10px 14px",
-                    color:      STATUS_COLORS[key],
-                    fontSize:   "13px",
-                    cursor:     "pointer",
-                    background: metadata?.status === key
-                      ? "rgba(255,255,255,0.05)"
-                      : "transparent",
-                  }}
                 >
+                  {currentStatus === key && <IconCheck />}
                   {label}
                 </div>
               ))}
             </div>
           )}
         </div>
+
       </div>
 
       {/* ── Infos assignation ── */}
       {metadata?.assigned_to && (
-        <div style={{ fontSize: "12px", color: "#666", paddingLeft: "4px" }}>
-          Assigné par{" "}
-          <span style={{ color: "#aaa" }}>{metadata.assigned_by}</span>
+        <div className="fa-meta-info">
+          <span className="fa-meta-label">Assigné par</span>
+          <span className="fa-meta-value">{metadata.assigned_by}</span>
           {metadata.assigned_at && (
-            <span> · {new Date(metadata.assigned_at).toLocaleDateString("fr-FR")}</span>
+            <span className="fa-meta-date">
+              · {new Date(metadata.assigned_at).toLocaleDateString('fr-FR')}
+            </span>
           )}
         </div>
       )}
 
       {/* ── Infos épinglage ── */}
       {metadata?.is_pinned && (
-        <div style={{ fontSize: "12px", color: "#666", paddingLeft: "4px" }}>
-          Épinglé par{" "}
-          <span style={{ color: "#ffa502" }}>{metadata.pinned_by}</span>
+        <div className="fa-meta-info">
+          <span className="fa-meta-label">Épinglé par</span>
+          <span className="fa-meta-value fa-meta-value--pinned">{metadata.pinned_by}</span>
           {metadata.pinned_at && (
-            <span> · {new Date(metadata.pinned_at).toLocaleDateString("fr-FR")}</span>
+            <span className="fa-meta-date">
+              · {new Date(metadata.pinned_at).toLocaleDateString('fr-FR')}
+            </span>
           )}
         </div>
       )}
+
     </div>
   );
 }

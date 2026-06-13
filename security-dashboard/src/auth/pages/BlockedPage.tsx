@@ -32,16 +32,16 @@ export default function BlockedPage() {
           <div className="bp-brand-mark">🛡️</div>
           <h1 className="bp-brand-name">Invisi<span>Threat</span></h1>
           <p className="bp-brand-desc">
-            Your access to the InvisiThreat platform has been restricted.
-            Please review the information below and contact your administrator.
+            Votre accès à la plateforme InvisiThreat a été restreint.
+            Veuillez consulter les informations ci-dessous et contacter votre administrateur.
           </p>
 
           {/* Compte info */}
           <div className="bp-account-box">
-            <div className="bp-account-box-title">Account details</div>
+            <div className="bp-account-box-title">Détails du compte</div>
 
             <div className="bp-info-row">
-              <span className="bp-info-key">Username</span>
+              <span className="bp-info-key">Nom d'utilisateur</span>
               <span className="bp-info-val">{user?.username ?? '—'}</span>
             </div>
             <div className="bp-info-row">
@@ -54,26 +54,26 @@ export default function BlockedPage() {
             </div>
             {user?.job_title && (
               <div className="bp-info-row">
-                <span className="bp-info-key">Job title</span>
+                <span className="bp-info-key">Poste</span>
                 <span className="bp-info-val">{user.job_title}</span>
               </div>
             )}
             {user?.department && (
               <div className="bp-info-row">
-                <span className="bp-info-key">Department</span>
+                <span className="bp-info-key">Service / Département</span>
                 <span className="bp-info-val">{user.department}</span>
               </div>
             )}
             <div className="bp-info-row">
-              <span className="bp-info-key">Status</span>
-              <span className="bp-status-badge">BLOCKED</span>
+              <span className="bp-info-key">Statut</span>
+              <span className="bp-status-badge">BLOQUÉ</span>
             </div>
           </div>
 
           {/* Status indicator */}
           <div className="bp-system-status">
             <span className="bp-status-dot" />
-            Account access restricted
+            Accès au compte restreint
           </div>
 
         </div>
@@ -89,21 +89,21 @@ export default function BlockedPage() {
           </div>
 
           <div className="bp-form-header">
-            <h2 className="bp-title">Account blocked</h2>
+            <h2 className="bp-title">Compte bloqué</h2>
             <p className="bp-subtitle">
-              Your account has been suspended and you cannot access the platform at this time.
+              Votre compte a été suspendu et vous ne pouvez pas accéder à la plateforme pour le moment.
             </p>
           </div>
 
           {/* Raisons */}
           <div className="bp-section">
-            <div className="bp-section-label">Why was my account blocked?</div>
+            <div className="bp-section-label">Pourquoi mon compte a-t-il été bloqué?</div>
             <div className="bp-reasons">
               {[
-                { icon: '⚠️', text: 'Security policy violation' },
-                { icon: '🔍', text: 'Suspicious activity detected' },
-                { icon: '👤', text: 'Administrative decision' },
-                { icon: '📋', text: 'Terms of service breach' },
+                { icon: '⚠️', text: 'Violation de la politique de sécurité' },
+                { icon: '🔍', text: 'Activité suspecte détectée' },
+                { icon: '👤', text: 'Décision administrative' },
+                { icon: '📋', text: 'Violation des conditions d\'utilisation' },
               ].map((r, i) => (
                 <div className="bp-reason-item" key={i}>
                   <span className="bp-reason-icon">{r.icon}</span>
@@ -117,7 +117,7 @@ export default function BlockedPage() {
           <div className="bp-section">
             <div className="bp-section-label">Contact support</div>
             <p className="bp-support-desc">
-              To appeal this decision or learn more, reach out to the support team:
+              Pour faire appel de cette décision ou en savoir plus, contactez l'équipe de support :
             </p>
             <div className="bp-contacts">
               <a href="mailto:support@invisithreat.com" className="bp-contact">
@@ -126,14 +126,14 @@ export default function BlockedPage() {
               </a>
               <div className="bp-contact">
                 <span className="bp-contact-icon">👤</span>
-                <span>Contact your administrator directly</span>
+                <span>Contactez votre administrateur directement</span>
               </div>
             </div>
           </div>
 
           {/* Action */}
           <button onClick={handleLogout} className="bp-btn-logout">
-            Sign out
+            Se déconnecter
           </button>
 
           <p className="bp-footer-text">

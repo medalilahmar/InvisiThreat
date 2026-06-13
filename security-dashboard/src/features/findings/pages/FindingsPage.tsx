@@ -114,7 +114,7 @@ function exportToPDF(findings: any[], engagementId: number | null) {
 </head>
 <body>
   <div class="report-header">
-    <div class="report-title">THREAT FINDINGS · <span>Engagement #${engagementId}</span></div>
+    <div class="report-title">VULNÉRABILITÉS  · <span>Engagement #${engagementId}</span></div>
     <div class="report-meta">GENERATED ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()} · INVISITHREAT DEVSECOPS PLATFORM</div>
   </div>
   <div class="report-stats">
@@ -126,7 +126,7 @@ function exportToPDF(findings: any[], engagementId: number | null) {
   <table>
     <thead>
       <tr>
-        <th>#ID</th><th>Titre</th><th>Sévérité</th><th>CVSS</th><th>Âge</th><th>Tags</th><th>Score IA</th><th>Confiance</th><th>CVE</th>
+        <th>#ID</th><th>Titre</th><th>Sévérité</th><th>CVSS</th><th>Âge</th><th>Tags</th><th>Score IA</th><th>Confiance</th><th>CVE</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
@@ -343,9 +343,9 @@ export default function FindingsPage() {
 
         {/* ── Stats Row ── */}
         <div className="fp-stats-row fu1">
-          <StatCard value={stats.total}    label="Total Findings" color="var(--accent)" pct={100} />
-          <StatCard value={stats.critical} label="Critical"       color="var(--severity-critical)" pct={stats.total ? (stats.critical / stats.total) * 100 : 0} />
-          <StatCard value={stats.high}     label="High"           color="var(--severity-high)" pct={stats.total ? (stats.high / stats.total) * 100 : 0} />
+          <StatCard value={stats.total}    label="Total Vulnérabilités" color="var(--accent)" pct={100} />
+          <StatCard value={stats.critical} label="Critique"       color="var(--severity-critical)" pct={stats.total ? (stats.critical / stats.total) * 100 : 0} />
+          <StatCard value={stats.high}     label="Haute"           color="var(--severity-high)" pct={stats.total ? (stats.high / stats.total) * 100 : 0} />
           <StatCard value={stats.withCVE}  label="CVE Présents"   color="var(--severity-medium)" pct={stats.total ? (stats.withCVE / stats.total) * 100 : 0} />
           <StatCard value={stats.avgScore} label="Score IA Moy."  color="var(--severity-info)" pct={parseFloat(stats.avgScore as string) / 4 * 100} />
         </div>
@@ -359,7 +359,7 @@ export default function FindingsPage() {
             <input
               className="fp-search-input"
               type="text"
-              placeholder="Rechercher un finding, titre, fichier, tag..."
+              placeholder="Rechercher une vulnérabilité, titre, fichier, tag…"
               value={search}
               onChange={e => handleSearch(e.target.value)}
             />
@@ -497,6 +497,7 @@ export default function FindingsPage() {
                   <th className="fp-th">Confiance</th>
                   <th className="fp-th">Fichier</th>
                   <th className="fp-th">CVE</th>
+                  <th className="fp-th">Actions</th>
                   <th className="fp-th" />
                 </tr>
               </thead>

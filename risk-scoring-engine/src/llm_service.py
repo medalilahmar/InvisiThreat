@@ -48,7 +48,7 @@ LLM_CACHE_PATH: Path = Path(os.getenv("LLM_CACHE_PATH", "data/llm_cache.json"))
 
 LLM_CONNECT_TIMEOUT: int = int(os.getenv("LLM_CONNECT_TIMEOUT", "5"))
 LLM_READ_TIMEOUT: int = int(os.getenv("LLM_READ_TIMEOUT", "300"))
-LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "900"))
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "200"))
 
 # Thread lock used to serialize all cache read/write operations
 _cache_lock = threading.Lock()
@@ -137,58 +137,58 @@ def _build_explanation_prompt(finding: dict) -> str:
     title = finding.get("title", "Unknown")
     severity = finding.get("severity", "medium")
     cvss = finding.get("cvss_score", 0)
-    desc = _safe_str(finding.get("description"))[:400]
+    desc = _safe_str(finding.get("description"))[:300]
     fp = finding.get("file_path", "")
     cve = finding.get("cve", "") or "N/A"
     cwe = finding.get("cwe", "") or "N/A"
 
-    return f"""You are a senior application security engineer writing a detailed vulnerability report for a development team.
-Your goal is to explain clearly WHAT the vulnerability is, WHY it is dangerous, and HOW urgent it is to fix.
-Write in clear, professional English. Be specific and concrete. Avoid vague or generic sentences.
+    return f"""Vous êtes un ingénieur senior en sécurité applicative rédigeant un rapport de vulnérabilité détaillé pour une équipe de développement. Vous DEVEZ répondre entièrement en français. Toutes les valeurs des champs doivent être rédigées en français.
+Votre objectif est d'expliquer clairement CE QU'EST la vulnérabilité, POURQUOI elle est dangereuse, et À QUEL POINT il est urgent de la corriger.
+Rédigez en français clair et professionnel. Soyez spécifique et concret. Évitez les phrases vagues ou génériques.
 
-Vulnerability details:
-- Title: {title}
-- Severity: {severity} | CVSS Score: {cvss}
-- CVE: {cve} | CWE: {cwe}
-- Affected file: {fp}
-- Description: {desc}
+Détails de la vulnérabilité :
+- Titre : {title}
+- Sévérité : {severity} | Score CVSS : {cvss}
+- CVE : {cve} | CWE : {cwe}
+- Fichier affecté : {fp}
+- Description : {desc}
 
-Respond with a single JSON object using EXACTLY these keys:
+Répondez avec un seul objet JSON en utilisant EXACTEMENT ces clés :
 
 "summary"
-  2 to 3 sentences. Explain what this vulnerability is, where it exists in the code, and what makes it dangerous.
-  Be specific to the vulnerability above — not generic.
+  2 à 3 phrases. Expliquer ce qu'est cette vulnérabilité, où elle existe dans le code, et ce qui la rend dangereuse.
+  Être spécifique à la vulnérabilité ci-dessus — pas générique.
 
 "impact"
-  3 to 4 sentences. Describe concretely what an attacker can do if they exploit this.
-  Mention affected data, systems, or users. Include potential business consequences (data breach, downtime, legal risk, etc.).
+  3 à 4 phrases. Décrire concrètement ce qu'un attaquant peut faire s'il exploite cette faille.
+  Mentionner les données, systèmes ou utilisateurs affectés. Inclure les conséquences métier potentielles (fuite de données, indisponibilité, risque légal, etc.).
 
 "root_cause"
-  2 sentences. Explain the exact technical reason why this vulnerability exists.
-  Be specific about the code pattern or bad practice responsible.
+  2 phrases. Expliquer la raison technique exacte pour laquelle cette vulnérabilité existe.
+  Être spécifique sur le pattern de code ou la mauvaise pratique responsable.
 
 "exploitation_difficulty"
-  One of: Easy / Medium / Hard
-  Followed by a dash and 1 sentence explaining why (tools needed, skill level, prerequisites).
-  Example: "Easy — No special tools required; a basic payload is enough to trigger the vulnerability."
+  Un parmi : Facile / Moyen / Difficile
+  Suivi d'un tiret et d'1 phrase expliquant pourquoi (outils nécessaires, niveau requis, prérequis).
+  Exemple : "Facile — Aucun outil spécial requis ; un payload basique suffit à déclencher la vulnérabilité."
 
 "priority_note"
-  Start with one of: Immediate / 48h / Week / Month
-  Followed by 2 sentences: explain the urgency level and what could happen if not fixed in time.
-  Example: "Immediate — This vulnerability is actively exploited in the wild and requires no authentication. Leaving it unpatched even for 24 hours significantly increases the risk of a breach."
+  Commencer par : Immédiat / 48h / Semaine / Mois
+  Suivi de 2 phrases : expliquer le niveau d'urgence et ce qui pourrait arriver si non corrigé.
+  Exemple : "Immédiat — Cette vulnérabilité est activement exploitée et ne nécessite aucune authentification. La laisser non corrigée même 24h augmente significativement le risque de compromission."
 
-Output only the raw JSON object. No markdown fences, no text before or after.
+Produire uniquement l'objet JSON brut. Pas de balises markdown, pas de texte avant ou après.
 
-Example output format:
+Exemple de format de sortie :
 {{
-  "summary": "This cross-site scripting (XSS) vulnerability exists in the user profile page where unsanitized user input is rendered directly into the HTML DOM. It allows an attacker to inject arbitrary JavaScript that executes in the context of other users' browsers. The vulnerability is especially dangerous because the affected page is accessible to all authenticated users.",
-  "impact": "An attacker can steal session cookies and hijack authenticated user sessions, gaining full access to their accounts. Malicious scripts can also be used to perform actions on behalf of victims, such as changing passwords or exfiltrating personal data. If an admin account is compromised, the attacker gains elevated privileges over the entire application. This can lead to a full account takeover incident affecting all users of the platform.",
-  "root_cause": "The application renders user-supplied profile data directly into the HTML template without encoding special characters. The developer used innerHTML instead of textContent, which allows HTML tags and script elements to be interpreted by the browser.",
-  "exploitation_difficulty": "Easy — An attacker only needs to save a malicious script in their profile field; no special tools or authentication bypass is required.",
-  "priority_note": "Immediate — Stored XSS vulnerabilities can affect every user who visits the infected page, including administrators. Delaying the fix increases the risk of a mass session hijacking incident."
+  "summary": "Cette vulnérabilité XSS existe sur la page de profil utilisateur où les données non filtrées sont injectées directement dans le DOM HTML. Elle permet à un attaquant d'exécuter du JavaScript arbitraire dans le navigateur d'autres utilisateurs. La page affectée est accessible à tous les utilisateurs authentifiés, ce qui amplifie la surface d'attaque.",
+  "impact": "Un attaquant peut voler les cookies de session et détourner des comptes authentifiés. Des scripts malveillants peuvent effectuer des actions au nom des victimes, comme changer leur mot de passe ou exfiltrer des données personnelles. Si un compte administrateur est compromis, l'attaquant obtient des privilèges élevés sur toute l'application. Cela peut conduire à une compromission massive de comptes utilisateurs.",
+  "root_cause": "L'application insère les données utilisateur directement dans le template HTML sans encodage des caractères spéciaux. Le développeur a utilisé innerHTML au lieu de textContent, permettant au navigateur d'interpréter les balises HTML et les scripts injectés.",
+  "exploitation_difficulty": "Facile — Un attaquant n'a besoin que d'enregistrer un script malveillant dans son champ de profil ; aucun outil spécial ni contournement d'authentification n'est requis.",
+  "priority_note": "Immédiat — Les vulnérabilités XSS stockées peuvent affecter chaque utilisateur visitant la page infectée, y compris les administrateurs. Tout délai dans la correction augmente le risque de détournement de sessions en masse."
 }}
 
-Now write the JSON for the vulnerability described above:"""
+Rédigez maintenant le JSON pour la vulnérabilité décrite ci-dessus :"""
 
 
 def _build_recommendation_prompt(finding: dict) -> str:
@@ -200,72 +200,72 @@ def _build_recommendation_prompt(finding: dict) -> str:
     title = finding.get("title", "Unknown")
     severity = finding.get("severity", "medium")
     cvss = finding.get("cvss_score", 0)
-    desc = _safe_str(finding.get("description"))[:400]
+    desc = _safe_str(finding.get("description"))[:300]
 
     fp = finding.get("file_path", "")
     cve = finding.get("cve", "") or "N/A"
     cwe = finding.get("cwe", "") or "N/A"
 
-    return f"""You are a senior application security engineer writing a detailed remediation plan for a development team.
-Your goal is to provide clear, actionable, and complete steps to fix this vulnerability.
-Each step must be specific enough that a developer can implement it directly.
-Do NOT write vague advice like "sanitize inputs" — explain exactly how and why.
+    return f"""Vous êtes un ingénieur senior en sécurité applicative rédigeant un plan de remédiation détaillé pour une équipe de développement. Vous DEVEZ répondre entièrement en français. Toutes les valeurs des champs doivent être rédigées en français.
+Votre objectif est de fournir des étapes claires, concrètes et complètes pour corriger cette vulnérabilité.
+Chaque étape doit être suffisamment spécifique pour qu'un développeur puisse l'implémenter directement.
+Ne PAS écrire des conseils vagues comme "assainir les entrées" — expliquer exactement comment et pourquoi.
 
-Vulnerability details:
-- Title: {title}
-- Severity: {severity} | CVSS Score: {cvss}
-- CVE: {cve} | CWE: {cwe}
-- Affected file: {fp}
-- Description: {desc}
+Détails de la vulnérabilité :
+- Titre : {title}
+- Sévérité : {severity} | Score CVSS : {cvss}
+- CVE : {cve} | CWE : {cwe}
+- Fichier affecté : {fp}
+- Description : {desc}
 
-Respond with a single JSON object using EXACTLY these keys:
+Répondez avec un seul objet JSON en utilisant EXACTEMENT ces clés :
 
 "title"
-  A clear, specific title for this remediation plan.
-  Not just the vulnerability name — describe the fix approach.
-  Example: "Fix Stored XSS in Profile Page by Applying Output Encoding"
+  Un titre clair et spécifique pour ce plan de remédiation.
+  Pas seulement le nom de la vulnérabilité — décrire l'approche de correction.
+  Exemple : "Correction du XSS stocké sur la page de profil par encodage de sortie"
 
 "recommendations"
-  Array of 4 to 6 remediation steps as strings.
-  Each step must:
-  - Start with an action verb (Replace, Use, Add, Configure, Validate, Enforce, etc.)
-  - Be specific to this vulnerability type
-  - Include a short explanation of WHY this step matters
+  Tableau de 4 à 6 étapes de remédiation sous forme de chaînes.
+  Chaque étape doit :
+  - Commencer par un verbe d'action (Remplacer, Utiliser, Ajouter, Configurer, Valider, Appliquer, etc.)
+  - Être spécifique à ce type de vulnérabilité
+  - Inclure une courte explication du POURQUOI cette étape est importante
 
 "references"
-  Array of 2 to 3 authoritative URLs relevant to this specific vulnerability type.
-  Use OWASP, NIST, CWE, CVE, or vendor security advisories.
+  Tableau de 2 à 3 URLs faisant autorité, pertinentes pour ce type de vulnérabilité.
+  Utiliser OWASP, NIST, CWE, CVE, ou les avis de sécurité des éditeurs.
 
 "verification"
-  2 sentences. Explain how to verify the fix was applied correctly.
-  Include both automated (scanner, CI check) and manual (code review, pen test) methods.
+  2 phrases. Expliquer comment vérifier que le correctif a été correctement appliqué.
+  Inclure des méthodes automatisées (scanner, vérification CI) et manuelles (revue de code, test de pénétration).
 
 "prevention"
-  2 sentences. Explain how to prevent this entire class of vulnerability across the codebase in the future.
-  Focus on process improvements, tooling (SAST/DAST in CI), or architecture decisions.
+  2 phrases. Expliquer comment prévenir cette classe de vulnérabilité dans toute la base de code à l'avenir.
+  Se concentrer sur les améliorations de processus, les outils (SAST/DAST en CI), ou les décisions d'architecture.
 
-Output only the raw JSON object. No markdown fences, no text before or after.
+Produire uniquement l'objet JSON brut. Pas de balises markdown, pas de texte avant ou après.
 
-Example output format:
+Exemple de format de sortie :
 {{
-  "title": "Fix Stored XSS in Profile Page by Applying Output Encoding and CSP",
+  "title": "Correction du XSS stocké sur la page de profil par encodage de sortie et CSP",
   "recommendations": [
-    "Replace all innerHTML assignments with textContent or use DOMPurify to sanitize HTML before rendering, preventing the browser from interpreting injected script tags.",
-    "Apply server-side output encoding on all user-supplied fields using a library such as OWASP Java Encoder or Python's html.escape() before inserting data into HTML templates.",
-    "Implement a strict Content Security Policy (CSP) header with 'script-src self' to block execution of injected inline scripts even if encoding is missed in one location.",
-    "Add server-side input validation to reject inputs containing HTML tags or JavaScript event handlers in fields that are not expected to contain markup.",
-    "Audit all template files for other instances of unencoded user data rendering and apply the same encoding fix consistently across the codebase."
+    "Remplacer tous les usages de innerHTML par textContent ou utiliser DOMPurify pour assainir le HTML avant le rendu, empêchant le navigateur d'interpréter les balises script injectées.",
+    "Appliquer un encodage de sortie côté serveur sur tous les champs utilisateur via une bibliothèque comme html.escape() en Python avant d'insérer les données dans les templates HTML.",
+    "Mettre en place un en-tête Content Security Policy strict avec 'script-src self' pour bloquer l'exécution de scripts inline injectés même si l'encodage est manqué à un endroit.",
+    "Ajouter une validation serveur pour rejeter les entrées contenant des balises HTML ou des gestionnaires d'événements JavaScript dans les champs qui ne doivent pas contenir de balisage.",
+    "Auditer tous les templates pour détecter d'autres instances de données utilisateur non encodées et appliquer le même correctif de manière cohérente dans toute la base de code."
   ],
   "references": [
     "https://owasp.org/www-community/attacks/xss/",
     "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
     "https://cwe.mitre.org/data/definitions/79.html"
   ],
-  "verification": "Re-run the SAST scanner and DAST tool against the fixed endpoint and confirm zero XSS findings remain. Manually test by attempting to save a <script>alert(1)</script> payload in the profile field and verify it is rendered as plain text.",
-  "prevention": "Add a SAST rule in the CI/CD pipeline that fails pull requests containing innerHTML assignments or unencoded template variables. Require all developers to complete OWASP XSS training and enforce output encoding as a mandatory code review checklist item."
+  "verification": "Relancer le scanner SAST et l'outil DAST sur l'endpoint corrigé et confirmer qu'aucune vulnérabilité XSS ne subsiste. Tester manuellement en tentant d'enregistrer un payload <script>alert(1)</script> et vérifier qu'il est affiché en texte brut.",
+  "prevention": "Ajouter une règle SAST dans le pipeline CI/CD qui bloque les pull requests contenant des usages de innerHTML ou des variables de template non encodées. Exiger une formation OWASP XSS pour tous les développeurs et intégrer l'encodage de sortie dans la checklist de revue de code."
 }}
 
-Now write the JSON for the vulnerability described above:"""
+Rédigez maintenant le JSON pour la vulnérabilité décrite ci-dessus :"""
 
 
 def _build_solution_prompt(finding: dict) -> str:
@@ -292,54 +292,54 @@ def _build_solution_prompt(finding: dict) -> str:
     # Build optional context block based on available finding metadata
     context_block = ""
     if is_static and fp:
-        context_block = f"- Affected file: {fp}" + (f" (line {line})" if line else "")
+        context_block = f"- Fichier affecté : {fp}" + (f" (ligne {line})" if line else "")
     elif component:
-        context_block = f"- Vulnerable component: {component} {comp_ver}".strip()
+        context_block = f"- Composant vulnérable : {component} {comp_ver}".strip()
     if sast_src:
-        context_block += f"\n- Source object: {sast_src}"
+        context_block += f"\n- Objet source : {sast_src}"
     if sast_sink:
-        context_block += f"\n- Sink object: {sast_sink}"
+        context_block += f"\n- Objet sink : {sast_sink}"
 
-    return f"""You are a senior application security engineer providing an exact code fix for a vulnerability.
-Your goal is to produce a minimal, precise, and immediately applicable code correction.
-Be specific — do NOT write generic advice. Write actual code.
+    return f"""Vous êtes un ingénieur senior en sécurité applicative fournissant un correctif de code exact pour une vulnérabilité. Vous DEVEZ répondre entièrement en français. Toutes les valeurs des champs, à l'exception des extraits de code, doivent être rédigées en français.
+Votre objectif est de produire une correction de code minimale, précise et immédiatement applicable.
+Soyez spécifique — N'écrivez PAS de conseils génériques. Écrivez du vrai code.
 
-Vulnerability details:
-- Title: {title}
-- Severity: {severity} | CVSS Score: {cvss}
-- CVE: {cve} | CWE: {cwe}
+Détails de la vulnérabilité :
+- Titre : {title}
+- Sévérité : {severity} | Score CVSS : {cvss}
+- CVE : {cve} | CWE : {cwe}
 {context_block}
-- Description: {desc}
-- Mitigation hint: {mitigation}
+- Description : {desc}
+- Indication de remédiation : {mitigation}
 
-Respond with a single JSON object using EXACTLY these keys:
+Répondez avec un seul objet JSON en utilisant EXACTEMENT ces clés :
 
 "vulnerable_snippet"
-  The exact vulnerable code pattern (2 to 5 lines). Real code, not a description.
+  Le pattern de code vulnérable exact (2 à 5 lignes). Du vrai code, pas une description.
 
 "fixed_snippet"
-  The corrected version of the same code (2 to 5 lines). Minimal changes only.
-  Do NOT rewrite the entire file — only fix the vulnerable part.
+  La version corrigée du même code (2 à 5 lignes). Modifications minimales uniquement.
+  Ne PAS réécrire le fichier entier — corriger uniquement la partie vulnérable.
 
 "explanation"
-  2 to 3 sentences. Explain exactly what was changed and why it fixes the vulnerability.
-  Be specific about the security property that was added or restored.
+  2 à 3 phrases. Expliquer exactement ce qui a été modifié et pourquoi cela corrige la vulnérabilité.
+  Être spécifique sur la propriété de sécurité ajoutée ou restaurée.
 
 "confidence"
-  A float between 0.0 and 1.0 representing your confidence in this fix.
-  Use 0.90+ if file_path and line are available. Use 0.65-0.75 for generic pattern fixes.
+  Un float entre 0.0 et 1.0 représentant la confiance dans ce correctif.
+  Utiliser 0.90+ si file_path et line sont disponibles. Utiliser 0.65-0.75 pour des correctifs génériques.
 
-Output only the raw JSON object. No markdown fences, no text before or after.
+Produire uniquement l'objet JSON brut. Pas de balises markdown, pas de texte avant ou après.
 
-Example output format:
+Exemple de format de sortie :
 {{
   "vulnerable_snippet": "cursor.execute(\\"SELECT * FROM users WHERE id = \\" + user_id)",
   "fixed_snippet": "cursor.execute(\\"SELECT * FROM users WHERE id = %s\\", (user_id,))",
-  "explanation": "The original code concatenated user input directly into the SQL query, enabling SQL injection. The fix uses a parameterized query which separates data from code, preventing any injected SQL from being executed.",
+  "explanation": "Le code original concaténait directement les entrées utilisateur dans la requête SQL, permettant une injection SQL. Le correctif utilise une requête paramétrée qui sépare les données du code, empêchant l'exécution de tout SQL injecté.",
   "confidence": 0.92
 }}
 
-Now write the JSON for the vulnerability described above:"""
+Rédigez maintenant le JSON pour la vulnérabilité décrite ci-dessus :"""
 
 
 # ---------------------------------------------------------------------------
@@ -370,8 +370,9 @@ def _call_ollama(prompt: str) -> Optional[str]:
         "options": {
             "temperature": 0.2,
             "num_predict": LLM_MAX_TOKENS,
-            "top_k": 30,
-            "top_p": 0.90,
+            "num_ctx": 1024,
+            "top_k": 10,
+            "top_p": 0.85,
         },
     }
 
@@ -449,6 +450,18 @@ PLACEHOLDER_PATTERNS = [
     "how to verify",
     "prevention measure",
     "short title",
+    # Équivalents français
+    "une phrase",
+    "deux phrases",
+    "facile/moyen/difficile",
+    "immédiat/48h",
+    "semaine/mois",
+    "expliquer le",
+    "résumé de la",
+    "cause technique ici",
+    "comment vérifier",
+    "mesure de prévention",
+    "titre court",
 ]
 
 
@@ -634,37 +647,37 @@ def explain_finding(
         prompt = _build_explanation_prompt(finding)
         fallback: dict = {
             "summary": (
-                f"The vulnerability '{title}' has been detected in the codebase and requires review. "
-                f"It is classified as {finding.get('severity', 'unknown')} severity with a CVSS score "
-                f"of {finding.get('cvss_score', 'N/A')}. "
-                "A manual security review of the affected file is strongly recommended."
+                f"La vulnérabilité '{title}' a été détectée dans la base de code et nécessite une révision. "
+                f"Elle est classifiée avec une sévérité {finding.get('severity', 'inconnue')} et un score CVSS "
+                f"de {finding.get('cvss_score', 'N/A')}. "
+                "Une revue manuelle de sécurité du fichier affecté est fortement recommandée."
             ),
             "impact": (
-                "This vulnerability may allow an attacker to compromise the confidentiality, "
-                "integrity, or availability of the affected system. "
-                "Sensitive data, user accounts, or critical system resources could be exposed or manipulated. "
-                "The exact blast radius depends on the deployment context and the attacker's access level. "
-                "A thorough manual assessment is needed to determine the full impact on the application."
+                "Cette vulnérabilité peut permettre à un attaquant de compromettre la confidentialité, "
+                "l'intégrité ou la disponibilité du système affecté. "
+                "Des données sensibles, des comptes utilisateurs ou des ressources système critiques pourraient être exposés ou manipulés. "
+                "L'étendue de l'impact dépend du contexte de déploiement et du niveau d'accès de l'attaquant. "
+                "Une évaluation manuelle approfondie est nécessaire pour déterminer l'impact complet sur l'application."
             ),
             "root_cause": (
-                "The root cause could not be automatically determined for this finding. "
-                "Please refer to the vulnerability documentation and perform a manual code review "
-                "of the affected file to identify the exact code pattern responsible."
+                "La cause racine n'a pas pu être déterminée automatiquement pour ce constat. "
+                "Veuillez consulter la documentation de la vulnérabilité et effectuer une revue manuelle du code "
+                "du fichier affecté pour identifier le pattern de code responsable."
             ),
             "exploitation_difficulty": (
-                "Medium — Difficulty could not be automatically assessed. "
-                "Assume a motivated attacker could exploit this with moderate effort and standard tools."
+                "Moyen — La difficulté n'a pas pu être évaluée automatiquement. "
+                "Supposez qu'un attaquant motivé pourrait exploiter cette faille avec un effort modéré et des outils standard."
             ),
             "priority_note": (
-                "Immediate — This critical or high severity finding should be addressed as soon as "
-                "possible to minimize the exposure window."
+                "Immédiat — Ce constat de sévérité critique ou élevée doit être traité dès que possible "
+                "pour minimiser la fenêtre d'exposition."
                 if str(finding.get("severity", "")).lower() in ("critical", "high")
                 else (
-                    "Week — This medium severity finding should be scheduled for remediation within "
-                    "the current development sprint."
+                    "Semaine — Ce constat de sévérité moyenne doit être planifié pour remédiation "
+                    "dans le sprint de développement en cours."
                     if str(finding.get("severity", "")).lower() == "medium"
-                    else "Month — This lower severity finding should be tracked in the backlog and "
-                    "resolved in an upcoming release cycle."
+                    else "Mois — Ce constat de faible sévérité doit être suivi dans le backlog et "
+                    "résolu lors d'un prochain cycle de release."
                 )
             ),
         }
@@ -672,54 +685,45 @@ def explain_finding(
     elif mode == "recommendation":
         prompt = _build_recommendation_prompt(finding)
         fallback = {
-            "title": f"Remediation Plan for: {title}",
+            "title": f"Plan de remédiation pour : {title}",
             "recommendations": [
-                "Review the affected file and identify all locations where this vulnerability pattern "
-                "appears before making changes to ensure a complete and consistent fix.",
-                "Apply the OWASP-recommended fix for this vulnerability class, following secure coding "
-                "guidelines specific to your language and framework.",
-                "Write unit and integration tests that cover both normal use cases and adversarial inputs "
-                "related to this vulnerability type to prevent future regressions.",
-                "Re-run the security scanner after applying the fix to confirm the finding no longer "
-                "appears and that no new issues were introduced by the change.",
-                "Document the fix in your internal security changelog so the team can reference the "
-                "remediation approach for similar vulnerabilities in the future.",
+                "Examiner le fichier affecté et identifier tous les emplacements où ce pattern de vulnérabilité apparaît avant toute modification, afin d'assurer un correctif complet et cohérent.",
+                "Appliquer le correctif recommandé par l'OWASP pour cette classe de vulnérabilité, en suivant les directives de codage sécurisé spécifiques à votre langage et framework.",
+                "Écrire des tests unitaires et d'intégration couvrant les cas d'usage normaux et les entrées adversariales liées à ce type de vulnérabilité pour prévenir les régressions futures.",
+                "Relancer le scanner de sécurité après application du correctif pour confirmer que le constat n'apparaît plus et qu'aucun nouveau problème n'a été introduit.",
+                "Documenter le correctif dans le journal de sécurité interne afin que l'équipe puisse s'y référer pour des vulnérabilités similaires à l'avenir.",
             ],
             "references": [
                 "https://owasp.org/www-project-top-ten/",
                 "https://cwe.mitre.org/",
             ],
             "verification": (
-                "Re-run the SAST and DAST scanners against the patched code and confirm zero findings "
-                "for this vulnerability class. "
-                "Perform a peer code review to validate the fix aligns with secure coding standards "
-                "and conduct a targeted penetration test on the affected endpoint."
+                "Relancer les scanners SAST et DAST sur le code corrigé et confirmer l'absence de constats pour cette classe de vulnérabilité. "
+                "Effectuer une revue de code par les pairs pour valider la conformité aux standards de codage sécurisé et réaliser un test de pénétration ciblé sur l'endpoint affecté."
             ),
             "prevention": (
-                "Add an automated SAST rule in the CI/CD pipeline to detect this vulnerability class "
-                "in future pull requests and block merges until resolved. "
-                "Include this vulnerability type in the next developer security awareness training "
-                "and enforce a mandatory security checklist during code reviews."
+                "Ajouter une règle SAST automatisée dans le pipeline CI/CD pour détecter cette classe de vulnérabilité dans les futures pull requests et bloquer les fusions jusqu'à résolution. "
+                "Intégrer ce type de vulnérabilité dans la prochaine formation de sensibilisation à la sécurité des développeurs et imposer une checklist de sécurité obligatoire lors des revues de code."
             ),
         }
 
     else:  # mode == "solution"
         prompt = _build_solution_prompt(finding)
         safe_mitigation = _safe_str(finding.get("mitigation"))
-        mitigation_text = safe_mitigation if safe_mitigation else "OWASP guidelines"
+        mitigation_text = safe_mitigation if safe_mitigation else "directives OWASP"
         fallback = {
             "vulnerable_snippet": (
-                f"# Vulnerable pattern for: {title}\n"
-                "# Could not retrieve exact code — check file_path and static_finding fields."
+                f"# Pattern vulnérable pour : {title}\n"
+                "# Code exact non disponible — vérifiez les champs file_path et static_finding."
             ),
             "fixed_snippet": (
-                "# Apply the mitigation described in the finding.\n"
-                f"# Refer to: {mitigation_text[:200]}"
+                "# Appliquer la remédiation décrite dans le constat.\n"
+                f"# Référence : {mitigation_text[:200]}"
             ),
             "explanation": (
-                f"This is a {finding.get('severity', 'unknown')} severity vulnerability ({title}). "
-                "Automatic code fix could not be generated — the file path or static finding "
-                "information may be missing. Please apply the mitigation manually."
+                f"Il s'agit d'une vulnérabilité de sévérité {finding.get('severity', 'inconnue')} ({title}). "
+                "Le correctif de code automatique n'a pas pu être généré — le chemin du fichier ou les informations "
+                "de constat statique sont peut-être manquants. Veuillez appliquer la remédiation manuellement."
             ),
             "confidence": 0.40,
         }

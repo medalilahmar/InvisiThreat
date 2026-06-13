@@ -1423,3 +1423,82 @@
 .fdp-card.fu5:last-child {
   margin-bottom: 0;
 }
+
+/* ─── FindingActions ─────────────────────────────────────────────────────── */
+.fa-root         { display: flex; flex-direction: column; gap: var(--space-3); }
+.fa-actions-row  { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* Loading */
+.fa-loading         { display: flex; align-items: center; gap: var(--space-2); color: var(--dimmed); font-family: var(--font-mono); font-size: 12px; }
+.fa-loading-spinner { width: 14px; height: 14px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
+
+/* Message */
+.fa-message         { display: flex; align-items: center; gap: var(--space-2); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font-mono); }
+.fa-message--success { background: var(--glass-success); border: 1px solid var(--border-success); color: var(--severity-low); }
+.fa-message--error   { background: var(--glass-danger);  border: 1px solid var(--border-danger);  color: var(--severity-critical); }
+
+/* Buttons */
+.fa-btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  background: var(--bg4); border: 1px solid var(--border2); color: var(--muted);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.fa-btn:hover:not(:disabled) { background: var(--bg5); border-color: var(--border3); color: var(--text); }
+.fa-btn:disabled              { opacity: .45; cursor: not-allowed; }
+
+.fa-btn--pinned   { background: var(--severity-medium-bg);  border-color: var(--severity-medium-border); color: var(--severity-medium); }
+.fa-btn--assigned { background: var(--severity-low-bg);     border-color: var(--severity-low-border);    color: var(--severity-low); }
+
+/* Status button variants */
+.fa-btn--status                   { background: var(--bg4); border-color: var(--border2); }
+.fa-btn--status.fa-status--open        { color: var(--muted); }
+.fa-btn--status.fa-status--progress    { color: var(--severity-medium); border-color: var(--severity-medium-border); background: var(--severity-medium-bg); }
+.fa-btn--status.fa-status--resolved    { color: var(--severity-low);    border-color: var(--severity-low-border);    background: var(--severity-low-bg); }
+.fa-btn--status.fa-status--wont-fix    { color: var(--severity-critical); border-color: var(--severity-critical-border); background: var(--severity-critical-bg); }
+
+/* Dropdown */
+.fa-dropdown-wrap { position: relative; }
+
+.fa-dropdown {
+  position: absolute;
+  top: calc(100% + 6px); left: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-md);
+  min-width: 200px;
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.fa-dropdown-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 10px 14px; font-family: var(--font-mono); font-size: 12px;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition-fast);
+}
+.fa-dropdown-item:last-child     { border-bottom: none; }
+.fa-dropdown-item:hover          { background: var(--bg4); color: var(--text); }
+.fa-dropdown-item--active        { background: var(--bg4); }
+.fa-dropdown-item--danger        { color: var(--severity-critical); }
+.fa-dropdown-item--danger:hover  { background: var(--severity-critical-bg); }
+
+/* Status dropdown item variants */
+.fa-dropdown-item--status.fa-status--open     { color: var(--muted); }
+.fa-dropdown-item--status.fa-status--progress { color: var(--severity-medium); }
+.fa-dropdown-item--status.fa-status--resolved { color: var(--severity-low); }
+.fa-dropdown-item--status.fa-status--wont-fix { color: var(--severity-critical); }
+
+.fa-dropdown-username { flex: 1; color: var(--text); }
+.fa-dropdown-role     { font-size: 10px; color: var(--dimmed); background: var(--bg4); padding: 2px 6px; border-radius: var(--radius-xs); }
+.fa-dropdown-empty    { padding: 12px 14px; color: var(--dimmed); font-family: var(--font-mono); font-size: 12px; }
+
+/* Meta info */
+.fa-meta-info        { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: 11px; padding-left: 2px; }
+.fa-meta-label       { color: var(--dimmed); }
+.fa-meta-value       { color: var(--muted); }
+.fa-meta-value--pinned { color: var(--severity-medium); }
+.fa-meta-date        { color: var(--dimmed); }
