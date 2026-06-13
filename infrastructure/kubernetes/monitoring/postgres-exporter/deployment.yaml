@@ -19,15 +19,22 @@ spec:
         - name: postgres-exporter
           image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
           env:
-            - name: POSTGRES_PASSWORD        # ✅ EN PREMIER
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-exporter-secret   # ✅ namespace monitoring
+                  name: invisithreat-secrets
                   key: POSTGRES_PASSWORD
-            - name: DATA_SOURCE_NAME         # ✅ APRÈS
+            - name: DATA_SOURCE_NAME
               value: "postgresql://invisithreat:$(POSTGRES_PASSWORD)@postgres-svc.invisithreat.svc.cluster.local:5432/invisithreat?sslmode=disable"
           ports:
             - containerPort: 9187
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
 ---
 apiVersion: v1
 kind: Service

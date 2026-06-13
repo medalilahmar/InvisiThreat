@@ -13,7 +13,7 @@ app:
   install_dir: ""
   start_command: "node src/app.js"
   health_check_path: "/health"
-  startup_wait: 10
+  startup_wait: 1
 
 security:
 

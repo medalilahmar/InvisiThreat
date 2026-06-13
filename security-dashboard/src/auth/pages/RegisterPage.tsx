@@ -70,7 +70,7 @@ export default function RegisterPage() {
         phone:      form.phone      || undefined,
         avatar_url: form.avatar_url || undefined,
       });
-      navigate('/pending');
+      navigate('/auth/pending');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erreur lors de la création du compte');
     } finally {
