@@ -235,22 +235,28 @@
 }
 
 .hero-headline {
-  font-size: clamp(54px, 7.5vw, 92px);
+ font-size: clamp(48px, 6vw, 76px);
   font-weight: 800;
   line-height: 1.0;
   letter-spacing: -0.035em;
-  max-width: 960px;
+  max-width: none;
   margin-bottom: 10px;
   animation: fadeUp 0.7s 0.22s ease both;
+  text-align: center;
 }
-
+ 
 .hero-headline-plain {
   display: block;
   color: var(--text);
+  text-align: center;
+  
+
 }
+  
 
 .hero-headline-shimmer {
   display: block;
+  text-align: center;
   background: linear-gradient(
     90deg,
     var(--text) 0%,
@@ -1027,4 +1033,20 @@
   .model-section { padding: 72px 24px; }
   .cta-section { padding: 90px 24px; }
   .arch-section { padding: 72px 24px; }
+}
+
+.arch-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;          /* <-- remplace wrap */
+  gap: 0;
+  row-gap: 24px;
+  overflow-x: auto;
+  padding-bottom: 8px;        /* évite que la scrollbar coupe les steps */
+  scrollbar-width: none;      /* cache la scrollbar sur Firefox */
+}
+
+.arch-flow::-webkit-scrollbar {
+  display: none;              /* cache la scrollbar sur Chrome/Safari */
 }

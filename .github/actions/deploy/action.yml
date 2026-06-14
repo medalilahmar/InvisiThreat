@@ -161,6 +161,8 @@ runs:
     - name: "[k3s] Installer Monitoring via Ansible"
       shell: bash
       working-directory: infrastructure/ansible
+      env:
+        POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
       run: |
         echo "::group::Ansible Monitoring install"
         ansible-playbook -i inventory.yml playbook-monitoring-install.yml
