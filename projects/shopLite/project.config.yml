@@ -1,7 +1,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
 #  project.config.yml — ShopLite
 # ══════════════════════════════════════════════════════════════════════════════
-# Configuration du projet ShopLite pour la démonstration DevSecOps
 
 project:
   name: "ShopLite API"
