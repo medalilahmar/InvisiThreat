@@ -168,6 +168,12 @@ runs:
         ansible-playbook -i inventory.yml playbook-monitoring-install.yml
         echo "::endgroup::"
 
+    - name: "[k8s] Redémarrer postgres-exporter"
+      shell: bash
+      run: |
+        kubectl rollout restart deployment/postgres-exporter -n monitoring
+        kubectl rollout status deployment/postgres-exporter -n monitoring --timeout=60s
+
 
     
 
