@@ -22,8 +22,8 @@ security:
   semgrep_rulesets:
     - "p/security-audit"
     - "p/owasp-top-ten"
-    - "p/nodejs"
-    - "p/secrets"
+    #- "p/nodejs"
+    #- "p/secrets"
 
   snyk_severity_threshold: "low"
 

@@ -14,16 +14,6 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
 
-- name: Créer le secret invisithreat-secrets dans monitoring
-  shell: >
-    kubectl create secret generic invisithreat-secrets
-    --namespace=monitoring
-    --from-literal=POSTGRES_PASSWORD="{{ lookup('env', 'POSTGRES_PASSWORD') }}"
-    --dry-run=client -o yaml | kubectl apply -f -
-  become: false
-  environment:
-    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
-
 
 
 - name: Appliquer le Deployment PostgreSQL Exporter

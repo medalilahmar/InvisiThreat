@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid
+  Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid,
 } from 'recharts';
 import './DashboardPage.css';
 
@@ -12,16 +12,171 @@ type RiskLevel = 'Critical' | 'High' | 'Medium' | 'Low' | 'Info';
 interface RiskEntry { name: string; value: number; color: string; }
 
 const RISK_COLORS: Record<RiskLevel, string> = {
-  Critical: 'var(--accent2)',
-  High: 'var(--orange)',
-  Medium: 'var(--accent3)',
-  Low: 'var(--green)',
-  Info: 'var(--purple)',
+  Critical: 'var(--severity-critical)',
+  High:     'var(--severity-high)',
+  Medium:   'var(--severity-medium)',
+  Low:      'var(--severity-low)',
+  Info:     'var(--severity-info)',
 };
 
 const RISK_ORDER: RiskLevel[] = ['Critical', 'High', 'Medium', 'Low', 'Info'];
 
-/* ─── Animated Counter ──────────────────────────────────────────────────── */
+/* ─── Icons ─────────────────────────────────────────────────────────────── */
+function IconActivity({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+function IconAlertTriangle({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+function IconShield({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+function IconZap({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+function IconBox({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    </svg>
+  );
+}
+function IconSearch({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+function IconX({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+function IconChevronUp({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="18 15 12 9 6 15" />
+    </svg>
+  );
+}
+function IconChevronDown({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+function IconChevronsUpDown({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="7 15 12 20 17 15" />
+      <polyline points="7 9 12 4 17 9" />
+    </svg>
+  );
+}
+function IconBarChart2({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+function IconList({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+function IconTrendingUp({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+function IconArrowRight({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  );
+}
+function IconInfo({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+/* ─── KPI card icons map ─────────────────────────────────────────────────── */
+const KPI_ICONS = [
+  <IconActivity size={18} />,
+  <IconAlertTriangle size={18} />,
+  <IconShield size={18} />,
+  <IconZap size={18} />,
+  <IconBox size={18} />,
+];
+
+const KPI_COLORS = [
+  'var(--accent)',
+  'var(--severity-critical)',
+  'var(--severity-high)',
+  'var(--severity-critical)',
+  'var(--severity-info)',
+];
+
+/* ─── Animated Counter ───────────────────────────────────────────────────── */
 function AnimatedCounter({ target, duration = 1200 }: { target: number; duration?: number }) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -37,45 +192,27 @@ function AnimatedCounter({ target, duration = 1200 }: { target: number; duration
   return <>{count.toLocaleString()}</>;
 }
 
-/* ─── Confidence Icon ───────────────────────────────────────────────────── */
-function ConfidenceIcon({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
-  let cls = 'conf-low', symbol = '○';
-  if (pct >= 85) { cls = 'conf-high'; symbol = '◉'; }
-  else if (pct >= 65) { cls = 'conf-mid'; symbol = '◎'; }
-  return (
-    <span className={`conf-icon ${cls}`} title={`Confiance : ${pct}%`}>
-      {symbol} <span className="conf-pct">{pct}%</span>
-    </span>
-  );
-}
-
-/* ─── Score Bar ─────────────────────────────────────────────────────────── */
+/* ─── Score Bar ──────────────────────────────────────────────────────────── */
 function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
   const pct = Math.min((score / max) * 100, 100);
-  const color = score >= 9 ? 'var(--accent2)'
-    : score >= 7 ? 'var(--orange)'
-      : score >= 4 ? 'var(--accent3)'
-        : 'var(--green)';
+  const color = score >= 9 ? 'var(--severity-critical)'
+    : score >= 7 ? 'var(--severity-high)'
+    : score >= 4 ? 'var(--severity-medium)'
+    : 'var(--severity-low)';
   return (
     <div className="score-pill">
       <span className="score-val" style={{ color }}>{score.toFixed(1)}</span>
       <div className="score-track">
-        <div
-          className="score-fill"
-          style={{ '--bar-w': `${pct}%`, background: color } as React.CSSProperties}
-        />
+        <div className="score-fill"
+          style={{ '--bar-w': `${pct}%`, background: color } as React.CSSProperties} />
       </div>
     </div>
   );
 }
 
-/* ─── Risk Distribution Bars ────────────────────────────────────────────── */
+/* ─── Risk Distribution Bars ─────────────────────────────────────────────── */
 function RiskDistributionBars({
-  riskData,
-  total,
-  onFilter,
-  activeFilter,
+  riskData, total, onFilter, activeFilter,
 }: {
   riskData: RiskEntry[];
   total: number;
@@ -88,11 +225,9 @@ function RiskDistributionBars({
         const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0';
         const isActive = activeFilter === entry.name;
         return (
-          <div
-            key={entry.name}
-            className={`dist-row ${isActive ? 'dist-row--active' : ''}`}
-            onClick={() => onFilter(isActive ? null : entry.name)}
-          >
+          <div key={entry.name}
+            className={`dist-row${isActive ? ' dist-row--active' : ''}`}
+            onClick={() => onFilter(isActive ? null : entry.name)}>
             <div className="dist-row-header">
               <span className="dist-row-name" style={{ color: entry.color }}>{entry.name}</span>
               <span className="dist-row-count">
@@ -101,13 +236,8 @@ function RiskDistributionBars({
               </span>
             </div>
             <div className="dist-bar-track">
-              <div
-                className="dist-bar-fill"
-                style={{
-                  '--bar-width': `${pct}%`,
-                  background: entry.color,
-                } as React.CSSProperties}
-              />
+              <div className="dist-bar-fill"
+                style={{ '--bar-width': `${pct}%`, background: entry.color } as React.CSSProperties} />
             </div>
           </div>
         );
@@ -116,24 +246,25 @@ function RiskDistributionBars({
   );
 }
 
-/* ─── Priority Bar ──────────────────────────────────────────────────────── */
+/* ─── Priority Bar ───────────────────────────────────────────────────────── */
 function PriorityBar({ score, max }: { score: number; max: number }) {
   const pct = max > 0 ? (score / max) * 100 : 0;
-  const color = pct > 75 ? 'var(--accent2)' : pct > 45 ? 'var(--orange)' : pct > 20 ? 'var(--accent3)' : 'var(--green)';
+  const color = pct > 75 ? 'var(--severity-critical)'
+    : pct > 45 ? 'var(--severity-high)'
+    : pct > 20 ? 'var(--severity-medium)'
+    : 'var(--severity-low)';
   return (
     <div className="priority-bar-wrap">
       <div className="priority-bar-track">
-        <div
-          className="priority-bar-fill"
-          style={{ '--bar-width': `${pct}%`, background: color } as React.CSSProperties}
-        />
+        <div className="priority-bar-fill"
+          style={{ '--bar-width': `${pct}%`, background: color } as React.CSSProperties} />
       </div>
       <span className="priority-bar-val" style={{ color }}>{score.toFixed(0)}</span>
     </div>
   );
 }
 
-/* ─── Skeleton ──────────────────────────────────────────────────────────── */
+/* ─── Skeleton ───────────────────────────────────────────────────────────── */
 function SkeletonCard() {
   return <div className="skeleton-card"><div className="skeleton-shimmer" /></div>;
 }
@@ -147,7 +278,7 @@ function SkeletonRow() {
   );
 }
 
-/* ─── Custom Tooltip ────────────────────────────────────────────────────── */
+/* ─── Custom Tooltip ─────────────────────────────────────────────────────── */
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
@@ -162,23 +293,30 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-/* ─── Main Dashboard Page ───────────────────────────────────────────────── */
+/* ─── Tab definitions ────────────────────────────────────────────────────── */
+const TABS = [
+  { id: 'overview',  label: 'Vue globale',  icon: <IconBarChart2 size={14} /> },
+  { id: 'products',  label: 'Produits',     icon: <IconList size={14} /> },
+] as const;
+
+type TabId = typeof TABS[number]['id'];
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN
+═══════════════════════════════════════════════════════════════════════════ */
 export default function DashboardPage() {
   const { productSummaries, stats, isLoading, error } = useDashboardData();
 
-  /* Filters & Sort */
-  const [search, setSearch] = useState('');
-  const [riskFilter, setRiskFilter] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<string>('totalFindings');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'timeline'>('overview');
+  const [search,      setSearch]      = useState('');
+  const [riskFilter,  setRiskFilter]  = useState<string | null>(null);
+  const [sortKey,     setSortKey]     = useState<string>('totalFindings');
+  const [sortDir,     setSortDir]     = useState<'asc' | 'desc'>('desc');
+  const [activeTab,   setActiveTab]   = useState<TabId>('overview');
 
-  /* Alert threshold: if (critical+high)/total > 15% */
   const urgentRatio = stats
     ? ((stats.totalCritical + stats.totalHigh) / Math.max(stats.totalFindings, 1)) * 100
     : 0;
 
-  /* Risk data with fallback colors */
   const riskData = useMemo<RiskEntry[]>(() => {
     if (!stats?.riskDistribution) return [];
     return (stats.riskDistribution as RiskEntry[]).map((r) => ({
@@ -187,16 +325,12 @@ export default function DashboardPage() {
     }));
   }, [stats]);
 
-  /* Filtered & sorted products */
   const filteredProducts = useMemo(() => {
     if (!productSummaries) return [];
     let list = [...productSummaries];
-
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter((p) =>
-        p.name.toLowerCase().includes(q)
-      );
+      list = list.filter((p) => p.name.toLowerCase().includes(q));
     }
     if (riskFilter) {
       const key = riskFilter.toLowerCase() as keyof typeof list[0];
@@ -210,19 +344,18 @@ export default function DashboardPage() {
     return list;
   }, [productSummaries, search, riskFilter, sortKey, sortDir]);
 
-  /* Priority score */
   const withPriority = useMemo(() => filteredProducts.map((p) => ({
     ...p,
-    priorityScore: (p.critical * 4 + p.high * 3 + p.medium * 2 + p.low) /
+    priorityScore:
+      (p.critical * 4 + p.high * 3 + p.medium * 2 + p.low) /
       Math.max(p.totalFindings, 1) * 10,
   })), [filteredProducts]);
 
   const maxPriority = useMemo(
     () => Math.max(...withPriority.map((p) => p.priorityScore), 1),
-    [withPriority]
+    [withPriority],
   );
 
-  /* Sort handler */
   const handleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
     else { setSortKey(key); setSortDir('desc'); }
@@ -230,12 +363,22 @@ export default function DashboardPage() {
 
   const SortIcon = ({ k }: { k: string }) =>
     sortKey === k ? (
-      <span className="sort-icon sort-icon--active">{sortDir === 'desc' ? '↓' : '↑'}</span>
+      <span className="sort-icon sort-icon--active">
+        {sortDir === 'desc' ? <IconChevronDown /> : <IconChevronUp />}
+      </span>
     ) : (
-      <span className="sort-icon">↕</span>
+      <span className="sort-icon"><IconChevronsUpDown /></span>
     );
 
-  /* ─── Loading skeleton ──────────────────────────────────────────────── */
+  const KPI_CARDS = stats ? [
+    { value: stats.totalFindings,                       label: 'Findings totaux',  colorIdx: 0 },
+    { value: stats.totalCritical,                       label: 'Critiques',        colorIdx: 1 },
+    { value: stats.totalHigh,                           label: 'High',             colorIdx: 2 },
+    { value: stats.totalCritical + stats.totalHigh,     label: 'Urgents (C+H)',    colorIdx: 3 },
+    { value: stats.totalProducts,                       label: 'Produits',         colorIdx: 4 },
+  ] : [];
+
+  /* ── Loading ─────────────────────────────────────────────────────────── */
   if (isLoading) return (
     <div className="dashboard-page">
       <div className="section-header">
@@ -259,19 +402,21 @@ export default function DashboardPage() {
     </div>
   );
 
+  /* ── Error ───────────────────────────────────────────────────────────── */
   if (error) return (
     <div className="dashboard-page">
       <div className="error-state">
-        <div className="error-icon">⚠</div>
+        <span className="error-icon"><IconAlertTriangle size={36} /></span>
         <p className="error-msg">Erreur : {error.message}</p>
       </div>
     </div>
   );
 
+  /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div className="dashboard-page">
 
-      {/* ── Section header ─────────────────────────────────────────────── */}
+      {/* Section header */}
       <div className="section-header fu">
         <div className="section-label">MONITORING</div>
         <h2 className="section-title">Vue d'ensemble <span>de la sécurité</span></h2>
@@ -280,7 +425,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* ── Alert Banner ───────────────────────────────────────────────── */}
+      {/* Alert banner */}
       {urgentRatio > 15 && (
         <div className="alert-critical fu1">
           <div className="alert-critical-dot" />
@@ -291,31 +436,22 @@ export default function DashboardPage() {
               {urgentRatio.toFixed(0)}% du total — dépassement du seuil d'alerte (15%).
             </span>
           </div>
-          <button
-            className="alert-critical-btn"
-            onClick={() => { setRiskFilter('Critical'); setActiveTab('products'); }}
-          >
-            Filtrer →
+          <button className="alert-critical-btn"
+            onClick={() => { setRiskFilter('Critical'); setActiveTab('products'); }}>
+            Filtrer <IconArrowRight />
           </button>
         </div>
       )}
 
-      {/* ── KPI Cards ──────────────────────────────────────────────────── */}
+      {/* KPI Cards */}
       <div className="stats-grid fu2">
-        {[
-          { value: stats.totalFindings, label: 'Findings totaux', color: 'var(--accent)', icon: '🔍' },
-          { value: stats.totalCritical, label: 'Critiques', color: 'var(--accent2)', icon: '🚨' },
-          { value: stats.totalHigh, label: 'High', color: 'var(--orange)', icon: '⚠' },
-          { value: stats.totalCritical + stats.totalHigh, label: 'Urgents (C+H)', color: 'var(--accent2)', icon: '🔥' },
-          { value: stats.totalProducts, label: 'Produits', color: 'var(--purple)', icon: '📦' },
-        ].map((card, i) => (
-          <div
-            key={i}
-            className="stat-card"
-            style={{ '--card-accent': card.color } as React.CSSProperties}
-          >
-            <div className="stat-card-icon">{card.icon}</div>
-            <div className="stat-card-value" style={{ color: card.color }}>
+        {KPI_CARDS.map((card, i) => (
+          <div key={i} className="stat-card"
+            style={{ '--card-accent': KPI_COLORS[card.colorIdx] } as React.CSSProperties}>
+            <div className="stat-card-icon" style={{ color: KPI_COLORS[card.colorIdx] }}>
+              {KPI_ICONS[card.colorIdx]}
+            </div>
+            <div className="stat-card-value" style={{ color: KPI_COLORS[card.colorIdx] }}>
               <AnimatedCounter target={card.value} />
             </div>
             <div className="stat-card-label">{card.label}</div>
@@ -324,147 +460,115 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Tabs ───────────────────────────────────────────────────────── */}
+      {/* Tabs */}
       <div className="dashboard-tabs fu3">
-        {(['overview', 'products', 'timeline'] as const).map((tab) => (
-          <button
-            key={tab}
-            className={`dash-tab ${activeTab === tab ? 'dash-tab--active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {{ overview: '📊 Vue globale', products: '📋 Produits', timeline: '📈 Tendances' }[tab]}
+        {TABS.map((tab) => (
+          <button key={tab.id}
+            className={`dash-tab${activeTab === tab.id ? ' dash-tab--active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}>
+            <span className="dash-tab-icon">{tab.icon}</span>
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: OVERVIEW                                                    */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* ══ TAB: OVERVIEW ══════════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
-        <>
-          {/* ── Charts row ─────────────────────────────────────────── */}
-          <div className="charts-row fu4">
+        <div className="charts-row fu4">
 
-            {/* Donut + distribution bars */}
-            <div className="chart-card chart-card--split">
-              <h3 className="chart-title">
-                <span className="chart-title-dot" style={{ background: 'var(--accent)' }} />
-                Distribution des risques
-              </h3>
-              <div className="chart-split-inner">
-                <ResponsiveContainer width="50%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={riskData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={3}
-                      labelLine={false}
-                    >
-                      {riskData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.color}
-                          stroke="rgba(0,0,0,0.3)"
-                          strokeWidth={2}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="chart-split-right">
-                  <RiskDistributionBars
-                    riskData={riskData}
-                    total={stats.totalFindings}
-                    onFilter={(name) => { setRiskFilter(name); setActiveTab('products'); }}
-                    activeFilter={riskFilter}
-                  />
-                </div>
+          {/* Donut + distribution */}
+          <div className="chart-card chart-card--split">
+            <h3 className="chart-title">
+              <span className="chart-title-dot" style={{ background: 'var(--accent)' }} />
+              Distribution des risques
+            </h3>
+            <div className="chart-split-inner">
+              <ResponsiveContainer width="50%" height={260}>
+                <PieChart>
+                  <Pie data={riskData} dataKey="value" nameKey="name"
+                    cx="50%" cy="50%" innerRadius={58} outerRadius={98}
+                    paddingAngle={3} labelLine={false}>
+                    {riskData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color}
+                        stroke="rgba(0,0,0,0.25)" strokeWidth={2} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="chart-split-right">
+                <RiskDistributionBars
+                  riskData={riskData}
+                  total={stats.totalFindings}
+                  onFilter={(name) => { setRiskFilter(name); setActiveTab('products'); }}
+                  activeFilter={riskFilter}
+                />
               </div>
             </div>
-
-            {/* Top products bar chart */}
-            <div className="chart-card">
-              <h3 className="chart-title">
-                <span className="chart-title-dot" style={{ background: 'var(--purple)' }} />
-                Top 8 produits — findings
-              </h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart
-                  data={productSummaries.slice(0, 8)}
-                  layout="vertical"
-                  margin={{ left: 10, right: 20, top: 8, bottom: 8 }}
-                >
-                  <XAxis type="number" tick={{ fill: 'var(--dimmed)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={110}
-                    tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 14) + '…' : v}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="critical" stackId="a" fill="var(--accent2)" name="Critique" barSize={14} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="high" stackId="a" fill="var(--orange)" name="High" barSize={14} />
-                  <Bar dataKey="medium" stackId="a" fill="var(--accent3)" name="Medium" barSize={14} />
-                  <Bar dataKey="low" stackId="a" fill="var(--green)" name="Low" barSize={14} radius={[0, 4, 4, 0]} />
-                  <Legend
-                    iconType="square"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: 11, color: 'var(--dimmed)' }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
           </div>
-        </>
+
+          {/* Top products bar chart */}
+          <div className="chart-card">
+            <h3 className="chart-title">
+              <span className="chart-title-dot" style={{ background: 'var(--purple)' }} />
+              Top 8 produits — findings
+            </h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={productSummaries.slice(0, 8)} layout="vertical"
+                margin={{ left: 10, right: 20, top: 8, bottom: 8 }}>
+                <XAxis type="number" tick={{ fill: 'var(--dimmed)', fontSize: 11 }}
+                  axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={110}
+                  tick={{ fill: 'var(--muted)', fontSize: 11 }}
+                  axisLine={false} tickLine={false}
+                  tickFormatter={(v: string) => v.length > 14 ? v.slice(0, 14) + '…' : v} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="critical" stackId="a" fill="var(--severity-critical)" name="Critique" barSize={14} />
+                <Bar dataKey="high"     stackId="a" fill="var(--severity-high)"     name="High"     barSize={14} />
+                <Bar dataKey="medium"   stackId="a" fill="var(--severity-medium)"   name="Medium"   barSize={14} />
+                <Bar dataKey="low"      stackId="a" fill="var(--severity-low)"      name="Low"      barSize={14} radius={[0, 4, 4, 0]} />
+                <Legend iconType="square" iconSize={8}
+                  wrapperStyle={{ fontSize: 11, color: 'var(--dimmed)' }} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: PRODUCTS                                                    */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* ══ TAB: PRODUCTS ══════════════════════════════════════════════════ */}
       {activeTab === 'products' && (
         <div className="products-summary-table fu4">
-          {/* Filters bar */}
+
+          {/* Filters */}
           <div className="table-filters">
             <div className="search-wrap">
-              <span className="search-icon">⌕</span>
-              <input
-                className="search-input"
-                type="text"
+              <span className="search-icon"><IconSearch size={15} /></span>
+              <input className="search-input" type="text"
                 placeholder="Rechercher un produit…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+                value={search} onChange={(e) => setSearch(e.target.value)} />
               {search && (
-                <button className="search-clear" onClick={() => setSearch('')}>✕</button>
+                <button className="search-clear" onClick={() => setSearch('')}>
+                  <IconX size={12} />
+                </button>
               )}
             </div>
+
             <div className="risk-filter-btns">
               <button
-                className={`risk-btn ${riskFilter === null ? 'risk-btn--active' : ''}`}
-                onClick={() => setRiskFilter(null)}
-              >
+                className={`risk-btn${riskFilter === null ? ' risk-btn--active' : ''}`}
+                onClick={() => setRiskFilter(null)}>
                 Tous
               </button>
               {RISK_ORDER.map((level) => (
-                <button
-                  key={level}
-                  className={`risk-btn ${riskFilter === level ? 'risk-btn--active' : ''}`}
+                <button key={level}
+                  className={`risk-btn${riskFilter === level ? ' risk-btn--active' : ''}`}
                   style={{ '--btn-color': RISK_COLORS[level] } as React.CSSProperties}
-                  onClick={() => setRiskFilter(riskFilter === level ? null : level)}
-                >
+                  onClick={() => setRiskFilter(riskFilter === level ? null : level)}>
                   {level}
                 </button>
               ))}
             </div>
+
             <span className="table-count">
               {filteredProducts.length} produit{filteredProducts.length !== 1 ? 's' : ''}
             </span>
@@ -476,20 +580,19 @@ export default function DashboardPage() {
                 <tr>
                   <th>Produit</th>
                   {[
-                    { key: 'totalFindings', label: 'Total' },
-                    { key: 'critical', label: 'Critique' },
-                    { key: 'high', label: 'High' },
-                    { key: 'medium', label: 'Medium' },
-                    { key: 'low', label: 'Low' },
-                    { key: 'avgRiskScore', label: 'Score CVSS' },
-                    { key: 'priorityScore', label: 'Priorité' },
+                    { key: 'totalFindings', label: 'Total'      },
+                    { key: 'critical',      label: 'Critique'   },
+                    { key: 'high',          label: 'High'       },
+                    { key: 'medium',        label: 'Medium'     },
+                    { key: 'low',           label: 'Low'        },
+                    { key: 'avgRiskScore',  label: 'Score CVSS' },
+                    { key: 'priorityScore', label: 'Priorité'   },
                   ].map(({ key, label }) => (
-                    <th
-                      key={key}
-                      className="th-sortable"
-                      onClick={() => handleSort(key)}
-                    >
-                      {label} <SortIcon k={key} />
+                    <th key={key} className="th-sortable" onClick={() => handleSort(key)}>
+                      <span className="th-inner">
+                        {label}
+                        <SortIcon k={key} />
+                      </span>
                     </th>
                   ))}
                   <th>Actions</th>
@@ -503,132 +606,48 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 )}
-                {withPriority.map((product) => {
-                  const urgentPct = ((product.critical + product.high) / Math.max(product.totalFindings, 1)) * 100;
-                  return (
-                    <tr
-                      key={product.id}
-                      className={`table-row ${product.critical > 0 ? 'row--critical' : product.high > 5 ? 'row--high' : ''}`}
-                    >
-                      <td className="td-product">
-                        <div className="product-name-cell">
-                          <div
-                            className="product-severity-dot"
-                            style={{
-                              background: product.critical > 0 ? 'var(--accent2)'
-                                : product.high > 0 ? 'var(--orange)'
-                                  : 'var(--green)',
-                            }}
-                          />
-                          <span>{product.name}</span>
-                        </div>
-                      </td>
-                      <td><strong>{product.totalFindings}</strong></td>
-                      <td>
-                        {product.critical > 0
-                          ? <span className="badge badge--critical">{product.critical}</span>
-                          : <span className="badge-zero">—</span>
-                        }
-                      </td>
-                      <td>
-                        {product.high > 0
-                          ? <span className="badge badge--high">{product.high}</span>
-                          : <span className="badge-zero">—</span>
-                        }
-                      </td>
-                      <td style={{ color: 'var(--accent3)' }}>{product.medium || '—'}</td>
-                      <td style={{ color: 'var(--green)' }}>{product.low || '—'}</td>
-                      <td>
-                        <ScoreBar score={product.avgRiskScore} />
-                      </td>
-                      <td>
-                        <PriorityBar score={product.priorityScore} max={maxPriority} />
-                      </td>
-                      <td>
-                        <Link
-                          to={`/engagements?productId=${product.id}`}
-                          className="table-link"
-                        >
-                          Voir →
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {withPriority.map((product) => (
+                  <tr key={product.id}
+                    className={`table-row${product.critical > 0 ? ' row--critical' : product.high > 5 ? ' row--high' : ''}`}>
+                    <td className="td-product">
+                      <div className="product-name-cell">
+                        <div className="product-severity-dot" style={{
+                          background: product.critical > 0 ? 'var(--severity-critical)'
+                            : product.high > 0 ? 'var(--severity-high)'
+                            : 'var(--severity-low)',
+                        }} />
+                        <span>{product.name}</span>
+                      </div>
+                    </td>
+                    <td><strong>{product.totalFindings}</strong></td>
+                    <td>
+                      {product.critical > 0
+                        ? <span className="badge badge--critical">{product.critical}</span>
+                        : <span className="badge-zero">—</span>}
+                    </td>
+                    <td>
+                      {product.high > 0
+                        ? <span className="badge badge--high">{product.high}</span>
+                        : <span className="badge-zero">—</span>}
+                    </td>
+                    <td style={{ color: 'var(--severity-medium)' }}>{product.medium || '—'}</td>
+                    <td style={{ color: 'var(--severity-low)'    }}>{product.low    || '—'}</td>
+                    <td><ScoreBar score={product.avgRiskScore} /></td>
+                    <td><PriorityBar score={product.priorityScore} max={maxPriority} /></td>
+                    <td>
+                      <Link to={`/engagements?productId=${product.id}`} className="table-link">
+                        Voir <IconArrowRight size={11} />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TAB: TIMELINE                                                    */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {activeTab === 'timeline' && (
-        <div className="chart-card fu4" style={{ marginTop: '1.5rem' }}>
-          <h3 className="chart-title">
-            <span className="chart-title-dot" style={{ background: 'var(--accent)' }} />
-            Évolution temporelle des findings
-          </h3>
-          <p className="chart-subtitle">
-            Tendance des nouveaux findings critiques et high par période.
-          </p>
-          {/* Placeholder: replace with real time series data from your API */}
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart
-              data={[
-                { name: 'Jan', critical: 8, high: 14 },
-                { name: 'Fév', critical: 12, high: 18 },
-                { name: 'Mar', critical: 6, high: 22 },
-                { name: 'Avr', critical: 15, high: 9 },
-                { name: 'Mai', critical: 10, high: 25 },
-                { name: 'Jun', critical: 7, high: 13 },
-              ]}
-              margin={{ left: 0, right: 16, top: 12, bottom: 8 }}
-            >
-              <CartesianGrid stroke="var(--border)" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: 'var(--dimmed)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: 'var(--dimmed)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                iconType="circle"
-                iconSize={8}
-                wrapperStyle={{ fontSize: 11, color: 'var(--dimmed)' }}
-              />
-              <Line
-                type="monotone"
-                dataKey="critical"
-                stroke="var(--accent2)"
-                strokeWidth={2.5}
-                dot={{ fill: 'var(--accent2)', r: 4, strokeWidth: 0 }}
-                activeDot={{ r: 6 }}
-                name="Critique"
-              />
-              <Line
-                type="monotone"
-                dataKey="high"
-                stroke="var(--orange)"
-                strokeWidth={2.5}
-                dot={{ fill: 'var(--orange)', r: 4, strokeWidth: 0 }}
-                activeDot={{ r: 6 }}
-                name="High"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          <p className="chart-note">
-            ⚠ Données de démo — connectez votre endpoint de séries temporelles pour les données réelles.
-          </p>
-        </div>
-      )}
+      
 
     </div>
   );
