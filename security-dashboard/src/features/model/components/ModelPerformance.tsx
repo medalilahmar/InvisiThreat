@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  BarChart, Bar, ComposedChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import type { ModelMetrics as IModelMetrics } from '../../../types/model';
@@ -58,6 +58,9 @@ const TOOLTIP_STYLE = {
   borderRadius: 'var(--radius-md)',
   color:        'var(--text)',
 };
+// à ajouter près de TOOLTIP_STYLE
+const TOOLTIP_ITEM_STYLE  = { color: 'var(--text)' };
+const TOOLTIP_LABEL_STYLE = { color: 'var(--text-strong)', fontWeight: 600, marginBottom: 4 };
 
 const GRID_STROKE   = 'var(--border)';
 const TICK_STYLE    = { fill: 'var(--dimmed)', fontSize: 11 };
@@ -134,13 +137,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
         description: 'Moyenne non-pondérée (équité entre classes)',
         iconPath:    ICON_PATHS.f1_macro,
       },
-      {
-        label:       'Stabilité CV',
-        value:       1 - cv_f1_weighted_std,
-        status:      cv_f1_weighted_std <= 0.02 ? 'excellent' : cv_f1_weighted_std <= 0.05 ? 'good' : 'fair',
-        description: `Écart-type CV : ±${(cv_f1_weighted_std * 100).toFixed(2)}%`,
-        iconPath:    ICON_PATHS.stability,
-      },
+      
     ];
   }, [metrics]);
 
@@ -232,7 +229,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
             <XAxis dataKey="name" tick={TICK_STYLE} />
             <YAxis domain={[0, 100]} tick={TICK_STYLE} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(0,212,255,0.06)' }} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} cursor={{ fill: 'rgba(0,212,255,0.06)' }} />
             <Bar dataKey="F1-Score" fill={CHART_COLORS.accent} radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -253,7 +250,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
             <XAxis dataKey="class" tick={TICK_STYLE} />
             <YAxis domain={[0, 1]} tick={TICK_STYLE} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} />
             <Legend />
             <Bar  dataKey="precision" fill={CHART_COLORS.accent} radius={[4,4,0,0]} name="Précision" />
             <Bar  dataKey="recall"    fill={CHART_COLORS.purple} radius={[4,4,0,0]} name="Rappel" />
@@ -277,7 +274,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
             <XAxis dataKey="metric" tick={TICK_STYLE} />
             <YAxis domain={[0, 100]} tick={TICK_STYLE} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} />
             <Legend />
             <Bar dataKey="CV (Mean)" fill={CHART_COLORS.purple} radius={[4,4,0,0]} />
             <Bar dataKey="Test Set"  fill={CHART_COLORS.accent} radius={[4,4,0,0]} />
@@ -289,105 +286,9 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
         </div>
       </div>
 
-      {/* ── Distribution classes ──────────────────────────────────────────── */}
-      <div className="chart-container">
-        <h3 className="chart-title">
-          <SectionIcon path={ICON_PATHS.pie} />
-          Importance des Résultats par Classe
-        </h3>
-        <div className="pie-layout">
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={classDistribution}
-                cx="50%" cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name} : ${value}%`}
-                outerRadius={80}
-                dataKey="value"
-              >
-                {classDistribution.map((entry) => (
-                  <Cell
-                    key={entry.name}
-                    fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS] ?? CHART_COLORS.accent}
-                  />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="class-info">
-            <h4>Distribution du Modèle</h4>
-            {classDistribution.map((cls) => (
-              <div key={cls.name} className="class-info-item">
-                <span
-                  className="class-dot"
-                  style={{
-                    background: CLASS_COLORS[cls.name] ?? 'var(--severity-none)',
-                  }}
-                />
-                <span className="class-info-name">{cls.name}</span>
-                <span
-                  className="class-info-value"
-                  style={{ color: CLASS_COLORS[cls.name] ?? 'var(--muted)' }}
-                >
-                  {cls.value}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="chart-insight">
-          <strong>Insight :</strong> Distribution équilibrée des prédictions sur les classes.
-          Le modèle ne privilégie pas une classe en particulier.
-        </div>
-      </div>
+      
 
-      {/* ── Résumé ────────────────────────────────────────────────────────── */}
-      <div className="performance-summary">
-        <h3 className="chart-title">
-          <SectionIcon path={ICON_PATHS.summary} />
-          Résumé de Performance
-        </h3>
-        <div className="summary-grid">
-          <div className="summary-item">
-            <div className="summary-label">Métrique Principale</div>
-            <div className="summary-value">
-              F1-Weighted : <strong>{(test_f1_weighted * 100).toFixed(2)}%</strong>
-            </div>
-            <div className="summary-detail">
-              Mesure globale d'équilibre précision-rappel sur toutes les classes
-            </div>
-          </div>
-          <div className="summary-item">
-            <div className="summary-label">Stabilité</div>
-            <div className="summary-value">
-              ±{(cv_f1_weighted_std * 100).toFixed(2)}%
-            </div>
-            <div className="summary-detail">
-              Écart-type sur 5-fold CV — très stable si &lt; 2%
-            </div>
-          </div>
-          <div className="summary-item">
-            <div className="summary-label">Discrimination</div>
-            <div className="summary-value">
-              ROC-AUC : <strong>{(test_roc_auc_ovr * 100).toFixed(2)}%</strong>
-            </div>
-            <div className="summary-detail">
-              Capacité à distinguer les classes — excellent si &gt; 0.95
-            </div>
-          </div>
-          <div className="summary-item">
-            <div className="summary-label">Équité</div>
-            <div className="summary-value">
-              F1-Macro : <strong>{(test_f1_macro * 100).toFixed(2)}%</strong>
-            </div>
-            <div className="summary-detail">
-              Performance moyenne sans pondération — traite toutes les classes équitablement
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       {/* ── Diagnostics ───────────────────────────────────────────────────── */}
       <div className="diagnostic-checks">
@@ -412,11 +313,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
               label: 'Pas d\'Overfitting (|CV - Test| < 5%)',
               value: `${cvTestGap}%`,
             },
-            {
-              pass:  stableCV,
-              label: 'Stabilité CV acceptable (std < 3%)',
-              value: `±${(cv_f1_weighted_std * 100).toFixed(2)}%`,
-            },
+            
             { pass: true, label: 'Data Leakage Detection',      value: 'ZERO'   },
             { pass: true, label: 'Stratified K-Fold Validation', value: '5-fold' },
           ].map((check) => (
@@ -432,68 +329,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
         </div>
       </div>
 
-      {/* ── Recommandations ───────────────────────────────────────────────── */}
-      <div className="recommendations">
-        <h3 className="chart-title">
-          <SectionIcon path={ICON_PATHS.reco} />
-          Recommandations
-        </h3>
-        <div className="recommendations-list">
-          {test_f1_weighted >= 0.85 && (
-            <div className="recommendation recommendation--excellent">
-              <div className="rec-icon rec-icon--excellent">
-                <SectionIcon path={ICON_PATHS.stability} />
-              </div>
-              <div>
-                <strong>Performance Excellente</strong>
-                <p>Le modèle atteint une performance excellente avec F1 &gt; 0.85. Déploiement recommandé en production.</p>
-              </div>
-            </div>
-          )}
-          {cv_f1_weighted_std < 0.02 && (
-            <div className="recommendation recommendation--excellent">
-              <div className="rec-icon rec-icon--excellent">
-                <SectionIcon path={ICON_PATHS.diagnostic} />
-              </div>
-              <div>
-                <strong>Très Stable</strong>
-                <p>Écart-type CV &lt; 2% indique une très grande stabilité et reproductibilité.</p>
-              </div>
-            </div>
-          )}
-          {!noOverfit && (
-            <div className="recommendation recommendation--warning">
-              <div className="rec-icon rec-icon--warning">
-                <SectionIcon path={ICON_PATHS.roc_auc} />
-              </div>
-              <div>
-                <strong>Écart CV-Test Détecté</strong>
-                <p>Différence &gt; 5% entre CV et Test. Considérez plus de données ou validation croisée.</p>
-              </div>
-            </div>
-          )}
-          {test_f1_macro < 0.70 && (
-            <div className="recommendation recommendation--warning">
-              <div className="rec-icon rec-icon--warning">
-                <SectionIcon path={ICON_PATHS.f1_macro} />
-              </div>
-              <div>
-                <strong>Classes Déséquilibrées</strong>
-                <p>F1-Macro &lt; 0.70 suggère des classes peu équitables. Considérez SMOTE ou poids de classe.</p>
-              </div>
-            </div>
-          )}
-          <div className="recommendation recommendation--neutral">
-            <div className="rec-icon rec-icon--neutral">
-              <SectionIcon path={ICON_PATHS.chart} />
-            </div>
-            <div>
-              <strong>Monitoring Continu</strong>
-              <p>Configurez une surveillance en production pour détecter la dérive du modèle (data drift).</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      
     </section>
   );
 }

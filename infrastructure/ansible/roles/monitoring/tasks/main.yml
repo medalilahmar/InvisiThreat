@@ -23,6 +23,12 @@
   become: false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Redémarrer postgres-exporter pour charger le secret
+  command: kubectl rollout restart deployment/postgres-exporter -n monitoring
+  become: false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
     
 
 - name: Appliquer la ConfigMap Prometheus

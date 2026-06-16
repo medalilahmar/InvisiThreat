@@ -3,8 +3,7 @@ import { ModelMetrics }      from '../components/ModelMetrics';
 import { ModelArchitecture } from '../components/ModelArchitecture';
 import { ModelPerformance }  from '../components/ModelPerformance';
 import { FeatureExplorer }   from '../components/FeatureExplorer';
-import { ModelTerminal }     from '../components/ModelTerminal';
-import { ModelActions }      from '../components/ModelActions';
+
 import '../styles/ModelStats.css';
 
 export function ModelStatsPage() {
@@ -83,11 +82,7 @@ export function ModelStatsPage() {
         <ModelPerformance  metrics={modelInfo} />
         <ModelArchitecture metrics={modelInfo} health={health} />
         <FeatureExplorer   metrics={modelInfo} />
-        <ModelTerminal />
-        <ModelActions
-          onReload={reloadModel}
-          isReloading={reloading}
-        />
+        
       </main>
     </div>
   );

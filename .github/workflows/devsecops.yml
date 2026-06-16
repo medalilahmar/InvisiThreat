@@ -31,6 +31,7 @@ on:
           - "campusConnect"
           - "secureVault-API"
           - "shopLite"
+          - "smartStore"
 
           
 

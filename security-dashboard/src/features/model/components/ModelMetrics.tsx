@@ -4,19 +4,19 @@ interface ModelMetricsProps {
   metrics: IModelMetrics | null;
 }
 
-const CLASS_COLORS: string[] = [
-  'var(--severity-none)',
-  'var(--severity-low)',
-  'var(--severity-medium)',
-  'var(--severity-high)',
-  'var(--severity-critical)',
-];
+const CLASS_COLORS: Record<string, string> = {
+  Low:      'var(--severity-low)',
+  Medium:   'var(--severity-medium)',
+  High:     'var(--severity-high)',
+  Critical: 'var(--severity-critical)',
+};
+
+
 
 const performanceIconPath = {
   f1_weighted: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
   f1_macro:    'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
   roc_auc:     'M22 12h-4l-3 9L9 3l-3 9H2',
-  cv_f1:       'M20 6L9 17l-5-5',
 };
 
 export function ModelMetrics({ metrics }: ModelMetricsProps) {
@@ -44,13 +44,6 @@ export function ModelMetrics({ metrics }: ModelMetricsProps) {
       color:   'var(--severity-high)',
       iconKey: 'roc_auc' as const,
     },
-    {
-      label:   'CV F1 (Mean)',
-      value:   metrics.metrics.cv_f1_weighted_mean,
-      max:     1,
-      color:   'var(--severity-low)',
-      iconKey: 'cv_f1' as const,
-    },
   ];
 
   return (
@@ -69,14 +62,9 @@ export function ModelMetrics({ metrics }: ModelMetricsProps) {
             <div className="metric-header">
               <div className="metric-icon-wrap" style={{ color: metric.color }}>
                 <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  width="15" height="15" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
                 >
                   <path d={performanceIconPath[metric.iconKey]} />
                 </svg>
@@ -97,14 +85,6 @@ export function ModelMetrics({ metrics }: ModelMetricsProps) {
                 }}
               />
             </div>
-
-            <div className="metric-detail">
-              {metric.label === 'CV F1 (Mean)' && (
-                <span className="metric-info">
-                  ±{(metrics.metrics.cv_f1_weighted_std * 100).toFixed(2)}%
-                </span>
-              )}
-            </div>
           </div>
         ))}
       </div>
@@ -112,8 +92,9 @@ export function ModelMetrics({ metrics }: ModelMetricsProps) {
       <div className="f1-per-class">
         <h3>F1-Score par Classe de Risque</h3>
         <div className="class-scores">
-          {Object.entries(metrics.metrics.f1_per_class).map(([className, score], idx) => {
-            const color = CLASS_COLORS[idx] ?? 'var(--severity-none)';
+          {Object.entries(metrics.metrics.f1_per_class).map(([className, score]) => {
+            // ✅ Récupération de la couleur via le nom de la classe (plus d’index)
+            const color = CLASS_COLORS[className] ?? 'var(--severity-medium)';
             return (
               <div key={className} className="class-score">
                 <div className="class-header">
@@ -128,7 +109,11 @@ export function ModelMetrics({ metrics }: ModelMetricsProps) {
                 <div className="score-bar">
                   <div
                     className="score-fill"
-                    style={{ width: `${score * 100}%`, background: color }}
+                    style={{
+                      width: `${score * 100}%`,
+                      // ✅ On passe la couleur via une variable CSS personnalisée
+                      '--fill-color': color,
+                    } as React.CSSProperties}
                   />
                 </div>
                 <span className="score-value" style={{ color }}>
@@ -139,6 +124,8 @@ export function ModelMetrics({ metrics }: ModelMetricsProps) {
           })}
         </div>
       </div>
+
+      
     </section>
   );
 }

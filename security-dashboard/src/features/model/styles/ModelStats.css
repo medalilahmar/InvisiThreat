@@ -1567,3 +1567,9 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border3); border-radius: var(--radius-pill); }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-border); }
+
+
+
+.class-score .score-fill {
+  background-color: var(--fill-color) !important;
+}
