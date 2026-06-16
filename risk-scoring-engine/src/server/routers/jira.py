@@ -1,15 +1,7 @@
-"""
-routers/jira.py — Endpoints Jira : create-jira-issue, get-jira-issue, health.
-
-FIX : local_data_loader et model_manager ne sont PLUS importés comme valeurs
-      figées au chargement du module. On utilise :
-        - Depends(require_local_loader) → injecte le loader vivant à chaque requête
-        - get_model_manager()           → lit l'instance courante du module dependencies
-"""
 import logging
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 
 from jira_service import jira_service
 from server.cache import get_scores_cache
@@ -31,17 +23,59 @@ router = APIRouter(tags=["Jira"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Background task — enrichissement LLM après réponse HTTP
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def _enrich_jira_with_llm(
+    finding_id: int,
+    finding: dict,
+    ai_result: dict,
+    jira_key: str,
+) -> None:
+    """
+    Appelé en background après la réponse HTTP.
+    Génère l'explication et la recommandation LLM puis met à jour le ticket Jira.
+    En cas d'échec, log un warning sans faire planter quoi que ce soit.
+    """
+    logger.info(f"[background] Démarrage enrichissement LLM pour {jira_key} (finding {finding_id})")
+    try:
+        llm_req = LLMRequest(
+            finding_id  = finding_id,
+            title       = finding.get("title", ""),
+            severity    = ai_result.get("risk_level", "medium"),
+            cvss_score  = finding.get("cvss_score", 0.0),
+            description = finding.get("description", ""),
+            cve         = finding.get("cve", ""),
+            tags        = finding.get("tags", []),
+            risk_level  = ai_result.get("risk_level"),
+        )
+        explanation    = await explain_with_llm(llm_req)
+        recommendation = await recommend_with_llm(llm_req)
+
+        jira_service.update_issue_with_llm(
+            jira_key           = jira_key,
+            llm_explanation    = explanation.dict() if explanation else None,
+            llm_recommendation = recommendation.dict() if recommendation else None,
+        )
+        logger.info(f"[background] ✓ Jira {jira_key} enrichi avec LLM")
+
+    except Exception as e:
+        logger.warning(f"[background] Enrichissement LLM échoué pour {jira_key} : {e}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Endpoints
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.post(
     "/defectdojo/findings/{finding_id}/create-jira-issue",
     response_model=JiraIssueResponse,
-    summary="Crée une issue Jira pour un finding avec score IA + LLM",
+    summary="Crée une issue Jira pour un finding avec score IA + LLM (LLM en background)",
 )
 async def create_jira_issue_for_finding(
     finding_id: int,
-    loader: LocalDataLoader = Depends(require_local_loader),   # ← injecté, jamais None
+    background_tasks: BackgroundTasks,
+    loader: LocalDataLoader = Depends(require_local_loader),
 ) -> JiraIssueResponse:
 
     # Vérification doublon Jira
@@ -115,41 +149,33 @@ async def create_jira_issue_for_finding(
             "probabilities": {},
         }
 
-    # LLM (optionnel)
-    explanation = recommendation = None
-    if _LLM_AVAILABLE:
-        try:
-            llm_req = LLMRequest(
-                finding_id  = finding_id,
-                title       = finding.get("title", ""),
-                severity    = ai_result.get("risk_level", "medium"),
-                cvss_score  = finding.get("cvss_score", 0.0),
-                description = finding.get("description", ""),
-                cve         = finding.get("cve", ""),
-                tags        = finding.get("tags", []),
-                risk_level  = ai_result.get("risk_level"),
-            )
-            explanation    = await explain_with_llm(llm_req)
-            recommendation = await recommend_with_llm(llm_req)
-        except Exception as e:
-            logger.warning(f"LLM indisponible pour finding {finding_id} : {e}")
-
-    # Création Jira
+    # Création Jira immédiate — sans attendre le LLM
     try:
         result = jira_service.create_security_issue(
             finding            = finding,
             ai_prediction      = ai_result,
-            llm_explanation    = explanation.dict() if explanation else None,
-            llm_recommendation = recommendation.dict() if recommendation else None,
+            llm_explanation    = None,
+            llm_recommendation = None,
         )
     except Exception as e:
         logger.error(f"Erreur création issue Jira : {e}")
         raise HTTPException(502, detail=f"Erreur Jira : {str(e)}")
 
+    # LLM en background — n'affecte pas la réponse HTTP
+    if _LLM_AVAILABLE and not result.get("already_exists"):
+        background_tasks.add_task(
+            _enrich_jira_with_llm,
+            finding_id = finding_id,
+            finding    = finding,
+            ai_result  = ai_result,
+            jira_key   = result["jira_key"],
+        )
+        logger.info(f"[background] Tâche LLM enregistrée pour {result['jira_key']}")
+
     message = (
         "Issue déjà existante"
         if result.get("already_exists")
-        else f"Issue créée avec succès : {result['jira_key']}"
+        else f"Issue créée avec succès : {result['jira_key']} (enrichissement LLM en cours…)"
     )
     return JiraIssueResponse(
         key            = result["jira_key"],
@@ -164,7 +190,7 @@ async def create_jira_issue_for_finding(
 @router.get("/defectdojo/findings/{finding_id}/jira-issue")
 async def get_jira_issue_for_finding(
     finding_id: int,
-    loader: LocalDataLoader = Depends(require_local_loader),  # ← idem
+    loader: LocalDataLoader = Depends(require_local_loader),
 ):
     if finding_id not in loader.findings_by_id:
         raise HTTPException(404, detail=f"Finding {finding_id} introuvable")
