@@ -124,36 +124,7 @@ export function ModelArchitecture({ metrics, health }: ModelArchitectureProps) {
 
       </div>
 
-      {/* Pipeline Steps */}
-      <div className="pipeline-steps">
-        <h3>Pipeline d'Inférence</h3>
-        <div className="steps-container">
-          {[
-            { n: 1, title: 'SimpleImputer',          desc: 'Stratégie : median' },
-            { n: 2, title: 'StandardScaler',          desc: 'Normalisation (μ=0, σ=1)' },
-            { n: 3, title: 'RandomForestClassifier',  desc: 'Ensemble de décision' },
-            { n: 4, title: 'CalibratedClassifier',    desc: 'Platt Scaling (probas)' },
-          ].map((step, i, arr) => (
-            <div key={step.n} className="step-group">
-              <div className="step">
-                <div className="step-number">{step.n}</div>
-                <div className="step-content">
-                  <h4>{step.title}</h4>
-                  <p>{step.desc}</p>
-                </div>
-              </div>
-              {i < arr.length - 1 && (
-                <div className="step-arrow">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      
 
       {/* Explanation */}
       <div className="arch-explanation">

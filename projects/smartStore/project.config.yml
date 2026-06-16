@@ -1,7 +1,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
 #  project.config.yml — smart store
 # ══════════════════════════════════════════════════════════════════════════════
-# Ce fichier de configuration est utilisé par le pipeline DevSecOps pour définir les paramètres du projet et les règles de sécurité.
 
 project:
   name: "smart store"

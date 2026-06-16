@@ -263,33 +263,7 @@ export function ModelPerformance({ metrics }: ModelPerformanceProps) {
         </div>
       </div>
 
-      {/* ── CV vs Test ────────────────────────────────────────────────────── */}
-      <div className="chart-container">
-        <h3 className="chart-title">
-          <SectionIcon path={ICON_PATHS.compare} />
-          Comparaison : Validation Croisée vs Test Set
-        </h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={comparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
-            <XAxis dataKey="metric" tick={TICK_STYLE} />
-            <YAxis domain={[0, 100]} tick={TICK_STYLE} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} />
-            <Legend />
-            <Bar dataKey="CV (Mean)" fill={CHART_COLORS.purple} radius={[4,4,0,0]} />
-            <Bar dataKey="Test Set"  fill={CHART_COLORS.accent} radius={[4,4,0,0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="chart-insight">
-          <strong>Insight :</strong> Les performances CV et Test sont très proches, indiquant
-          <strong> aucun overfitting</strong> détecté. Stabilité générale du modèle.
-        </div>
-      </div>
-
-      
-
-      
-
+    
       {/* ── Diagnostics ───────────────────────────────────────────────────── */}
       <div className="diagnostic-checks">
         <h3 className="chart-title">
